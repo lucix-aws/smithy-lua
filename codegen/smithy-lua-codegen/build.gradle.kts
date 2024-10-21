@@ -16,8 +16,8 @@
 val smithyVersion: String by project
 
 description = "Generates Go code from Smithy models"
-extra["displayName"] = "Smithy :: Go :: Codegen"
-extra["moduleName"] = "software.amazon.smithy.go.codegen"
+extra["displayName"] = "Smithy :: Lua :: Codegen"
+extra["moduleName"] = "software.amazon.smithy.lua.codegen"
 
 dependencies {
     api("software.amazon.smithy:smithy-aws-traits:$smithyVersion")

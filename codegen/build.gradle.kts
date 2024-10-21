@@ -1,5 +1,6 @@
 plugins {
     `java-library`
+    `maven-publish`
 }
 
 allprojects {
@@ -19,7 +20,7 @@ subprojects {
      * Java
      * ====================================================
      */
-    if (subproject.name != "smithy-go-codegen-test") {
+    if (subproject.name != "smithy-lua-codegen-test") {
         apply(plugin = "java-library")
 
         java {
@@ -45,9 +46,24 @@ subprojects {
             testImplementation("org.hamcrest:hamcrest:2.1")
         }
 
+        tasks.register<Jar>("sourcesJar") {
+            from(sourceSets.main.get().allJava)
+            archiveClassifier.set("sources")
+        }
+
+        apply(plugin = "maven-publish")
+
         repositories {
             mavenLocal()
             mavenCentral()
+        }
+
+        publishing {
+            publications {
+                create<MavenPublication>("mavenJava") {
+                    from(components["java"])
+                }
+            }
         }
     }
 }

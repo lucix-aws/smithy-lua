@@ -8,4 +8,8 @@ public final class LuaSettings {
     public ShapeId getService() {
         return ShapeId.from("");
     }
+
+    public String getNamespace() {
+        return "";
+    }
 }

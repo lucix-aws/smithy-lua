@@ -11,6 +11,7 @@ import software.amazon.smithy.codegen.core.directed.GenerateIntEnumDirective;
 import software.amazon.smithy.codegen.core.directed.GenerateServiceDirective;
 import software.amazon.smithy.codegen.core.directed.GenerateStructureDirective;
 import software.amazon.smithy.codegen.core.directed.GenerateUnionDirective;
+import software.amazon.smithy.lua.codegen.client.ServiceClient;
 
 
 public final class ClientDirectedCodegen implements DirectedCodegen<LuaCodegenContext, LuaSettings, LuaIntegration> {
@@ -34,6 +35,9 @@ public final class ClientDirectedCodegen implements DirectedCodegen<LuaCodegenCo
 
     @Override
     public void generateService(GenerateServiceDirective<LuaCodegenContext, LuaSettings> directive) {
+        var ctx = directive.context();
+        ctx.writerDelegator().useFileWriter("client.lua", ctx.settings().getNamespace(),
+                new ServiceClient(ctx));
     }
 
     @Override
