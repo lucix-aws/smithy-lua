@@ -7,6 +7,7 @@ import software.amazon.smithy.model.shapes.OperationShape;
 
 import java.util.function.Consumer;
 
+// FIXME: assumes awsJson1_0
 public class ServiceClient implements Consumer<LuaWriter> {
     public final LuaCodegenContext ctx;
 
@@ -31,19 +32,38 @@ public class ServiceClient implements Consumer<LuaWriter> {
     }
 
     private void renderNew(LuaWriter writer) {
-        writer.write("function Client:New(config)");
-        writer.write("end");
+        writer.write("""
+                function Client:New(config)
+                    local t = {
+                        _config = config,
+                    }
+                    setmetatable(t, self)
+                    self.__index = self
+                    return t
+                end
+                """);
     }
 
     private void renderOperation(LuaWriter writer, OperationShape operation) {
-        writer.write("function Client:$L(input)", operation.getId().getName());
-        writer.write("end");
-        writer.write("");
+        var name = operation.getId().getName();
+        var target = ctx.settings().getService().getName() + "." + name;
+        writer.write("""
+                function Client:$L(input)
+                    return do(self, input, $S)
+                end
+                """, name, target);
     }
 
     private void renderDo(LuaWriter writer) {
         writer.write("""
-                local function do(client, input)
+                local function do(client, input, target)
+                    local req = http.Request:New()
+                    req.URL = client._config.Endpoint
+                    req.Header:Set("Content-Type", "application/x-amz-json-1.0")
+                    req.Header:Set("X-Amz-Target", target)
+
+                    local resp = client._config.HTTPClient.Do(req)
+                    return resp.Body
                 end
                 """);
     }

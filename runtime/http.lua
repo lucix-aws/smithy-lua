@@ -23,9 +23,23 @@ module.Request = {}
 
 function module.Request:New()
     local t = {
-        Method = '',
+        URL    = nil,
+        Method = nil,
         Header = module.Header:New(),
         Body   = nil,
+    }
+    setmetatable(t, self)
+    self.__index = self
+    return t
+end
+
+module.Response = {}
+
+function module.Response:New()
+    local t = {
+        StatusCode = nil,
+        Header     = module.Header:New(),
+        Body       = nil,
     }
     setmetatable(t, self)
     self.__index = self
