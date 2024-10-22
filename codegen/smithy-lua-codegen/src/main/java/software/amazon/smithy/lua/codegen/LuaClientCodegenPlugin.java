@@ -22,8 +22,8 @@ public final class LuaClientCodegenPlugin implements SmithyBuildPlugin {
 
         runner.fileManifest(context.getFileManifest());
 
-        LuaSettings settings = runner.settings(LuaSettings.class,
-                context.getSettings());
+        var settings = LuaSettings.from(context.getSettings());
+        runner.settings(settings);
 
         runner.service(settings.getService());
 

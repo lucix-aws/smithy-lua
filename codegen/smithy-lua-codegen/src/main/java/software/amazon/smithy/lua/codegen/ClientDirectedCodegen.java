@@ -17,7 +17,7 @@ import software.amazon.smithy.lua.codegen.client.ServiceClient;
 public final class ClientDirectedCodegen implements DirectedCodegen<LuaCodegenContext, LuaSettings, LuaIntegration> {
     @Override
     public SymbolProvider createSymbolProvider(CreateSymbolProviderDirective<LuaSettings> createSymbolProviderDirective) {
-        return null;
+        return new LuaSymbolProvider();
     }
 
     @Override
@@ -41,22 +41,22 @@ public final class ClientDirectedCodegen implements DirectedCodegen<LuaCodegenCo
     }
 
     @Override
-    public void generateStructure(GenerateStructureDirective<LuaCodegenContext, LuaSettings> generateStructureDirective) {
+    public void generateStructure(GenerateStructureDirective<LuaCodegenContext, LuaSettings> directive) {
 
     }
 
     @Override
-    public void generateError(GenerateErrorDirective<LuaCodegenContext, LuaSettings> generateErrorDirective) {
+    public void generateError(GenerateErrorDirective<LuaCodegenContext, LuaSettings> directive) {
 
     }
 
     @Override
-    public void generateUnion(GenerateUnionDirective<LuaCodegenContext, LuaSettings> generateUnionDirective) {
+    public void generateUnion(GenerateUnionDirective<LuaCodegenContext, LuaSettings> directive) {
 
     }
 
     @Override
-    public void generateEnumShape(GenerateEnumDirective<LuaCodegenContext, LuaSettings> generateEnumDirective) {
+    public void generateEnumShape(GenerateEnumDirective<LuaCodegenContext, LuaSettings> directive) {
 
     }
 
