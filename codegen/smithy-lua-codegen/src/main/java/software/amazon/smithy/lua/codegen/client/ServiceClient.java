@@ -17,16 +17,20 @@ public class ServiceClient implements Consumer<LuaWriter> {
 
     @Override
     public void accept(LuaWriter writer) {
+        writer.write("local http = require('./runtime/http')");
+        writer.write("local json = require('./runtime/json')");
+        writer.write("local sigv4 = require('./runtime/sigv4')");
+
         writer.write("local Client = {}");
         writer.write("");
+
+        renderDo(writer);
 
         renderNew(writer);
 
         TopDownIndex.of(ctx.model()).getContainedOperations(ctx.settings().getService()).forEach(it -> {
             renderOperation(writer, it);
         });
-
-        renderDo(writer);
 
         writer.write("return Client");
     }
@@ -35,10 +39,15 @@ public class ServiceClient implements Consumer<LuaWriter> {
         writer.write("""
                 function Client:New(config)
                     local t = {
-                        _config = config,
+                        _config = {
+                            Region      = config.Region,
+                            Credentials = config.Credentials,
+                            HTTPClient  = config.HTTPClient,
+                        },
                     }
                     setmetatable(t, self)
                     self.__index = self
+                    
                     return t
                 end
                 """);
@@ -49,21 +58,33 @@ public class ServiceClient implements Consumer<LuaWriter> {
         var target = ctx.settings().getService().getName() + "." + name;
         writer.write("""
                 function Client:$L(input)
-                    return do(self, input, $S)
+                    return _do(self, input, $S)
                 end
                 """, name, target);
     }
 
     private void renderDo(LuaWriter writer) {
         writer.write("""
-                local function do(client, input, target)
+                local function _do(client, input, target)
                     local req = http.Request:New()
-                    req.URL = client._config.Endpoint
+
+                    local endpoint = 'https://sqs.'..client._config.Region..'.amazonaws.com'
+                    req.URL = endpoint
+                    req.Host = 'sqs.'..client._config.Region..'.amazonaws.com'
+
+                    req.Method = 'POST'
                     req.Header:Set("Content-Type", "application/x-amz-json-1.0")
                     req.Header:Set("X-Amz-Target", target)
+                    req.Body = json.encode(input)
 
-                    local resp = client._config.HTTPClient.Do(req)
-                    return resp.Body
+                    sigv4.Sign(req, client._config.Credentials, 'sqs', client._config.Region)
+
+                    local resp = client._config.HTTPClient:Do(req)
+                    if resp.StatusCode < 200 or resp.StatusCode >= 300 then
+                        return nil, 'error: http ' .. resp.StatusCode
+                    end
+
+                    return json.decode(resp.Body), nil
                 end
                 """);
     }

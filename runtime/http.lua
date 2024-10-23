@@ -24,6 +24,7 @@ module.Request = {}
 function module.Request:New()
     local t = {
         URL    = nil,
+        Host   = nil,
         Method = nil,
         Header = module.Header:New(),
         Body   = nil,

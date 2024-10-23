@@ -1,7 +1,7 @@
 local bit = require("bit")
 local buffer = require("string.buffer")
 
-local strings = require('./strings')
+local strings = require('./runtime/strings')
 
 local module = {}
 

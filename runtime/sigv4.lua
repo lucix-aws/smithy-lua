@@ -1,5 +1,5 @@
-local hash = require('./hash')
-local strings = require('./strings')
+local hash = require('./runtime/hash')
+local strings = require('./runtime/strings')
 
 local module = {}
 
