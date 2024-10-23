@@ -10,7 +10,7 @@
   },
   "plugins": {
     "lua-client-codegen": {
-      "service": "example.weather#Weather"
+      "service": "com.amazonaws.sqs#AmazonSQS"
     }
   }
 }

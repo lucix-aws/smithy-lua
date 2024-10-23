@@ -24,6 +24,7 @@ dependencies {
     api("software.amazon.smithy:smithy-codegen-core:$smithyVersion")
     api("software.amazon.smithy:smithy-protocol-traits:$smithyVersion")
     api("software.amazon.smithy:smithy-rules-engine:$smithyVersion")
+    api("software.amazon.smithy:smithy-aws-endpoints:$smithyVersion")
     implementation("software.amazon.smithy:smithy-protocol-test-traits:$smithyVersion")
     implementation("software.amazon.smithy:smithy-waiters:$smithyVersion")
 }

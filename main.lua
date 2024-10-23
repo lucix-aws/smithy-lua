@@ -51,14 +51,15 @@ local client = weather:New({
     Region   = 'us-east-1',
     HTTPClient = HTTPClient:new(),
     Credentials = sigv4.Credentials:New{
-        AKID = "AKID",
-        Secret = "SECRET",
-        Session = "SESSION",
+        AKID = os.getenv('AWS_ACCESS_KEY_ID'),
+        Secret = os.getenv('AWS_SECRET_ACCESS_KEY'), 
+        SessionToken = os.getenv('AWS_SESSION_TOKEN'),
     },
 })
 
-local out, err = client:ListCities({
-    foo = 'bar',
-    bar = 'baz',
-})
+print('akid:')
+print(client._config.Credentials.AKID)
+print('')
+
+local out, err = client:ListQueues({})
 print(out, err)

@@ -39,20 +39,96 @@ function Client:New(config)
     return t
 end
 
-function Client:GetCity(input)
-    return _do(self, input, "Weather.GetCity")
+function Client:AddPermission(input)
+    return _do(self, input, "AmazonSQS.AddPermission")
 end
 
-function Client:GetCurrentTime(input)
-    return _do(self, input, "Weather.GetCurrentTime")
+function Client:CancelMessageMoveTask(input)
+    return _do(self, input, "AmazonSQS.CancelMessageMoveTask")
 end
 
-function Client:GetForecast(input)
-    return _do(self, input, "Weather.GetForecast")
+function Client:ChangeMessageVisibility(input)
+    return _do(self, input, "AmazonSQS.ChangeMessageVisibility")
 end
 
-function Client:ListCities(input)
-    return _do(self, input, "Weather.ListCities")
+function Client:ChangeMessageVisibilityBatch(input)
+    return _do(self, input, "AmazonSQS.ChangeMessageVisibilityBatch")
+end
+
+function Client:CreateQueue(input)
+    return _do(self, input, "AmazonSQS.CreateQueue")
+end
+
+function Client:DeleteMessage(input)
+    return _do(self, input, "AmazonSQS.DeleteMessage")
+end
+
+function Client:DeleteMessageBatch(input)
+    return _do(self, input, "AmazonSQS.DeleteMessageBatch")
+end
+
+function Client:DeleteQueue(input)
+    return _do(self, input, "AmazonSQS.DeleteQueue")
+end
+
+function Client:GetQueueAttributes(input)
+    return _do(self, input, "AmazonSQS.GetQueueAttributes")
+end
+
+function Client:GetQueueUrl(input)
+    return _do(self, input, "AmazonSQS.GetQueueUrl")
+end
+
+function Client:ListDeadLetterSourceQueues(input)
+    return _do(self, input, "AmazonSQS.ListDeadLetterSourceQueues")
+end
+
+function Client:ListMessageMoveTasks(input)
+    return _do(self, input, "AmazonSQS.ListMessageMoveTasks")
+end
+
+function Client:ListQueues(input)
+    return _do(self, input, "AmazonSQS.ListQueues")
+end
+
+function Client:ListQueueTags(input)
+    return _do(self, input, "AmazonSQS.ListQueueTags")
+end
+
+function Client:PurgeQueue(input)
+    return _do(self, input, "AmazonSQS.PurgeQueue")
+end
+
+function Client:ReceiveMessage(input)
+    return _do(self, input, "AmazonSQS.ReceiveMessage")
+end
+
+function Client:RemovePermission(input)
+    return _do(self, input, "AmazonSQS.RemovePermission")
+end
+
+function Client:SendMessage(input)
+    return _do(self, input, "AmazonSQS.SendMessage")
+end
+
+function Client:SendMessageBatch(input)
+    return _do(self, input, "AmazonSQS.SendMessageBatch")
+end
+
+function Client:SetQueueAttributes(input)
+    return _do(self, input, "AmazonSQS.SetQueueAttributes")
+end
+
+function Client:StartMessageMoveTask(input)
+    return _do(self, input, "AmazonSQS.StartMessageMoveTask")
+end
+
+function Client:TagQueue(input)
+    return _do(self, input, "AmazonSQS.TagQueue")
+end
+
+function Client:UntagQueue(input)
+    return _do(self, input, "AmazonSQS.UntagQueue")
 end
 
 return Client
