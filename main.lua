@@ -15,8 +15,12 @@ end
 function HTTPClient:Do(req)
     local adapted = request.new_from_uri(req.URL)
     adapted.headers:upsert(':method', req.Method)
+    adapted.headers:upsert(':authority', req.Host)
     for header,value in pairs(req.Header._values) do -- FIXME shouldn't access private
-        adapted.headers:upsert(header, value)
+        -- host is a special case handled above
+        if header ~= 'Host' then
+            adapted.headers:upsert(header, value)
+        end
     end
     adapted:set_body(req.Body)
 
@@ -61,5 +65,17 @@ print('akid:')
 print(client._config.Credentials.AKID)
 print('')
 
-local out, err = client:ListQueues({})
-print(out, err)
+-- https://github.com/rxi/json.lua/issues/23
+--
+local out = client:CreateQueue({
+    QueueName = 'que',
+})
+
+out = client:ListQueues({
+    _ = false
+})
+
+print('queues:')
+for _,q in ipairs(out.QueueUrls) do
+    print(q)
+end

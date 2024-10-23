@@ -47,7 +47,7 @@ public class ServiceClient implements Consumer<LuaWriter> {
                     }
                     setmetatable(t, self)
                     self.__index = self
-                    
+
                     return t
                 end
                 """);
@@ -80,10 +80,6 @@ public class ServiceClient implements Consumer<LuaWriter> {
                     sigv4.Sign(req, client._config.Credentials, 'sqs', client._config.Region)
 
                     local resp = client._config.HTTPClient:Do(req)
-                    if resp.StatusCode < 200 or resp.StatusCode >= 300 then
-                        return nil, 'error: http ' .. resp.StatusCode
-                    end
-
                     return json.decode(resp.Body), nil
                 end
                 """);

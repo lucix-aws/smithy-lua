@@ -18,10 +18,6 @@ local function _do(client, input, target)
     sigv4.Sign(req, client._config.Credentials, 'sqs', client._config.Region)
 
     local resp = client._config.HTTPClient:Do(req)
-    if resp.StatusCode < 200 or resp.StatusCode >= 300 then
-        return nil, 'error: http ' .. resp.StatusCode
-    end
-
     return json.decode(resp.Body), nil
 end
 

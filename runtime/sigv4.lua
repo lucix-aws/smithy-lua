@@ -91,7 +91,7 @@ function module.Sign(req, creds, service, region)
     local now = os.time()
     local scope = credentialScope(now, region, service)
 
-    req.Header:Set("Host", req.URL)
+    req.Header:Set("Host", req.Host)
     req.Header:Set("X-Amz-Date", longTime(now))
     if creds.SessionToken ~= nil then
         req.Header:Set("X-Amz-Security-Token", creds.SessionToken)
@@ -100,7 +100,17 @@ function module.Sign(req, creds, service, region)
     local payloadHash = hash.SHA256(req.Body)
 
     local canonReq, signedHeader = buildCanonicalRequest(req, payloadHash)
+    print('CANONICAL REQUEST----------------------------')
+    print(canonReq)
+    print('---------------------------------------------')
+    print('')
+
     local toSign = buildStringToSign(canonReq, now, scope)
+    print('STRING TO SIGN-------------------------------')
+    print(toSign)
+    print('---------------------------------------------')
+    print('')
+
     local signature = signString(toSign, creds.Secret, service, region, now)
 
     local credential = creds.AKID .. '/' .. scope
