@@ -154,7 +154,7 @@ end
 
 -- https://en.wikipedia.org/wiki/HMAC
 -- hblocklen is in bytes
-function module.HMAC(hfunc, hblocklen, str, key)
+function module.HMAC(hfunc, hblocklen, key, str)
     local kprime
     if #key < hblocklen then
         kprime = key .. string.rep('\x00', hblocklen-#key)
@@ -170,8 +170,5 @@ function module.HMAC(hfunc, hblocklen, str, key)
     local inner = hfunc(strings.BXOR(kprime, ipad)..str)
     return hfunc(strings.BXOR(kprime, opad)..inner)
 end
-
-local hmac = module.HMAC(module.SHA256, 64, 'The quick brown fox jumps over the lazy dog', 'key')
-print(strings.StrToHex(hmac))
 
 return module

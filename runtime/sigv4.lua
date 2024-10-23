@@ -77,8 +77,14 @@ local function buildStringToSign(canonicalRequest, time, scope)
         strings.StrToHex(hash.SHA256(canonicalRequest))
 end
 
-local function signString(str)
-    return 'TODO'
+local function signString(str, secret, service, region, time)
+    local key = hash.HMAC(hash.SHA256, 64, 'AWS4'..secret, shortTime(time))
+    key = hash.HMAC(hash.SHA256, 64, key, region)
+    key = hash.HMAC(hash.SHA256, 64, key, service)
+    key = hash.HMAC(hash.SHA256, 64, key, 'aws4_request')
+
+    local signature = hash.HMAC(hash.SHA256, 64, key, str)
+    return strings.StrToHex(signature)
 end
 
 function module.Sign(req, creds, service, region)
@@ -88,14 +94,14 @@ function module.Sign(req, creds, service, region)
     req.Header:Set("Host", req.URL)
     req.Header:Set("X-Amz-Date", longTime(now))
     if creds.SessionToken ~= nil then
-        req.Header:Set("X-Amz-Session-Token", creds.SessionToken)
+        req.Header:Set("X-Amz-Security-Token", creds.SessionToken)
     end
 
     local payloadHash = hash.SHA256(req.Body)
 
     local canonReq, signedHeader = buildCanonicalRequest(req, payloadHash)
     local toSign = buildStringToSign(canonReq, now, scope)
-    local signature = signString(toSign)
+    local signature = signString(toSign, creds.Secret, service, region, now)
 
     local credential = creds.AKID .. '/' .. scope
     req.Header:Set('Authorization',
@@ -103,19 +109,20 @@ function module.Sign(req, creds, service, region)
 end
 
 --test
+--[[
 local http = require('./http')
 local req = http.Request:New()
 req.Method = 'POST'
-req.Header:Set('Host', 'AmazonS3.PutObject')
-req.Header:Set('X-Amz-Target', 'AmazonS3.PutObject')
-req.Header:Set('Content-Type', 'application/xml')
+req.URL = 'service.region.amazonaws.com'
 req.Body = '{}'
 local creds = module.Credentials:New {
     AKID = "AKID",
     Secret = "SECRET",
+    SessionToken = "SESSION",
 }
 
-module.Sign(req, creds, 's3', 'us-east-50')
+module.Sign(req, creds, 'dynamodb', 'us-east-1')
 print(req.Header:Get('Authorization'))
+]]--
 
 return module
