@@ -139,17 +139,39 @@ function module.SHA256(str)
 
         end
 
-            h0 = (h0 + a)
-            h1 = (h1 + b)
-            h2 = (h2 + c)
-            h3 = (h3 + d)
-            h4 = (h4 + e)
-            h5 = (h5 + f)
-            h6 = (h6 + g)
-            h7 = (h7 + h)
+        h0 = bit.band(h0 + a)
+        h1 = bit.band(h1 + b)
+        h2 = bit.band(h2 + c)
+        h3 = bit.band(h3 + d)
+        h4 = bit.band(h4 + e)
+        h5 = bit.band(h5 + f)
+        h6 = bit.band(h6 + g)
+        h7 = bit.band(h7 + h)
     end
 
     return itos(h0) .. itos(h1) .. itos(h2) .. itos(h3) .. itos(h4) .. itos(h5) .. itos(h6) .. itos(h7)
 end
+
+-- https://en.wikipedia.org/wiki/HMAC
+-- hblocklen is in bytes
+function module.HMAC(hfunc, hblocklen, str, key)
+    local kprime
+    if #key < hblocklen then
+        kprime = key .. string.rep('\x00', hblocklen-#key)
+    elseif #key > hblocklen then
+        kprime = hfunc(key)
+    else
+        kprime = key
+    end
+
+    local opad = string.rep('\x5c', hblocklen)
+    local ipad = string.rep('\x36', hblocklen)
+
+    local inner = hfunc(strings.BXOR(kprime, ipad)..str)
+    return hfunc(strings.BXOR(kprime, opad)..inner)
+end
+
+local hmac = module.HMAC(module.SHA256, 64, 'The quick brown fox jumps over the lazy dog', 'key')
+print(strings.StrToHex(hmac))
 
 return module
