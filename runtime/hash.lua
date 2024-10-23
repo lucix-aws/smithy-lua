@@ -1,6 +1,8 @@
 local bit = require("bit")
 local buffer = require("string.buffer")
 
+local strings = require('./strings')
+
 local module = {}
 
 local k = {
@@ -23,12 +25,14 @@ local k = {
 }
 
 -- integer to big-endian byte string
--- FIXME: blows up on i > 255
+-- FIXME: blows up on i > 0xffff
 local function itobig8(i)
     if i <= 0xff then
         return '\x00\x00\x00\x00\x00\x00\x00' .. string.char(i)
     elseif i <= 0xffff then
-        error('itobig8 2 byte')
+        return '\x00\x00\x00\x00\x00\x00' ..
+            string.char(bit.rshift(bit.band(i, 0xff00), 8)) ..
+            string.char(bit.rshift(bit.band(i, 0x00ff), 0))
     elseif i <= 0xffffff then
         error('itobig8 3 byte')
     elseif i <= 0xffffffff then
@@ -147,7 +151,5 @@ function module.SHA256(str)
 
     return itos(h0) .. itos(h1) .. itos(h2) .. itos(h3) .. itos(h4) .. itos(h5) .. itos(h6) .. itos(h7)
 end
-
-print(hex(module.SHA256('')))
 
 return module
