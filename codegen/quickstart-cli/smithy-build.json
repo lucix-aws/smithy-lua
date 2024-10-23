@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "sources": [
+    "models"
+  ],
+  "maven": {
+    "dependencies": [
+      "software.amazon.smithy.lua:smithy-lua-codegen:0.0.1"
+    ]
+  },
+  "plugins": {
+    "lua-client-codegen": {
+      "service": "com.amazonaws.sqs#AmazonSQS"
+    }
+  }
+}
