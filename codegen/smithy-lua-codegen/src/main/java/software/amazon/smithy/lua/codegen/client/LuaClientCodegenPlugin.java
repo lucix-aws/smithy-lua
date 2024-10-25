@@ -1,9 +1,15 @@
-package software.amazon.smithy.lua.codegen;
+package software.amazon.smithy.lua.codegen.client;
 
 import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildPlugin;
 import software.amazon.smithy.codegen.core.directed.CodegenDirector;
+import software.amazon.smithy.lua.codegen.LuaCodegenContext;
+import software.amazon.smithy.lua.codegen.LuaIntegration;
+import software.amazon.smithy.lua.codegen.LuaSettings;
+import software.amazon.smithy.lua.codegen.LuaWriter;
+import software.amazon.smithy.utils.SmithyInternalApi;
 
+@SmithyInternalApi
 public final class LuaClientCodegenPlugin implements SmithyBuildPlugin {
     @Override
     public String getName() {

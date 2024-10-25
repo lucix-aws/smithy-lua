@@ -25,7 +25,7 @@ local k = {
 }
 
 -- integer to big-endian byte string
--- FIXME: blows up on i > 0xffff
+-- TODO: blows up on i > 0xffff
 local function itobig8(i)
     if i <= 0xff then
         return '\x00\x00\x00\x00\x00\x00\x00' .. string.char(i)
@@ -40,7 +40,7 @@ local function itobig8(i)
     end
 end
 
--- FIXME: this is really bad i think
+-- TODO: this is really bad i think
 local function pad512(str)
     local buf = buffer.new()
     buf:set(str)

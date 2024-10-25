@@ -1,10 +1,11 @@
-local http = require('./runtime/http')
 local json = require('./runtime/json')
+local http = require('./runtime/http')
 local sigv4 = require('./runtime/sigv4')
+
 local Client = {}
 
 local function _do(client, input, target)
-    local req = http.Request:New()
+    local req = http.Request.New()
 
     local endpoint = 'https://sqs.'..client._config.Region..'.amazonaws.com'
     req.URL = endpoint
@@ -13,26 +14,29 @@ local function _do(client, input, target)
     req.Method = 'POST'
     req.Header:Set("Content-Type", "application/x-amz-json-1.0")
     req.Header:Set("X-Amz-Target", target)
-    req.Body = json.encode(input)
 
-    sigv4.Sign(req, client._config.Credentials, 'sqs', client._config.Region)
+    -- https://github.com/rxi/json.lua/issues/23
+    -- empty tables encode as [] which awsJson will not accept, so do it ourselves instead
+    if #input == 0 then
+        req.Body = '{}'
+    else
+        req.Body = json.encode(input)
+    end
+
+    sigv4.Sign(req, client._config.Credentials, "sqs", client._config.Region)
 
     local resp = client._config.HTTPClient:Do(req)
     return json.decode(resp.Body), nil
 end
 
-function Client:New(config)
-    local t = {
+function Client.New(config)
+    return setmetatable({
         _config = {
             Region      = config.Region,
             Credentials = config.Credentials,
             HTTPClient  = config.HTTPClient,
         },
-    }
-    setmetatable(t, self)
-    self.__index = self
-
-    return t
+    }, { __index = Client })
 end
 
 function Client:AddPermission(input)
