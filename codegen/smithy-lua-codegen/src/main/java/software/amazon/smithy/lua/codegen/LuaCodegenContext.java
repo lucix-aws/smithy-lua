@@ -5,9 +5,11 @@ import software.amazon.smithy.codegen.core.CodegenContext;
 import software.amazon.smithy.codegen.core.SymbolProvider;
 import software.amazon.smithy.codegen.core.WriterDelegator;
 import software.amazon.smithy.model.Model;
+import software.amazon.smithy.utils.SmithyInternalApi;
 
 import java.util.List;
 
+@SmithyInternalApi
 public record LuaCodegenContext(
         Model model,
         LuaSettings settings,

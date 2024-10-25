@@ -1,20 +1,16 @@
 local hash = require('./runtime/hash')
 local strings = require('./runtime/strings')
 
-local module = {}
+-- TODO: should be its own thing
+local Credentials = {}
 
-module.Credentials = {}
-
-function module.Credentials:New(o)
+function Credentials.New(o)
     o = o or {}
-    local t = {
+    return setmetatable({
         AKID         = o.AKID,
         Secret       = o.Secret,
         SessionToken = o.SessionToken,
-    }
-    setmetatable(t, self)
-    self.__index = self
-    return t
+    }, { __index = Credentials })
 end
 
 local function shortTime(time)
@@ -29,12 +25,12 @@ local function credentialScope(time, region, service)
     return shortTime(time) .. '/' .. region .. '/' .. service .. '/aws4_request'
 end
 
--- FIXME assumes headers do not have multiple values
+-- TODO assumes headers do not have multiple values
 local function buildCanonicalHeaders(req)
     local canon = {}
     local signed = {}
 
-    -- FIXME should not be accessing _values
+    -- TODO should not be accessing _values
     for header,value in pairs(req.Header._values) do
         header = header:lower()
         if header == 'host' or strings.StartsWith(header, 'x-amz-') then
@@ -56,7 +52,7 @@ local function buildCanonicalHeaders(req)
 end
 
 local function buildCanonicalRequest(req, payloadHash)
-    -- FIXME assumes awsJson
+    -- TODO assumes awsJson
     local path = '/'
     local query = ''
 
@@ -87,7 +83,7 @@ local function signString(str, secret, service, region, time)
     return strings.StrToHex(signature)
 end
 
-function module.Sign(req, creds, service, region)
+local function Sign(req, creds, service, region)
     local now = os.time()
     local scope = credentialScope(now, region, service)
 
@@ -135,4 +131,7 @@ module.Sign(req, creds, 'dynamodb', 'us-east-1')
 print(req.Header:Get('Authorization'))
 ]]--
 
-return module
+return {
+    Credentials = Credentials,
+    Sign = Sign,
+}

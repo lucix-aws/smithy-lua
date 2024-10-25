@@ -2,7 +2,6 @@ package software.amazon.smithy.lua.codegen;
 
 import software.amazon.smithy.utils.SmithyInternalApi;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -29,7 +28,10 @@ public class LuaTemplate implements Consumer<LuaWriter> {
     @Override
     public void accept(LuaWriter writer) {
         writer.pushState();
-        // TODO
+        for (var entry : args.entrySet()) {
+            writer.putContext(entry.getKey(), entry.getValue());
+        }
+        writer.write(content);
         writer.popState();
     }
 }

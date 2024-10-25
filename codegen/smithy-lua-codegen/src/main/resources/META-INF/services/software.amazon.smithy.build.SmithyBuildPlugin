@@ -1,1 +1,1 @@
-software.amazon.smithy.lua.codegen.LuaClientCodegenPlugin
+software.amazon.smithy.lua.codegen.client.LuaClientCodegenPlugin
