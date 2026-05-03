@@ -1,3 +1,1 @@
-# smithy-lua
-
-October 2024 hackathon project
+Original version of this repo from the October 2024 hackathon project
