@@ -33,6 +33,7 @@
 - Performance optimization
 - Package distribution / LuaRocks publishing
 - Production readiness — this is a hackathon proof of concept
+- Transport agnosticism, we will assume HTTP for the moment
 
 ### Stretch Goals
 
