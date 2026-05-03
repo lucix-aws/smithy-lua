@@ -8,18 +8,108 @@
 
 **Reference SDK:** AWS Go SDK v2. Go and Lua share relevant DNA — no classes, multiple returns, explicit error handling, lightweight type systems. Translation patterns should be natural.
 
-**Type story:** Teal `.d.tl` declaration files alongside plain Lua code. Optional — Teal users get type safety, plain Lua users just pass tables. This is a stretch goal, not a blocker.
+**Type story:** Teal `.d.tl` declaration files alongside all Lua code — both hand-written runtime modules and generated service clients. Teal is a **first-class goal**, not a stretch. Teal users get full type safety; plain Lua users just pass tables and ignore the declarations.
+
+### Goals
+
+- Full-featured AWS SDK for Lua targeting LuaJIT
+- Schema-serde architecture (codegen emits schemas, runtime does serde generically)
+- Smithy codegen plugin (Java) that emits `.lua` + `.d.tl` from Smithy models
+- Teal `.d.tl` declarations as a first-class deliverable for all code
+- Full Smithy endpoint ruleset evaluation
+- SigV4 signing, pure Lua
+- AWS standard retry with token bucket
+- Default credential provider chain
+- Pluggable HTTP client interface
+- Protocol test generation from Smithy `@httpRequestTests` / `@httpResponseTests`
+- Paginators and waiters
+- Multiple generated service clients making real AWS calls
+- This is an experiment in AI-assisted development — shoot for more than we think we can get
+
+### Non-Goals
+
+- PUC Lua 5.4 support (LuaJIT only)
+- S3-specific customizations (chunked transfer, presigning, multi-part)
+- Performance optimization
+- Package distribution / LuaRocks publishing
+- Production readiness — this is a hackathon proof of concept
+
+### Stretch Goals
+
+- SigV4a signing (requires ECDSA — significant pure-Lua crypto effort)
+- Adaptive retry mode
+- Event streams / streaming
 
 ---
 
-## Timeline
+## Implementation Plan
 
-| Day | Focus | Details |
-|-----|-------|---------|
-| 1 (Mon) | Design & foundations | Finalize contracts, implement SHA-256, HMAC, HTTP client interface, SigV4 |
-| 2 (Tue) | Runtime implementation | `invokeOperation` pipeline, core client, integrate all pieces, make one real AWS call |
-| 3 (Wed) | Smithy codegen | Build codegen that reads Smithy models and emits Lua. Get one service (S3 or STS) generating end-to-end |
-| 4 (Thu) | Breadth & polish | Expand codegen to more services, Teal `.d.tl` emitter, demo script, presentation |
+Work is organized by dependency, not by calendar day. Steps within a phase can be parallelized. Each phase gates the next.
+
+### Phase 0: Constitution & Contracts (serial)
+
+Finalize this document. Lock down all public interfaces and module contracts before writing code.
+
+### Phase 1: Define `invokeOperation` Contract (serial)
+
+Precisely define the pipeline that every operation flows through. This is the spine — all runtime modules plug into it. Must be locked down before implementation begins.
+
+- Full `client` table shape (what fields it carries)
+- Full `operation` table shape (what codegen passes per-operation)
+- Pipeline steps as pseudocode with exact function signatures at each boundary (protocol, signer, retryer, identity resolver, endpoint resolver, transport)
+
+### Phase 2: Codegen + Runtime (parallel tracks, depends on Phase 1)
+
+After contracts are locked, two independent tracks run in parallel:
+
+**Track A: Codegen (Java)**
+
+Build the Smithy codegen plugin incrementally:
+
+1. **Scaffolding** — client struct, operation method stubs (no-ops), `.d.tl` declarations. Proves the codegen pipeline works end-to-end and gives a concrete view of what generated code looks like.
+2. **Protocol tests** — generate Lua test cases from Smithy protocol test traits (`@httpRequestTests`, `@httpResponseTests`). These are the source of truth for validating serialization and deserialization. Getting these emitting early gives Track B concrete test cases to run against as protocol implementations come online.
+3. **Schemas** — emit per-shape schema declarations as Lua table literals.
+4. **Endpoint rulesets** — emit rulesets as Lua table literals.
+5. **Wire to runtime** — fill in operation bodies (`invokeOperation` calls), client constructor (base client wiring). Happens as runtime track delivers working modules.
+
+**Track B: Runtime (Lua)**
+
+Build the smithy-lua and aws-sdk-lua runtime modules:
+
+1. **Foundational modules (parallel)** — no interdependencies, all built concurrently:
+   - `crypto/sha256.lua` — pure Lua SHA-256 + `.d.tl`
+   - `crypto/hmac.lua` — HMAC-SHA-256 + `.d.tl`
+   - `http.lua` — request/response types, reader, transport interface + `.d.tl`
+   - `error.lua` — error types and constructors + `.d.tl`
+   - `schema.lua` — runtime schema type + `.d.tl`
+   - `serde.lua` — ShapeSerializer/ShapeDeserializer interfaces + `.d.tl`
+   - `auth.lua` — identity, identity resolver, auth scheme interfaces + `.d.tl`
+   - `retry.lua` — retryer interface + `.d.tl`
+   - `endpoint.lua` — rules engine interpreter + partition data + `.d.tl`
+
+2. **Core implementations (parallel, depends on foundational):**
+   - `signer.lua` — SigV4 signing (needs crypto, http, auth)
+   - `retry/standard.lua` — AWS standard retry (needs retry interface, error)
+   - `codec/json.lua` — JSON codec (needs schema, serde)
+   - `protocol/json.lua` — awsJson1.0/1.1 protocol (needs codec/json, http, schema, error)
+   - `credentials.lua` + providers — default credential chain (needs auth)
+   - `config.lua` — shared config/credentials file parsing
+
+3. **Pipeline integration (serial, depends on core):**
+   - `client.lua` — base client + `invokeOperation` pipeline
+
+### Phase 3: Convergence (depends on both tracks)
+
+Wire a generated service client to the working runtime. Make a real AWS call with generated code.
+
+**Milestone: generate STS (or S3), call `GetCallerIdentity` (or `ListBuckets`), get a real response.**
+
+### Phase 4: Breadth & Polish (parallel, depends on Phase 3)
+
+- Additional protocols: restJson1, restXml, awsQuery, rpcv2Cbor
+- Additional codecs: XML, CBOR
+- More generated services
+- Demo script + presentation
 
 ---
 
@@ -391,11 +481,20 @@ All operations return `result, err`:
 
 ### Approach
 
-Generate `.d.tl` declaration files alongside Lua code. The SDK itself is plain Lua. Teal users get type safety by importing the declarations.
+Teal `.d.tl` declaration files are a **first-class deliverable**, produced alongside all Lua code. The SDK itself is plain Lua. Teal users get full type safety by importing the declarations; plain Lua users just pass tables.
 
-### Priority
+### Scope
 
-Teal `.d.tl` generation is a **stretch goal**. Build everything in plain Lua first. Add Teal declaration emitter to codegen late in the week if time permits.
+- **Hand-written runtime modules** (smithy-lua and aws-sdk-lua): `.d.tl` files are written alongside each module as it's built.
+- **Generated service clients**: codegen emits `.d.tl` declarations alongside `.lua` files — per-operation input/output types, client type, enums.
+
+### What gets typed
+
+- All public interfaces: client constructors, operation methods, config tables
+- Input/output structures for every operation
+- Enums as string literal unions
+- Error types
+- Runtime contracts: reader, HTTP request/response, retryer, identity resolver
 
 ---
 
@@ -452,14 +551,27 @@ This document is the constitution. Every AI agent session should reference it to
 - **Then parallelize independent modules:** SHA-256, HTTP client, SigV4 signing can all be built concurrently.
 - **Integration after.** Merge and test before moving to codegen.
 
+### Agent Workspace Isolation
+
+Parallel agents must not share a working directory. Each agent creates a **git worktree** for its task:
+
+```bash
+cd <repo>
+git worktree add <repo>-wt/<task-name> -b <branch-name>
+```
+
+The agent does all work in its worktree directory. When done, it pushes the branch. Worktrees share the same `.git` object store so creation is fast and lightweight.
+
 ### Agent Task Scoping
 
 Each agent session should:
 1. Receive this constitution doc
-2. Be scoped to a specific module/task
-3. Follow the conventions defined here
-4. Write tests alongside implementation
-5. Not deviate from interface contracts without flagging it
+2. Read `DECISIONS.md` for any decisions made since the constitution was last updated
+3. Be scoped to a specific module/task
+4. Follow the conventions defined here
+5. Write tests alongside implementation
+6. Not deviate from interface contracts without flagging it
+7. Append to `DECISIONS.md` when making decisions that affect other modules
 
 ### Reference Materials
 
