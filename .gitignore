@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Gradle
+/.gradle
+build
+*/out/
+*/*/out
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
