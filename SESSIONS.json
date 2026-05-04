@@ -1,0 +1,15 @@
+[
+  {
+    "session": 1,
+    "task": "Project setup — constitution review, session tracking",
+    "start": "2026-05-04T09:36:34-04:00",
+    "end": null,
+    "duration_minutes": null,
+    "branch": null,
+    "prompts": [
+      "general question about tracking agent work, timestamps, prompts",
+      "structured format preferred"
+    ],
+    "outcome": null
+  }
+]

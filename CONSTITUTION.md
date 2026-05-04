@@ -573,6 +573,7 @@ Each agent session should:
 5. Write tests alongside implementation
 6. Not deviate from interface contracts without flagging it
 7. Append to `DECISIONS.md` when making decisions that affect other modules
+8. Log the session in `SESSIONS.json` — record start time at session begin, then fill in end time, duration, prompts given, and outcome when done
 
 ### Reference Materials
 
