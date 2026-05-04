@@ -1,5 +1,7 @@
 package software.amazon.smithy.lua.codegen;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.TreeMap;
 import software.amazon.smithy.codegen.core.SymbolProvider;
@@ -104,6 +106,12 @@ public final class DirectedLuaCodegen
         var symbolProvider = directive.symbolProvider();
         var serviceNs = LuaSymbolProvider.getServiceNamespace(service);
 
+        // Collect config resolvers from all integrations
+        List<ConfigResolver> configResolvers = new ArrayList<>();
+        for (var integration : context.integrations()) {
+            configResolvers.addAll(integration.getConfigResolvers(context));
+        }
+
         context.writerDelegator().useShapeWriter(service, writer -> {
             var topDown = TopDownIndex.of(model);
             var operations = topDown.getContainedOperations(service);
@@ -111,6 +119,7 @@ public final class DirectedLuaCodegen
 
             // Require base client
             writer.addRequire("base_client", "client");
+            writer.addRequire("defaults", "defaults");
 
             // Module table
             writer.write("local M = {}");
@@ -123,21 +132,38 @@ public final class DirectedLuaCodegen
             writer.write("");
 
             // Constructor
-            writer.block("function M.new(config)", () -> {
-                writer.write("config.service_id = $S", service.getId().getName());
-                writer.write("config.signing_name = $S",
+            writer.block("function M.new(cfg)", () -> {
+                writer.write("cfg = cfg or {}");
+                writer.write("cfg.service_id = $S", service.getId().getName());
+                writer.write("cfg.signing_name = $S",
                         service.getId().getName().toLowerCase(Locale.US));
-                // Wire default endpoint_provider from generated endpoint_rules
+
+                // Service-specific: protocol resolver
+                writeProtocolResolver(writer, service);
+
+                // Service-specific: endpoint resolver
                 if (service.hasTrait(EndpointRuleSetTrait.class)) {
                     writer.addRequire("endpoint_rules", serviceNs + ".endpoint_rules");
                     writer.addRequire("endpoint", "endpoint");
-                    writer.block("if not config.endpoint_provider then", () -> {
-                        writer.block("config.endpoint_provider = function(params)", () -> {
+                    writer.block("if not cfg.endpoint_provider then", () -> {
+                        writer.block("cfg.endpoint_provider = function(params)", () -> {
                             writer.write("return endpoint.resolve(endpoint_rules, params)");
                         });
                     });
                 }
-                writer.write("local self = setmetatable(base_client.new(config), Client)");
+
+                // Generic defaults from smithy-lua runtime
+                writer.write("defaults.resolve_signer(cfg)");
+                writer.write("defaults.resolve_http_client(cfg)");
+                writer.write("defaults.resolve_retry_strategy(cfg)");
+
+                // Integration-provided resolvers (e.g. identity_resolver from aws-sdk-lua)
+                for (var resolver : configResolvers) {
+                    writer.addRequire(resolver.requireAlias(), resolver.requirePath());
+                    writer.write(resolver.functionCall());
+                }
+
+                writer.write("local self = setmetatable(base_client.new(cfg), Client)");
                 writer.write("return self");
             });
             writer.write("");
@@ -150,6 +176,48 @@ public final class DirectedLuaCodegen
 
             writer.write("return M");
         });
+    }
+
+    private void writeProtocolResolver(LuaWriter writer, ServiceShape service) {
+        // Detect protocol from service traits
+        var traits = service.getAllTraits();
+        String protocolRequire = null;
+        String protocolExpr = null;
+
+        for (var traitId : traits.keySet()) {
+            var name = traitId.toString();
+            if (name.equals("aws.protocols#awsJson1_0")) {
+                protocolRequire = "protocol.awsjson";
+                protocolExpr = "awsjson_protocol.new(\"1.0\")";
+            } else if (name.equals("aws.protocols#awsJson1_1")) {
+                protocolRequire = "protocol.awsjson";
+                protocolExpr = "awsjson_protocol.new(\"1.1\")";
+            } else if (name.equals("aws.protocols#restJson1")) {
+                protocolRequire = "protocol.restjson";
+                protocolExpr = "restjson_protocol.new()";
+            } else if (name.equals("aws.protocols#restXml")) {
+                protocolRequire = "protocol.restxml";
+                protocolExpr = "restxml_protocol.new()";
+            } else if (name.equals("aws.protocols#awsQuery")) {
+                protocolRequire = "protocol.query";
+                protocolExpr = "query_protocol.new(\"awsQuery\")";
+            } else if (name.equals("aws.protocols#ec2Query")) {
+                protocolRequire = "protocol.query";
+                protocolExpr = "query_protocol.new(\"ec2Query\")";
+            } else if (name.equals("smithy.protocols#rpcv2Cbor")) {
+                protocolRequire = "protocol.rpcv2cbor";
+                protocolExpr = "rpcv2cbor_protocol.new()";
+            }
+        }
+
+        if (protocolRequire != null) {
+            var alias = protocolRequire.replace("protocol.", "") + "_protocol";
+            writer.addRequire(alias, protocolRequire);
+            final var expr = protocolExpr;
+            writer.block("if not cfg.protocol then", () -> {
+                writer.write("cfg.protocol = " + expr);
+            });
+        }
     }
 
     private void generateOperationMethod(
@@ -252,13 +320,27 @@ public final class DirectedLuaCodegen
 
     @Override
     public void generateEnumShape(GenerateEnumDirective<LuaContext, LuaSettings> directive) {
-        var shape = directive.shape().asEnumShape().orElseThrow();
         var context = directive.context();
-        context.writerDelegator().useShapeWriter(shape, writer -> {
-            var name = shape.getId().getName(context.service());
+        var serviceNs = LuaSymbolProvider.getServiceNamespace(context.service());
+        var typesFile = serviceNs + "/types.lua";
+        var enumValues = directive.shape().asEnumShape()
+                .map(e -> e.getEnumValues())
+                .orElseGet(() -> {
+                    // Fallback for old-style @enum on string shapes
+                    var map = new java.util.LinkedHashMap<String, String>();
+                    directive.shape().asStringShape().ifPresent(s ->
+                            s.getTrait(software.amazon.smithy.model.traits.EnumTrait.class).ifPresent(t ->
+                                    t.getValues().forEach(v -> {
+                                        var name = v.getName().orElse(v.getValue());
+                                        map.put(name, v.getValue());
+                                    })));
+                    return map;
+                });
+        context.writerDelegator().useFileWriter(typesFile, serviceNs, writer -> {
+            var name = directive.shape().getId().getName(context.service());
             writer.write("M.$L = {", name);
             writer.indent();
-            for (var entry : shape.getEnumValues().entrySet()) {
+            for (var entry : enumValues.entrySet()) {
                 writer.write("$L = $S,", entry.getKey(), entry.getValue());
             }
             writer.dedent();

@@ -1,5 +1,6 @@
 plugins {
     `java-library`
+    `maven-publish`
 }
 
 allprojects {
@@ -9,6 +10,7 @@ allprojects {
 
 subprojects {
     apply(plugin = "java-library")
+    apply(plugin = "maven-publish")
 
     java {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -22,5 +24,13 @@ subprojects {
     repositories {
         mavenLocal()
         mavenCentral()
+    }
+
+    publishing {
+        publications {
+            create<MavenPublication>("mavenJava") {
+                from(components["java"])
+            }
+        }
     }
 }

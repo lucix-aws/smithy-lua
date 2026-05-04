@@ -192,3 +192,13 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Need Smithy RPCv2 CBOR protocol for modern AWS services.
 **Decision:** `protocol/rpcv2cbor.lua` implements serialize/deserialize. Request: POST to `/service/{service_name}/operation/{op_name}`, `Smithy-Protocol: rpc-v2-cbor` header, `Accept: application/cbor`. Empty input = no body, no Content-Type. Errors identified by `__type` field in CBOR body (full shape ID, strip namespace). Validates `Smithy-Protocol` response header.
 **Affects:** Generated clients using rpcv2Cbor protocol.
+
+## 2026-05-04 — Config resolver system: LuaIntegration.getConfigResolvers() hook
+**Context:** Generated client constructors need to resolve defaults for protocol, signer, HTTP client, retry, and credentials. Some resolvers are generic Smithy concerns, others are SDK-specific (e.g. credential chain).
+**Decision:** Added `ConfigResolver` record (requirePath, requireAlias, functionCall) and `getConfigResolvers(LuaContext)` default method on `LuaIntegration`. `DirectedLuaCodegen.generateService()` collects resolvers from all integrations and emits them in the generated `new(cfg)` constructor. Base codegen also detects protocol traits on the service shape and emits the appropriate protocol default. Created `defaults.lua` in runtime with `resolve_signer`, `resolve_http_client`, `resolve_retry_strategy`.
+**Affects:** All generated client constructors, aws-sdk-lua codegen (uses this hook for identity_resolver).
+
+## 2026-05-04 — Service namespace uses sdkId from aws.api#service trait
+**Context:** `getServiceNamespace()` used the Smithy shape name, causing collisions (RDS/DocDB/Neptune all mapped to `amazonRDSv19`) and ugly names (`aWSSecurityTokenServiceV20110615`).
+**Decision:** Use `sdkId` from the `aws.api#service` trait when present, normalized (remove dashes/spaces, lowercase). Falls back to uncapitalized shape name for non-AWS services. Produces clean names: `dynamodb`, `s3`, `sts`, `lambda`.
+**Affects:** All generated service client directory names, all require() paths in generated code.

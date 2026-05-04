@@ -52,6 +52,19 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
     }
 
     static String getServiceNamespace(ServiceShape service) {
+        // Use sdkId from aws.api#service trait when available (unique per AWS service).
+        // Normalize: remove dashes/spaces, lowercase.
+        var serviceTrait = service.findTrait("aws.api#service");
+        if (serviceTrait.isPresent()) {
+            var sdkId = serviceTrait.get().toNode().expectObjectNode()
+                    .getStringMember("sdkId");
+            if (sdkId.isPresent()) {
+                return sdkId.get().getValue()
+                        .replace("-", "")
+                        .replace(" ", "")
+                        .toLowerCase();
+            }
+        }
         return StringUtils.uncapitalize(service.getId().getName());
     }
 
