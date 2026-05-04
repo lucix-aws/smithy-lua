@@ -561,7 +561,18 @@ cd <repo>
 git worktree add <repo>-wt/<task-name> -b <branch-name>
 ```
 
-The agent does all work in its worktree directory. When done, it pushes the branch. Worktrees share the same `.git` object store so creation is fast and lightweight.
+The agent does all work in its worktree directory. When done, it merges the branch back to main, removes the worktree, and deletes the branch:
+
+```bash
+cd <repo>
+git merge <branch-name>
+git worktree remove <repo>-wt/<task-name>
+git branch -d <branch-name>
+```
+
+Parallel branches will often conflict on merge — especially `DECISIONS.md` and `SESSIONS.json`, since multiple agents append to them concurrently. For those files, the resolution is straightforward: keep all entries from both sides (renumber sessions if needed). For conflicts in code files, work with the user to resolve them.
+
+Worktrees share the same `.git` object store so creation is fast and lightweight.
 
 ### Agent Task Scoping
 
@@ -580,7 +591,7 @@ Each agent session should:
 
 - **Go SDK v2** — primary code reference for patterns and architecture
 - **Smithy Java** — reference for schema-serde implementation
-- **Schema-Serde SEP** — specification for serialization approach (`AwsDrSeps/seps/accepted/shared/schema-serde/`)
+- **Schema-Serde SEP** — specification for serialization approach (`~/gitfarm/AwsDrSeps/seps/accepted/shared/schema-serde/`)
 - **Smithy endpoint rules spec** — for rules engine implementation
 - **AWS SigV4 documentation + test vectors** — for signing implementation
-- **DR SEPs** — credential resolution, retry, and other behavioral specifications (`AwsDrSeps/seps/`)
+- **DR SEPs** — credential resolution, retry, and other behavioral specifications (`~/gitfarm/AwsDrSeps/seps/`)
