@@ -309,5 +309,18 @@
       "merge to main"
     ],
     "outcome": "All runtime modules moved to runtime/smithy/. All internal requires use smithy.* prefix. Tests updated and passing. Enables clean multi-repo LUA_PATH setup without collisions."
+  },
+  {
+    "session": 23,
+    "task": "Fix endpoint rules engine — 373/424 to 424/424 service endpoint tests passing",
+    "start": "2026-05-04T16:53:00-04:00",
+    "end": "2026-05-04T17:12:00-04:00",
+    "duration_minutes": 19,
+    "branch": "fix-endpoint-rules",
+    "prompts": [
+      "run all endpoint rules tests and diagnose failures",
+      "fix all issues in worktree"
+    ],
+    "outcome": "Fixed 8 bugs in endpoint rules engine: template resolution in properties and function args, 0-based index conversion, isSet false handling, parseURL fragment rejection and empty path, isVirtualHostableS3Bucket min length, parseArn empty segment preservation. Rewrote partitions.lua from canonical partitions.json. All 424/424 service endpoint tests pass, all smithy-lua unit tests pass."
   }
 ]

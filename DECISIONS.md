@@ -294,3 +294,9 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Context:** The `@http` trait URI can include constant query params (e.g. `/path?foo=bar&hello`). These must always appear in the serialized URL.
 **Decision:** The restjson/restxml protocol `serialize` splits `http_path` on `?`, parses constant params, and merges them into the query table. A `KEY_ONLY` sentinel distinguishes key-only params (no `=`) from empty-string values (has `=`). `@httpQuery` params take precedence over `@httpQueryParams` map entries.
 **Affects:** restjson.lua, restxml.lua (and any future REST protocol).
+
+## 2026-05-04 — Endpoint rules engine: 8 bug fixes for full test coverage
+
+**Context:** Generated endpoint rules tests for 424 AWS services were failing at 373/424 (51 failures). Root causes were in the smithy-lua endpoint rules engine interpreter and partition data.
+**Decision:** Fixed 8 issues: (1) Deep-resolve template strings in endpoint properties. (2) Resolve template strings in function arguments (e.g. `"{Region}"` in `stringEquals`). (3) Convert 0-based indices to 1-based in `getAttr`. (4) Fix `isSet` to correctly handle `false` values (Lua truthiness bug with `and/or`). (5) Reject URLs with `#` fragments in `parseURL`. (6) Return empty path (not `/`) for bare URLs in `parseURL`. (7) Enforce minimum 3-char length in `isVirtualHostableS3Bucket`. (8) Preserve empty segments in `parseArn` resource splitting. Also rewrote `partitions.lua` from canonical `partitions.json` (adds eusc partition, global pseudo-regions, correct dualStack support for iso partitions).
+**Affects:** `runtime/smithy/endpoint.lua`, `runtime/smithy/endpoint/partitions.lua`, `test/test_endpoint.lua`.
