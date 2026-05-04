@@ -85,6 +85,13 @@ public final class DirectedLuaCodegen
     }
 
     @Override
+    public void customizeAfterIntegrations(CustomizeDirective<LuaContext, LuaSettings> directive) {
+        for (var integration : directive.context().integrations()) {
+            integration.writeAdditionalFiles(directive.context());
+        }
+    }
+
+    @Override
     public void generateService(GenerateServiceDirective<LuaContext, LuaSettings> directive) {
         var context = directive.context();
         var service = directive.shape();
