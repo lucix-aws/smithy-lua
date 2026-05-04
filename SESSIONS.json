@@ -209,5 +209,18 @@
       "reference PR for auto-discovery approach"
     ],
     "outcome": "Implemented protocol test generation. HttpProtocolTestGenerator (LuaIntegration) generates Lua test files from @httpRequestTests/@httpResponseTests traits. protocoltest/ Gradle project auto-discovers all protocol test services via Model.assembler().discoverModels(), generates smithy-build.json programmatically. 16 projections, 374 test files generated. awsJson1.0: 31 pass, 9 fail (unions, defaults, required members, content encoding — expected runtime gaps). All 13 error tests pass. Fixed if/else/end codegen bug, body string escaping (Lua long strings), service_id for X-Amz-Target, format string."
+  },
+  {
+    "session": 16,
+    "task": "Phase 4: All remaining protocols — XML codec, restXml, awsQuery, ec2Query, CBOR codec, rpcv2Cbor",
+    "start": "2026-05-04T13:39:00-04:00",
+    "end": "2026-05-04T14:10:00-04:00",
+    "duration_minutes": 31,
+    "branch": "remaining-protocols",
+    "prompts": [
+      "new agent workflow, confirm where we're at and next steps",
+      "implement ALL remaining protocols, awsQuery has ec2Query variant, reference smithy docs"
+    ],
+    "outcome": "Implemented all remaining protocols. XML codec (codec/xml.lua): serialize/deserialize with xmlAttribute, xmlFlattened, xmlName, xmlNamespace, minimal XML parser, decode_node exposed for protocol use. restXml (protocol/restxml.lua): REST-style with XML body, full HTTP bindings (same as restJson1), error parsing with noErrorWrapping option. awsQuery (protocol/awsquery.lua): form-urlencoded serialization with Action/Version, flattened/non-flattened lists/maps, xmlName support, XML response deserialization with OpResult unwrapping, ec2 mode flag. ec2Query (protocol/ec2query.lua): thin wrapper setting ec2=true for always-flattened lists, capitalized keys, ec2QueryName trait, no Result wrapper, different error format. CBOR codec (codec/cbor.lua): pure Lua CBOR encoder/decoder using LuaJIT bit+FFI, all major types, half/single/double floats, tag 1 timestamps. rpcv2Cbor (protocol/rpcv2cbor.lua): POST to /service/{svc}/operation/{op}, Smithy-Protocol header, CBOR body, __type error identification. Added ec2_query_name and aws_query_error traits to schema. 81 new tests (27 XML + 22 CBOR + 32 protocol), all existing tests pass. Teal .d.tl for all modules."
   }
 ]

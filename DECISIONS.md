@@ -167,3 +167,28 @@ Chronological log of design decisions made during implementation. All agents sho
 **Decision:** Protocol tests call `protocol:serialize(input, operation)` and `protocol:deserialize(response, operation)` directly, bypassing the client pipeline. This tests the protocol implementation in isolation, which is the primary goal. Full pipeline integration is tested separately via harness tests.
 **Rationale:** Simpler generated code, no need to mock the full client stack, and directly validates the protocol contract.
 **Affects:** Protocol test files only — they don't exercise retry, signing, or endpoint resolution.
+
+## 2026-05-04 — XML codec: pure Lua XML serializer/deserializer with schema-aware serde
+**Context:** Need XML codec for restXml and awsQuery response deserialization.
+**Decision:** `codec/xml.lua` implements serialize/deserialize with full support for `@xmlAttribute`, `@xmlFlattened`, `@xmlName`, `@xmlNamespace`. Includes a minimal XML parser (tag/attrs/children/text tree). Exposes `parse_xml`, `decode_node`, `xml_escape`, `xml_unescape` for protocol-level use. Default timestamp format is `date-time` (ISO 8601). Reuses base64 from JSON codec.
+**Affects:** restXml protocol, awsQuery/ec2Query response deserialization.
+
+## 2026-05-04 — awsQuery/ec2Query: shared serializer with ec2 mode flag
+**Context:** awsQuery and ec2Query share most serialization logic but differ in list flattening, key capitalization, and error/response wrapping.
+**Decision:** `protocol/awsquery.lua` accepts `settings.ec2 = true` to enable ec2 mode. ec2 mode: always-flattened lists, capitalize first letter of all key segments, `ec2QueryName` trait takes precedence over `xmlName`, no `Result` wrapper in response, different error XML format (`<Response><Errors><Error>` vs `<ErrorResponse><Error>`). `protocol/ec2query.lua` is a thin wrapper that sets `ec2 = true`.
+**Affects:** Generated clients using awsQuery or ec2Query protocols, codegen (must emit `ec2_query_name` trait).
+
+## 2026-05-04 — Added ec2_query_name and aws_query_error traits to schema
+**Context:** ec2Query needs `ec2QueryName` trait for query key resolution, awsQuery needs `awsQueryError` for custom error codes.
+**Decision:** Added `EC2_QUERY_NAME = "ec2_query_name"` and `AWS_QUERY_ERROR = "aws_query_error"` to `schema.trait` constants in both `schema.lua` and `schema.d.tl`.
+**Affects:** Codegen (must emit these traits on schemas), awsQuery/ec2Query protocol implementations.
+
+## 2026-05-04 — CBOR codec: pure Lua CBOR encoder/decoder using LuaJIT FFI
+**Context:** Need CBOR codec for Smithy RPCv2 CBOR protocol.
+**Decision:** `codec/cbor.lua` implements RFC 8949 subset needed for Smithy. Uses LuaJIT `bit` library for bitwise ops and `ffi` for float encoding/decoding (cast between float/double and byte arrays). Supports all CBOR major types, half/single/double precision floats, tags (tag 1 for timestamps). Integers encoded in smallest possible representation. Floats use float32 when no precision loss, float64 otherwise. Half-precision only for special values (NaN, ±Infinity). Exposes `decode_item` for raw CBOR decoding.
+**Affects:** rpcv2Cbor protocol.
+
+## 2026-05-04 — rpcv2Cbor protocol: POST to /service/{svc}/operation/{op}
+**Context:** Need Smithy RPCv2 CBOR protocol for modern AWS services.
+**Decision:** `protocol/rpcv2cbor.lua` implements serialize/deserialize. Request: POST to `/service/{service_name}/operation/{op_name}`, `Smithy-Protocol: rpc-v2-cbor` header, `Accept: application/cbor`. Empty input = no body, no Content-Type. Errors identified by `__type` field in CBOR body (full shape ID, strip namespace). Validates `Smithy-Protocol` response header.
+**Affects:** Generated clients using rpcv2Cbor protocol.

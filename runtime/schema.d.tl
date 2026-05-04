@@ -45,6 +45,8 @@ local record schema
         IDEMPOTENCY_TOKEN: string
         HOST_LABEL: string
         CONTEXT_PARAM: string
+        EC2_QUERY_NAME: string
+        AWS_QUERY_ERROR: string
     end
 
     -- Timestamp format constants
