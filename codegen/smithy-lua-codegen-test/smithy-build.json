@@ -2,7 +2,7 @@
     "version": "1.0",
     "plugins": {
         "lua-client-codegen": {
-            "service": "example.weather#Weather"
+            "service": "com.amazonaws.sqs#AmazonSQS"
         }
     }
 }
