@@ -580,12 +580,15 @@ Each agent session should:
 1. Receive this constitution doc
 2. Read `DECISIONS.md` for any decisions made since the constitution was last updated
 3. Read `SESSIONS.json` to understand what work has already been completed
-4. Be scoped to a specific module/task
-4. Follow the conventions defined here
-5. Write tests alongside implementation
-6. Not deviate from interface contracts without flagging it
-7. Append to `DECISIONS.md` when making decisions that affect other modules
-8. Log the session in `SESSIONS.json` — record start time at session begin, then fill in end time, duration, prompts given, and outcome when done
+4. **Search reference materials for the task at hand.** Before writing code, search the indexed knowledge bases for relevant SEPs and smithy-java reference implementations. Look for specs that govern the behavior you're implementing (e.g. retry SEP for retry, credential chain SEP for credentials, schema-serde SEP for serialization). Note what you find and use it to inform your implementation — don't follow blindly, but be aware of what the spec says. The indexed knowledge bases are:
+   - **DR SEPs** — `~/gitfarm/AwsDrSeps/seps/` (behavioral specifications for retry, credentials, endpoints, protocols, etc.)
+   - **Smithy Java Reference Architecture** — `~/git/smithy-java/` (reference implementation for schema-serde, codecs, client pipeline, codegen, etc.)
+5. Be scoped to a specific module/task
+6. Follow the conventions defined here
+7. Write tests alongside implementation
+8. Not deviate from interface contracts without flagging it
+9. Append to `DECISIONS.md` when making decisions that affect other modules
+10. Log the session in `SESSIONS.json` — record start time at session begin, then fill in end time, duration, prompts given, and outcome when done
 
 ### Reference Materials
 
