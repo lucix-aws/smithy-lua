@@ -250,5 +250,20 @@
       "skip content encoding tests like Go SDK does"
     ],
     "outcome": "Fixed 15 awsJson protocol test failures down to 0 (160 pass). Fixes: (1) ISO 8601 timestamp formatting/parsing + HTTP-date in JSON codec, epoch-seconds without trailing .000. (2) Codegen references M.ShapeName for structure/union member targets instead of empty inline schemas. (3) Lists/maps emit full member/value schema objects. (4) Codegen emits specific numeric types (byte/short/integer/long/float/double) instead of generic 'number'. (5) Default value population: codegen emits @default (skipping @clientOptional), runtime applies in nested structures on serialize, all structures on deserialize. Blob defaults base64-decoded. Required member zero-value error correction. (6) NaN/Infinity handling in test generator (0/0, math.huge) and codec (string input for float types). (7) awsjson protocol no longer short-circuits on '{}' body so defaults apply. (8) Protocol test skip list for unimplemented request compression tests. All runtime tests pass with zero regressions."
+  },
+  {
+    "session": 19,
+    "task": "Fix codegen: awsJson service_id + signing_name from sigv4 trait; credential chain + example in aws-sdk-lua",
+    "start": "2026-05-04T14:48:00-04:00",
+    "end": "2026-05-04T15:08:00-04:00",
+    "duration_minutes": 20,
+    "branch": null,
+    "prompts": [
+      "new agent workflow, confirm project state",
+      "create example/ folder to test generated clients",
+      "implement default credential chain with process credentials",
+      "commit directly in both repos"
+    ],
+    "outcome": "Fixed two codegen bugs: (1) awsJson protocol constructor now receives service_id for X-Amz-Target header, (2) signing_name resolved from aws.auth#sigv4 trait instead of shape name. Built default credential chain in aws-sdk-lua: static, environment, shared config, process credentials. Created sdk_defaults.lua to wire the chain. Created example/dynamodb_list_tables.lua — end-to-end real AWS call succeeded via credential_process. Regenerated all 400+ service clients."
   }
 ]

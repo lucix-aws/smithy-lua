@@ -244,3 +244,8 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Context:** Request compression (`@requestCompression`) is not implemented. The corresponding protocol tests fail.
 **Decision:** `HttpProtocolTestGenerator` has a static `SKIP_TESTS` set of test IDs. Matching tests emit an empty test body with a skip comment instead of the full test. Currently skips all `SDKAppliedContentEncoding_*` and `SDKAppendsGzipAndIgnoresHttpProvidedEncoding_*` tests.
 **Affects:** Protocol test generation only.
+
+## 2026-05-04 — Codegen: awsJson protocol gets service_id, signing_name from sigv4 trait
+**Context:** Generated clients passed a bare version string to `awsjson_protocol.new("1.0")`, so `X-Amz-Target` was `.ListTables` instead of `DynamoDB_20120810.ListTables`. Also, `signing_name` used the Smithy shape name (e.g. `dynamodb_20120810`) instead of the `aws.auth#sigv4` trait name (`dynamodb`).
+**Decision:** (1) awsJson protocol constructor now receives `{ version = "1.0", service_id = cfg.service_id }`. (2) `signing_name` is resolved from `service.findTrait("aws.auth#sigv4")` → `name` node, falling back to lowercased shape name for non-AWS services.
+**Affects:** All generated awsJson clients (service_id fix), all generated clients (signing_name fix).
