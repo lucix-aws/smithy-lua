@@ -48,6 +48,7 @@ M.trait = {
     CONTEXT_PARAM    = "context_param",
     EC2_QUERY_NAME   = "ec2_query_name",
     AWS_QUERY_ERROR  = "aws_query_error",
+    DEFAULT          = "default",
 }
 
 -- Timestamp format constants

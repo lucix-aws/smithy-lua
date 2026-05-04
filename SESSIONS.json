@@ -222,5 +222,20 @@
       "implement ALL remaining protocols, awsQuery has ec2Query variant, reference smithy docs"
     ],
     "outcome": "Implemented all remaining protocols. XML codec (codec/xml.lua): serialize/deserialize with xmlAttribute, xmlFlattened, xmlName, xmlNamespace, minimal XML parser, decode_node exposed for protocol use. restXml (protocol/restxml.lua): REST-style with XML body, full HTTP bindings (same as restJson1), error parsing with noErrorWrapping option. awsQuery (protocol/awsquery.lua): form-urlencoded serialization with Action/Version, flattened/non-flattened lists/maps, xmlName support, XML response deserialization with OpResult unwrapping, ec2 mode flag. ec2Query (protocol/ec2query.lua): thin wrapper setting ec2=true for always-flattened lists, capitalized keys, ec2QueryName trait, no Result wrapper, different error format. CBOR codec (codec/cbor.lua): pure Lua CBOR encoder/decoder using LuaJIT bit+FFI, all major types, half/single/double floats, tag 1 timestamps. rpcv2Cbor (protocol/rpcv2cbor.lua): POST to /service/{svc}/operation/{op}, Smithy-Protocol header, CBOR body, __type error identification. Added ec2_query_name and aws_query_error traits to schema. 81 new tests (27 XML + 22 CBOR + 32 protocol), all existing tests pass. Teal .d.tl for all modules."
+  },
+  {
+    "session": 17,
+    "task": "Fix awsJson protocol test failures: timestamps, unions, defaults/required, skip content encoding",
+    "start": "2026-05-04T14:11:00-04:00",
+    "end": "2026-05-04T14:44:00-04:00",
+    "duration_minutes": 33,
+    "branch": "fix-awsjson-tests",
+    "prompts": [
+      "new agent workflow, confirm steps",
+      "dive into awsJson protocol test failures",
+      "fix all failures, discuss default serialization rules per Smithy spec",
+      "skip content encoding tests like Go SDK does"
+    ],
+    "outcome": "Fixed 15 awsJson protocol test failures down to 0 (160 pass). Fixes: (1) ISO 8601 timestamp formatting/parsing + HTTP-date in JSON codec, epoch-seconds without trailing .000. (2) Codegen references M.ShapeName for structure/union member targets instead of empty inline schemas. (3) Lists/maps emit full member/value schema objects. (4) Codegen emits specific numeric types (byte/short/integer/long/float/double) instead of generic 'number'. (5) Default value population: codegen emits @default (skipping @clientOptional), runtime applies in nested structures on serialize, all structures on deserialize. Blob defaults base64-decoded. Required member zero-value error correction. (6) NaN/Infinity handling in test generator (0/0, math.huge) and codec (string input for float types). (7) awsjson protocol no longer short-circuits on '{}' body so defaults apply. (8) Protocol test skip list for unimplemented request compression tests. All runtime tests pass with zero regressions."
   }
 ]

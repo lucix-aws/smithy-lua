@@ -16,12 +16,15 @@ import software.amazon.smithy.codegen.core.directed.GenerateStructureDirective;
 import software.amazon.smithy.codegen.core.directed.GenerateUnionDirective;
 import software.amazon.smithy.model.knowledge.OperationIndex;
 import software.amazon.smithy.model.knowledge.TopDownIndex;
+import software.amazon.smithy.model.node.Node;
 import software.amazon.smithy.model.shapes.MemberShape;
 import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.traits.ClientOptionalTrait;
+import software.amazon.smithy.model.traits.DefaultTrait;
 import software.amazon.smithy.model.traits.ErrorTrait;
 import software.amazon.smithy.model.traits.HttpHeaderTrait;
 import software.amazon.smithy.model.traits.HttpLabelTrait;
@@ -240,7 +243,7 @@ public final class DirectedLuaCodegen
                 writer.write("members = {");
                 writer.indent();
                 for (var member : shape.members()) {
-                    writeMemberSchema(writer, member, model);
+                    writeMemberSchema(writer, member, model, context.service());
                 }
                 writer.dedent();
                 writer.write("},");
@@ -300,7 +303,7 @@ public final class DirectedLuaCodegen
             writer.write("members = {");
             writer.indent();
             for (var member : shape.members()) {
-                writeMemberSchema(writer, member, model);
+                writeMemberSchema(writer, member, model, context.service());
             }
             writer.dedent();
             writer.write("},");
@@ -310,33 +313,89 @@ public final class DirectedLuaCodegen
         writer.write("}");
     }
 
-    private void writeMemberSchema(LuaWriter writer, MemberShape member, software.amazon.smithy.model.Model model) {
+    private void writeMemberSchema(LuaWriter writer, MemberShape member, software.amazon.smithy.model.Model model,
+                                   ServiceShape service) {
         var target = model.expectShape(member.getTarget());
-        var luaType = toLuaSchemaType(target);
+        var targetType = target.getType();
+
+        // For structure/union targets, reference the top-level schema directly
+        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
+            var targetName = target.getId().getName(service);
+            // Write traits wrapper if needed, otherwise just reference
+            var traits = collectTraits(member);
+            if (traits.isEmpty()) {
+                writer.write("$L = M.$L,", member.getMemberName(), targetName);
+            } else {
+                // Need to merge: create a table that references the schema but adds traits
+                // We'll use a pattern: copy type+members from target, add traits
+                writer.write("$L = setmetatable({ traits = {", member.getMemberName());
+                writer.indent();
+                for (var entry : traits.entrySet()) {
+                    writer.write("$L = $L,", entry.getKey(), entry.getValue());
+                }
+                writer.dedent();
+                writer.write("} }, { __index = M.$L }),", targetName);
+            }
+            return;
+        }
 
         writer.write("$L = {", member.getMemberName());
         writer.indent();
-        writer.write("type = $S,", luaType);
+        writer.write("type = $S,", toLuaSchemaType(target));
 
         // If the target is a list, include the member schema
-        if (target.getType() == ShapeType.LIST) {
+        if (targetType == ShapeType.LIST) {
             var listMember = target.asListShape().get().getMember();
             var listTarget = model.expectShape(listMember.getTarget());
-            writer.write("member_type = $S,", toLuaSchemaType(listTarget));
+            var listTargetType = listTarget.getType();
+            if (listTargetType == ShapeType.STRUCTURE || listTargetType == ShapeType.UNION) {
+                writer.write("member = M.$L,", listTarget.getId().getName(service));
+            } else {
+                writer.write("member = { type = $S },", toLuaSchemaType(listTarget));
+            }
         }
 
-        // If the target is a map, include key/value types
-        if (target.getType() == ShapeType.MAP) {
+        // If the target is a map, include key/value schemas
+        if (targetType == ShapeType.MAP) {
             var mapShape = target.asMapShape().get();
             var keyTarget = model.expectShape(mapShape.getKey().getTarget());
             var valueTarget = model.expectShape(mapShape.getValue().getTarget());
-            writer.write("key_type = $S,", toLuaSchemaType(keyTarget));
-            writer.write("value_type = $S,", toLuaSchemaType(valueTarget));
+            var valueTargetType = valueTarget.getType();
+            writer.write("key = { type = $S },", toLuaSchemaType(keyTarget));
+            if (valueTargetType == ShapeType.STRUCTURE || valueTargetType == ShapeType.UNION) {
+                writer.write("value = M.$L,", valueTarget.getId().getName(service));
+            } else {
+                writer.write("value = { type = $S },", toLuaSchemaType(valueTarget));
+            }
         }
 
         // Collect traits relevant to serde
+        var traits = collectTraits(member);
+
+        if (!traits.isEmpty()) {
+            writer.write("traits = {");
+            writer.indent();
+            for (var entry : traits.entrySet()) {
+                writer.write("$L = $L,", entry.getKey(), entry.getValue());
+            }
+            writer.dedent();
+            writer.write("},");
+        }
+
+        writer.dedent();
+        writer.write("},");
+    }
+
+    private TreeMap<String, String> collectTraits(MemberShape member) {
         var traits = new TreeMap<String, String>();
         if (member.hasTrait(RequiredTrait.class)) traits.put("required", "true");
+        // Emit default value (skip if clientOptional — non-authoritative generators ignore defaults)
+        if (!member.hasTrait(ClientOptionalTrait.class)) {
+            member.getTrait(DefaultTrait.class).ifPresent(t -> {
+                var node = t.toNode();
+                traits.put("default", nodeToLua(node));
+            });
+        }
         if (member.hasTrait(HttpLabelTrait.class)) traits.put("http_label", "true");
         member.getTrait(HttpQueryTrait.class).ifPresent(t ->
                 traits.put("http_query", "\"" + t.getValue() + "\""));
@@ -355,27 +414,37 @@ public final class DirectedLuaCodegen
                 traits.put("xml_name", "\"" + t.getValue() + "\""));
         member.getTrait(TimestampFormatTrait.class).ifPresent(t ->
                 traits.put("timestamp_format", "\"" + t.getValue() + "\""));
+        return traits;
+    }
 
-        if (!traits.isEmpty()) {
-            writer.write("traits = {");
-            writer.indent();
-            for (var entry : traits.entrySet()) {
-                writer.write("$L = $L,", entry.getKey(), entry.getValue());
+    private static String nodeToLua(Node node) {
+        if (node.isNullNode()) return "nil";
+        if (node.isBooleanNode()) return node.expectBooleanNode().getValue() ? "true" : "false";
+        if (node.isNumberNode()) {
+            var num = node.expectNumberNode().getValue();
+            if (num.doubleValue() == num.longValue()) {
+                return String.valueOf(num.longValue());
             }
-            writer.dedent();
-            writer.write("},");
+            return num.toString();
         }
-
-        writer.dedent();
-        writer.write("},");
+        if (node.isStringNode()) return "\"" + node.expectStringNode().getValue()
+                .replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        if (node.isArrayNode()) return "{}";
+        if (node.isObjectNode()) return "{}";
+        return "nil";
     }
 
     private String toLuaSchemaType(Shape shape) {
         return switch (shape.getType()) {
             case STRING, ENUM -> "string";
             case BOOLEAN -> "boolean";
-            case BYTE, SHORT, INTEGER, LONG, FLOAT, DOUBLE,
-                 BIG_INTEGER, BIG_DECIMAL, INT_ENUM -> "number";
+            case BYTE -> "byte";
+            case SHORT -> "short";
+            case INTEGER -> "integer";
+            case LONG -> "long";
+            case FLOAT -> "float";
+            case DOUBLE -> "double";
+            case BIG_INTEGER, BIG_DECIMAL, INT_ENUM -> "number";
             case TIMESTAMP -> "timestamp";
             case BLOB -> "blob";
             case LIST -> "list";

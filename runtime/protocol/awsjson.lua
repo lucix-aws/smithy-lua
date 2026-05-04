@@ -99,7 +99,7 @@ function M.deserialize(self, response, operation)
     end
 
     -- Success: empty body is valid (e.g. DeleteQueue returns nothing)
-    if not body_str or #body_str == 0 or body_str == "{}" then
+    if not body_str or #body_str == 0 then
         return {}, nil
     end
 
