@@ -1,7 +1,7 @@
--- Teal declarations for runtime/protocol/json.lua
+-- Teal declarations for runtime/protocol/awsjson.lua
 
 local http = require("http")
-local client = require("client")
+local protocol = require("protocol")
 
 local record aws_json_protocol
 
@@ -15,8 +15,8 @@ local record aws_json_protocol
 
     new: function(settings: Settings): aws_json_protocol
 
-    serialize: function(self: aws_json_protocol, input: table, operation: client.Operation): http.Request, table
-    deserialize: function(self: aws_json_protocol, response: http.Response, operation: client.Operation): table, table
+    serialize: function(self: aws_json_protocol, input: table, operation: protocol.Operation): http.Request, table
+    deserialize: function(self: aws_json_protocol, response: http.Response, operation: protocol.Operation): table, table
 
 end
 

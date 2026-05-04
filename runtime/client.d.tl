@@ -3,6 +3,7 @@
 
 local http = require("http")
 local auth = require("auth")
+local protocol = require("protocol")
 
 local record M
 
@@ -23,23 +24,6 @@ local record M
         region: string
     end
 
-    -- Protocol interface: serialize input to request, deserialize response to output.
-    record ClientProtocol
-        serialize: function(input: table, operation: Operation): http.Request, table
-        deserialize: function(response: http.Response, operation: Operation): table, table
-    end
-
-    -- Static operation metadata, produced by codegen.
-    record Operation
-        name: string
-        input_schema: table
-        output_schema: table
-        http_method: string
-        http_path: string
-        -- error_schemas: {table}
-        -- auth_schemes: {string}
-    end
-
     -- Per-operation override options.
     record Options
         plugins: {function(config: Config)}
@@ -48,7 +32,7 @@ local record M
     -- Client configuration. Plugins receive and mutate a copy of this.
     record Config
         service_id: string
-        protocol: ClientProtocol
+        protocol: protocol.ClientProtocol
         http_client: function(request: http.Request): http.Response, table
         endpoint_provider: function(params: EndpointParameters): Endpoint, table
         identity_resolver: function(): auth.Credentials, table
@@ -64,11 +48,11 @@ local record M
     -- The client table.
     record Client
         config: Config
-        invokeOperation: function(self: Client, input: table, operation: Operation, options: Options): table, table
+        invokeOperation: function(self: Client, input: table, operation: protocol.Operation, options: Options): table, table
     end
 
     new: function(config: Config): Client
-    invokeOperation: function(self: Client, input: table, operation: Operation, options: Options): table, table
+    invokeOperation: function(self: Client, input: table, operation: protocol.Operation, options: Options): table, table
 
 end
 
