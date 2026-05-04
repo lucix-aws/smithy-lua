@@ -115,7 +115,16 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("local request, err = protocol:serialize(input, operation)");
             w.write("assert(not err, \"serialize error: \" .. tostring(err))");
             w.write("assert_eq(request.method, $S, \"method\")", tc.getMethod());
-            w.write("assert_eq(request.url, $S, \"url\")", tc.getUri());
+            w.write("assert_url_path(request.url, $S)", tc.getUri());
+            for (var qp : tc.getQueryParams()) {
+                w.write("assert_query_param(request.url, $S)", qp);
+            }
+            for (var fqp : tc.getForbidQueryParams()) {
+                w.write("assert_no_query_param(request.url, $S)", fqp);
+            }
+            for (var rqp : tc.getRequireQueryParams()) {
+                w.write("assert_has_query_key(request.url, $S)", rqp);
+            }
             for (var e : tc.getHeaders().entrySet()) {
                 w.write("assert_header(request, $S, $S)", e.getKey(), e.getValue());
             }
@@ -289,6 +298,50 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("end");
         w.write("");
 
+        // URL path and query param helpers
+        w.write("local function get_url_path(url)");
+        w.write("    return url:match(\"^([^?]*)\") or url");
+        w.write("end");
+        w.write("");
+        w.write("local function get_query_params(url)");
+        w.write("    local qs = url:match(\"?(.*)$\")");
+        w.write("    if not qs then return {} end");
+        w.write("    local params = {}");
+        w.write("    for pair in qs:gmatch(\"[^&]+\") do");
+        w.write("        params[#params + 1] = pair");
+        w.write("    end");
+        w.write("    return params");
+        w.write("end");
+        w.write("");
+        w.write("local function assert_url_path(url, expected)");
+        w.write("    local path = get_url_path(url)");
+        w.write("    assert_eq(path, expected, \"url path\")");
+        w.write("end");
+        w.write("");
+        w.write("local function assert_query_param(url, expected_pair)");
+        w.write("    local params = get_query_params(url)");
+        w.write("    for _, p in ipairs(params) do");
+        w.write("        if p == expected_pair then return end");
+        w.write("    end");
+        w.write("    error(\"missing query param: \" .. expected_pair .. \" in \" .. url, 2)");
+        w.write("end");
+        w.write("");
+        w.write("local function assert_no_query_param(url, forbidden_pair)");
+        w.write("    local params = get_query_params(url)");
+        w.write("    for _, p in ipairs(params) do");
+        w.write("        if p == forbidden_pair then error(\"unexpected query param: \" .. forbidden_pair, 2) end");
+        w.write("    end");
+        w.write("end");
+        w.write("");
+        w.write("local function assert_has_query_key(url, key)");
+        w.write("    local params = get_query_params(url)");
+        w.write("    for _, p in ipairs(params) do");
+        w.write("        if p:match(\"^([^=]*)\") == key then return end");
+        w.write("    end");
+        w.write("    error(\"missing query key: \" .. key .. \" in \" .. url, 2)");
+        w.write("end");
+        w.write("");
+
         // read_body
         w.write("local function read_body(reader)");
         w.write("    if not reader then return \"\" end");
@@ -410,13 +463,29 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         return nodeToLua(node);
     }
 
+    private static boolean isLuaIdentifier(String s) {
+        if (s.isEmpty()) return false;
+        char c = s.charAt(0);
+        if (!Character.isLetter(c) && c != '_') return false;
+        for (int i = 1; i < s.length(); i++) {
+            c = s.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '_') return false;
+        }
+        return true;
+    }
+
     private String nodeToLua(Node node) {
         if (node instanceof ObjectNode obj) {
             if (obj.isEmpty()) return "{}";
             var sb = new StringBuilder("{\n");
             for (var e : obj.getMembers().entrySet()) {
-                sb.append("    ").append(e.getKey().getValue())
-                  .append(" = ").append(nodeToLua(e.getValue())).append(",\n");
+                var key = e.getKey().getValue();
+                if (isLuaIdentifier(key)) {
+                    sb.append("    ").append(key);
+                } else {
+                    sb.append("    [\"").append(escLuaStr(key)).append("\"]");
+                }
+                sb.append(" = ").append(nodeToLua(e.getValue())).append(",\n");
             }
             sb.append("}");
             return sb.toString();

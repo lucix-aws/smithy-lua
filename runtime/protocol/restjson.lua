@@ -74,17 +74,135 @@ end
 local function format_header_value(v, member_schema)
     if type(v) == "boolean" then return v and "true" or "false" end
     if member_schema and member_schema.type == "timestamp" then
-        -- Default header timestamp format is RFC 7231 (http-date)
-        -- For now, just use the numeric epoch value as a string
-        return tostring(v)
+        -- Default header timestamp format is http-date (RFC 7231)
+        local ts_format = "http-date"
+        if member_schema.traits and member_schema.traits[strait.TIMESTAMP_FORMAT] then
+            ts_format = member_schema.traits[strait.TIMESTAMP_FORMAT]
+        end
+        if ts_format == "http-date" then
+            return json_codec._format_http_date(v)
+        elseif ts_format == "date-time" then
+            return json_codec._format_iso8601(v)
+        else
+            -- epoch-seconds
+            if v % 1 == 0 then return string.format("%.0f", v) end
+            return tostring(v)
+        end
+    end
+    if member_schema and member_schema.traits and member_schema.traits[strait.MEDIA_TYPE] then
+        -- @mediaType: base64-encode the value for header transport
+        return json_codec._base64_encode(tostring(v))
     end
     if type(v) == "table" then
-        -- list header: comma-separated
+        -- list header: comma-separated, quote items containing commas or quotes
         local items = {}
-        for _, item in ipairs(v) do items[#items + 1] = tostring(item) end
+        for _, item in ipairs(v) do
+            local s = tostring(item)
+            if s:find('[,"]') then
+                items[#items + 1] = '"' .. s:gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
+            else
+                items[#items + 1] = s
+            end
+        end
         return table.concat(items, ", ")
     end
     return tostring(v)
+end
+
+-- Parse a header value into a typed Lua value
+local function parse_header_value(v, member_schema)
+    if member_schema.type == "boolean" then
+        return (v == "true")
+    elseif member_schema.type == "timestamp" then
+        local ts_format = "http-date"
+        if member_schema.traits and member_schema.traits[strait.TIMESTAMP_FORMAT] then
+            ts_format = member_schema.traits[strait.TIMESTAMP_FORMAT]
+        end
+        if ts_format == "http-date" then
+            -- Parse RFC 7231 date
+            local t = {}
+            t.day, t.month, t.year, t.hour, t.min, t.sec = v:match(
+                "%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
+            if not t.day then return tonumber(v) end
+            local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
+            t.month = months[t.month] or 1
+            t.year = tonumber(t.year); t.day = tonumber(t.day)
+            t.hour = tonumber(t.hour); t.min = tonumber(t.min); t.sec = tonumber(t.sec)
+            t.isdst = false
+            local epoch = os.time(t)
+            local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
+            return epoch - utc_offset
+        elseif ts_format == "date-time" then
+            return json_codec._parse_iso8601(v)
+        else
+            return tonumber(v)
+        end
+    elseif member_schema.traits and member_schema.traits[strait.MEDIA_TYPE] then
+        return json_codec._base64_decode(v)
+    elseif member_schema.type == "number" or member_schema.type == "integer"
+        or member_schema.type == "long" or member_schema.type == "float"
+        or member_schema.type == "double" or member_schema.type == "short"
+        or member_schema.type == "byte" then
+        return tonumber(v)
+    elseif member_schema.type == "list" then
+        -- Parse comma-separated header list, respecting quoted strings
+        local items = {}
+        local i = 1
+        while i <= #v do
+            -- skip whitespace
+            while i <= #v and v:sub(i,i) == " " do i = i + 1 end
+            if i > #v then break end
+            if v:sub(i,i) == '"' then
+                -- quoted string
+                i = i + 1
+                local s = {}
+                while i <= #v and v:sub(i,i) ~= '"' do
+                    if v:sub(i,i) == '\\' then i = i + 1 end
+                    s[#s+1] = v:sub(i,i)
+                    i = i + 1
+                end
+                i = i + 1 -- skip closing quote
+                items[#items+1] = table.concat(s)
+            else
+                local j = v:find(",", i)
+                if j then
+                    items[#items+1] = v:sub(i, j-1):match("^%s*(.-)%s*$")
+                    i = j
+                else
+                    items[#items+1] = v:sub(i):match("^%s*(.-)%s*$")
+                    i = #v + 1
+                end
+            end
+            -- skip comma
+            while i <= #v and (v:sub(i,i) == "," or v:sub(i,i) == " ") do i = i + 1 end
+        end
+        -- Convert items based on member element type
+        local elem = member_schema.member
+        if elem then
+            for idx, item in ipairs(items) do
+                if elem.type == "integer" or elem.type == "long" or elem.type == "short"
+                    or elem.type == "byte" or elem.type == "float" or elem.type == "double" then
+                    items[idx] = tonumber(item)
+                elseif elem.type == "boolean" then
+                    items[idx] = (item == "true")
+                elseif elem.type == "timestamp" then
+                    local tf = "http-date"
+                    if elem.traits and elem.traits[strait.TIMESTAMP_FORMAT] then
+                        tf = elem.traits[strait.TIMESTAMP_FORMAT]
+                    end
+                    if tf == "http-date" then
+                        -- individual items in a list header are not full http-date
+                        items[idx] = tonumber(item) or item
+                    else
+                        items[idx] = tonumber(item) or item
+                    end
+                end
+            end
+        end
+        return items
+    else
+        return v
+    end
 end
 
 function M.serialize(self, input, operation)

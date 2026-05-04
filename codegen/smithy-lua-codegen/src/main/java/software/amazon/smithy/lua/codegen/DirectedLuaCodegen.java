@@ -36,7 +36,9 @@ import software.amazon.smithy.model.traits.HttpQueryTrait;
 import software.amazon.smithy.model.traits.HttpQueryParamsTrait;
 import software.amazon.smithy.model.traits.HttpResponseCodeTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
+import software.amazon.smithy.model.traits.IdempotencyTokenTrait;
 import software.amazon.smithy.model.traits.JsonNameTrait;
+import software.amazon.smithy.model.traits.MediaTypeTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
 import software.amazon.smithy.model.traits.TimestampFormatTrait;
 import software.amazon.smithy.model.traits.XmlNameTrait;
@@ -413,7 +415,7 @@ public final class DirectedLuaCodegen
         if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
             var targetName = target.getId().getName(service);
             // Write traits wrapper if needed, otherwise just reference
-            var traits = collectTraits(member);
+            var traits = collectTraits(member, model);
             if (traits.isEmpty()) {
                 writer.write("$L = M.$L,", member.getMemberName(), targetName);
             } else {
@@ -461,7 +463,7 @@ public final class DirectedLuaCodegen
         }
 
         // Collect traits relevant to serde
-        var traits = collectTraits(member);
+        var traits = collectTraits(member, model);
 
         if (!traits.isEmpty()) {
             writer.write("traits = {");
@@ -478,6 +480,10 @@ public final class DirectedLuaCodegen
     }
 
     private TreeMap<String, String> collectTraits(MemberShape member) {
+        return collectTraits(member, null);
+    }
+
+    private TreeMap<String, String> collectTraits(MemberShape member, software.amazon.smithy.model.Model model) {
         var traits = new TreeMap<String, String>();
         if (member.hasTrait(RequiredTrait.class)) traits.put("required", "true");
         // Emit default value (skip if clientOptional — non-authoritative generators ignore defaults)
@@ -505,6 +511,13 @@ public final class DirectedLuaCodegen
                 traits.put("xml_name", "\"" + t.getValue() + "\""));
         member.getTrait(TimestampFormatTrait.class).ifPresent(t ->
                 traits.put("timestamp_format", "\"" + t.getValue() + "\""));
+        if (member.hasTrait(IdempotencyTokenTrait.class)) traits.put("idempotency_token", "true");
+        // Check target shape for @mediaType
+        if (model != null) {
+            var target = model.expectShape(member.getTarget());
+            target.getTrait(MediaTypeTrait.class).ifPresent(t ->
+                    traits.put("media_type", "\"" + t.getValue() + "\""));
+        }
         return traits;
     }
 

@@ -49,6 +49,7 @@ M.trait = {
     EC2_QUERY_NAME   = "ec2_query_name",
     AWS_QUERY_ERROR  = "aws_query_error",
     DEFAULT          = "default",
+    MEDIA_TYPE       = "media_type",
 }
 
 -- Timestamp format constants
