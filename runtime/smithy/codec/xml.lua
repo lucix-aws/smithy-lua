@@ -139,7 +139,17 @@ local function encode_value(v, name, schema, buf, n, codec)
         local flattened = schema.traits and schema.traits[strait.XML_FLATTENED]
         local entry_name = flattened and name or "entry"
         if not flattened then
-            n = n + 1; buf[n] = "<" .. name .. ">"
+            local ns_attr = ""
+            if schema.traits and schema.traits[strait.XML_NAMESPACE] then
+                local ns = schema.traits[strait.XML_NAMESPACE]
+                if type(ns) == "table" then
+                    local attr = ns.prefix and ("xmlns:" .. ns.prefix) or "xmlns"
+                    ns_attr = " " .. attr .. '="' .. xml_escape(ns.uri) .. '"'
+                else
+                    ns_attr = ' xmlns="' .. xml_escape(ns) .. '"'
+                end
+            end
+            n = n + 1; buf[n] = "<" .. name .. ns_attr .. ">"
         end
         -- Sort keys for deterministic output
         local keys = {}
@@ -171,7 +181,17 @@ local function encode_value(v, name, schema, buf, n, codec)
 
     else
         -- Simple type
-        n = n + 1; buf[n] = "<" .. name .. ">" .. xml_escape(simple_value(v, schema, codec)) .. "</" .. name .. ">"
+        local ns_attr = ""
+        if schema.traits and schema.traits[strait.XML_NAMESPACE] then
+            local ns = schema.traits[strait.XML_NAMESPACE]
+            if type(ns) == "table" then
+                local attr = ns.prefix and ("xmlns:" .. ns.prefix) or "xmlns"
+                ns_attr = " " .. attr .. '="' .. xml_escape(ns.uri) .. '"'
+            else
+                ns_attr = ' xmlns="' .. xml_escape(ns) .. '"'
+            end
+        end
+        n = n + 1; buf[n] = "<" .. name .. ns_attr .. ">" .. xml_escape(simple_value(v, schema, codec)) .. "</" .. name .. ">"
         return n
     end
 end
