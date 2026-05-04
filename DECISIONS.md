@@ -210,3 +210,37 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** `getServiceNamespace()` used the Smithy shape name, causing collisions (RDS/DocDB/Neptune all mapped to `amazonRDSv19`) and ugly names (`aWSSecurityTokenServiceV20110615`).
 **Decision:** Use `sdkId` from the `aws.api#service` trait when present, normalized (remove dashes/spaces, lowercase). Falls back to uncapitalized shape name for non-AWS services. Produces clean names: `dynamodb`, `s3`, `sts`, `lambda`.
 **Affects:** All generated service client directory names, all require() paths in generated code.
+
+## 2026-05-04 — Codegen emits specific numeric types instead of generic "number"
+**Context:** The JSON codec needs to distinguish float/double from integer types for proper formatting (e.g., `1.0` vs `1`, NaN/Infinity as quoted strings).
+**Decision:** `toLuaSchemaType` now emits `byte`, `short`, `integer`, `long`, `float`, `double` instead of collapsing all to `number`. The codec already handled these types; only the codegen was collapsing them.
+**Affects:** All generated schemas, all codec/protocol implementations (must handle the specific type strings).
+
+## 2026-05-04 — Codegen references top-level schemas for structure/union member targets
+**Context:** When a structure member targets another structure or union, codegen was emitting `{ type = "union" }` with no members — the codec couldn't serialize/deserialize the inner shape.
+**Decision:** `writeMemberSchema` now emits `M.ShapeName` (a Lua reference to the top-level schema) for structure/union targets. If the member also has traits, uses `setmetatable({ traits = {...} }, { __index = M.ShapeName })`. Lists/maps with structure/union elements emit `member = M.ShapeName` / `value = M.ShapeName`.
+**Affects:** All generated schemas, codec implementations (no changes needed — they already walk `schema.members`).
+
+## 2026-05-04 — Codegen emits full member schemas for lists and maps
+**Context:** Lists used `member_type = "string"` (a bare string) and maps used `key_type`/`value_type`. The codec expected `member = { type = "string" }` (a schema table).
+**Decision:** Lists now emit `member = { type = "..." }` and maps emit `key = { type = "..." }`, `value = { type = "..." }`. These are full schema objects matching what the codec expects.
+**Affects:** All generated schemas. Old `member_type`/`key_type`/`value_type` fields no longer emitted.
+
+## 2026-05-04 — Default value population: codegen + runtime
+**Context:** Smithy `@default` trait requires clients to populate default values for missing members.
+**Decision:** Three parts:
+1. **Codegen:** Emits `default = <value>` in member traits. Skips emission when `@clientOptional` is present (non-authoritative generators ignore defaults per spec). Blob defaults are emitted as base64 strings (matching the Smithy model representation).
+2. **Serialize:** Defaults applied to nested structures only (not top-level input members). When a structure is explicitly provided (even as `{}`), its nil members get defaults. Top-level input members that are nil stay nil.
+3. **Deserialize:** Defaults applied to all structure members. Required members missing from responses get zero-values (error correction): `""` for strings, `false` for booleans, `0` for numbers/timestamps, `""` for blobs, `{}` for lists/maps.
+Blob defaults are base64-decoded before use (model stores them as base64).
+**Affects:** All codec/protocol implementations, generated schemas.
+
+## 2026-05-04 — ISO 8601 and HTTP-date timestamp formatting in JSON codec
+**Context:** The JSON codec only handled epoch-seconds timestamps. Protocol tests require ISO 8601 (`date-time`) and HTTP-date formatting/parsing.
+**Decision:** Added `_format_iso8601`, `_format_http_date`, `_parse_iso8601` to `codec/json.lua`. ISO 8601 parsing handles timezone offsets and fractional seconds. Epoch-seconds integers no longer emit trailing `.000`.
+**Affects:** All protocols using the JSON codec with non-default timestamp formats.
+
+## 2026-05-04 — Protocol test skip list for unimplemented features
+**Context:** Request compression (`@requestCompression`) is not implemented. The corresponding protocol tests fail.
+**Decision:** `HttpProtocolTestGenerator` has a static `SKIP_TESTS` set of test IDs. Matching tests emit an empty test body with a skip comment instead of the full test. Currently skips all `SDKAppliedContentEncoding_*` and `SDKAppendsGzipAndIgnoresHttpProvidedEncoding_*` tests.
+**Affects:** Protocol test generation only.

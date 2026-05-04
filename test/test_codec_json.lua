@@ -177,7 +177,7 @@ end)
 test("serialize timestamp epoch-seconds", function()
     local json, err = codec:serialize(1609459200, timestamp_schema)
     assert(not err)
-    assert_eq(json, "1609459200.000")
+    assert_eq(json, "1609459200")
 end)
 
 test("serialize union", function()

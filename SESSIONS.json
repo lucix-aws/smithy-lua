@@ -235,5 +235,20 @@
       "confirm worktree usage"
     ],
     "outcome": "Implemented waiters end-to-end. Runtime: waiter.lua with eval_path (dot-path + [] flatten), acceptor matching (output/inputOutput/success/errorType), 4 comparators, exponential jitter backoff, polling loop with max_wait_time. Codegen: WaiterGenerator.java (LuaIntegration) reads @waitable traits, emits {ns}/waiters.lua + waiters.d.tl per service. Verified with test-waiters model (3 waiters: WidgetExists, WidgetNotExists, WidgetReady). SQS correctly produces no waiters. 33 new tests, all existing tests pass."
+  },
+  {
+    "session": 18,
+    "task": "Fix awsJson protocol test failures: timestamps, unions, defaults/required, skip content encoding",
+    "start": "2026-05-04T14:11:00-04:00",
+    "end": "2026-05-04T14:44:00-04:00",
+    "duration_minutes": 33,
+    "branch": "fix-awsjson-tests",
+    "prompts": [
+      "new agent workflow, confirm steps",
+      "dive into awsJson protocol test failures",
+      "fix all failures, discuss default serialization rules per Smithy spec",
+      "skip content encoding tests like Go SDK does"
+    ],
+    "outcome": "Fixed 15 awsJson protocol test failures down to 0 (160 pass). Fixes: (1) ISO 8601 timestamp formatting/parsing + HTTP-date in JSON codec, epoch-seconds without trailing .000. (2) Codegen references M.ShapeName for structure/union member targets instead of empty inline schemas. (3) Lists/maps emit full member/value schema objects. (4) Codegen emits specific numeric types (byte/short/integer/long/float/double) instead of generic 'number'. (5) Default value population: codegen emits @default (skipping @clientOptional), runtime applies in nested structures on serialize, all structures on deserialize. Blob defaults base64-decoded. Required member zero-value error correction. (6) NaN/Infinity handling in test generator (0/0, math.huge) and codec (string input for float types). (7) awsjson protocol no longer short-circuits on '{}' body so defaults apply. (8) Protocol test skip list for unimplemented request compression tests. All runtime tests pass with zero regressions."
   }
 ]

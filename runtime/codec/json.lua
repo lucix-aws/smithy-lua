@@ -37,7 +37,7 @@ local function wire_name(name, member_schema, use_json_name)
 end
 
 -- Schema-aware encoding into a buffer. Returns new buffer position.
-local function encode_schema_value(v, schema, buf, n, codec)
+local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
     local st = schema.type
 
     if v == nil then
@@ -49,20 +49,27 @@ local function encode_schema_value(v, schema, buf, n, codec)
         n = n + 1; buf[n] = "{"
         local members = schema.members
         if members then
-            -- Sort keys for deterministic output
             local keys = {}
             for k in pairs(members) do keys[#keys + 1] = k end
             table.sort(keys)
             local first = true
             for i = 1, #keys do
                 local name = keys[i]
+                local ms = members[name]
                 local mv = v[name]
+                if mv == nil and apply_defaults and ms.traits then
+                    mv = ms.traits[strait.DEFAULT]
+                    -- Blob defaults are base64-encoded in the model; decode so codec re-encodes
+                    if mv ~= nil and ms.type == stype.BLOB then
+                        mv = M._base64_decode(mv)
+                    end
+                end
                 if mv ~= nil then
                     if not first then n = n + 1; buf[n] = "," end
                     first = false
-                    n = encode_string(wire_name(name, members[name], codec.use_json_name), buf, n)
+                    n = encode_string(wire_name(name, ms, codec.use_json_name), buf, n)
                     n = n + 1; buf[n] = ":"
-                    n = encode_schema_value(mv, members[name], buf, n, codec)
+                    n = encode_schema_value(mv, ms, buf, n, codec, true)
                 end
             end
         end
@@ -77,7 +84,7 @@ local function encode_schema_value(v, schema, buf, n, codec)
             if v[i] == nil then
                 n = n + 1; buf[n] = "null"
             elseif elem_schema then
-                n = encode_schema_value(v[i], elem_schema, buf, n, codec)
+                n = encode_schema_value(v[i], elem_schema, buf, n, codec, true)
             else
                 n = encoder._encode_value(v[i], buf, n)
             end
@@ -100,7 +107,7 @@ local function encode_schema_value(v, schema, buf, n, codec)
             if mv == nil then
                 n = n + 1; buf[n] = "null"
             elseif val_schema then
-                n = encode_schema_value(mv, val_schema, buf, n, codec)
+                n = encode_schema_value(mv, val_schema, buf, n, codec, true)
             else
                 n = encoder._encode_value(mv, buf, n)
             end
@@ -118,7 +125,7 @@ local function encode_schema_value(v, schema, buf, n, codec)
                 if mv ~= nil then
                     n = encode_string(wire_name(name, member_schema, codec.use_json_name), buf, n)
                     n = n + 1; buf[n] = ":"
-                    n = encode_schema_value(mv, member_schema, buf, n, codec)
+                    n = encode_schema_value(mv, member_schema, buf, n, codec, true)
                     break
                 end
             end
@@ -139,7 +146,10 @@ local function encode_schema_value(v, schema, buf, n, codec)
         return n
 
     elseif st == stype.FLOAT or st == stype.DOUBLE then
-        if v ~= v then
+        if type(v) == "string" then
+            -- Handle string representations of special float values
+            return encode_string(v, buf, n)
+        elseif v ~= v then
             n = n + 1; buf[n] = '"NaN"'
         elseif v == huge then
             n = n + 1; buf[n] = '"Infinity"'
@@ -160,10 +170,17 @@ local function encode_schema_value(v, schema, buf, n, codec)
         if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
             ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
         end
-        if ts_format == schema_mod.timestamp.EPOCH_SECONDS then
-            n = n + 1; buf[n] = format("%.3f", v)
+        if ts_format == schema_mod.timestamp.DATE_TIME then
+            return encode_string(M._format_iso8601(v), buf, n)
+        elseif ts_format == schema_mod.timestamp.HTTP_DATE then
+            return encode_string(M._format_http_date(v), buf, n)
         else
-            return encode_string(tostring(v), buf, n)
+            -- epoch-seconds: strip trailing zeros but keep numeric
+            if v % 1 == 0 then
+                n = n + 1; buf[n] = format("%.0f", v)
+            else
+                n = n + 1; buf[n] = format("%s", tostring(v))
+            end
         end
         return n
 
@@ -178,7 +195,7 @@ end
 --- Serialize a Lua value to JSON using a schema.
 function M.serialize(self, value, schema)
     local buf = {}
-    local ok, n_or_err = pcall(encode_schema_value, value, schema, buf, 0, self)
+    local ok, n_or_err = pcall(encode_schema_value, value, schema, buf, 0, self, false)
     if not ok then
         return nil, { type = "sdk", message = "json serialize: " .. tostring(n_or_err) }
     end
@@ -210,6 +227,28 @@ local function decode_schema_value(v, schema, codec)
                 local decoded, err = decode_schema_value(raw, entry[2], codec)
                 if err then return nil, err end
                 result[entry[1]] = decoded
+            end
+        end
+        -- Apply defaults and zero-values for required members
+        for name, ms in pairs(members) do
+            if result[name] == nil and ms.traits then
+                local def = ms.traits[strait.DEFAULT]
+                if def ~= nil then
+                    -- Blob defaults are base64-encoded in the model; decode for deserialization
+                    if ms.type == stype.BLOB then def = M._base64_decode(def) end
+                    result[name] = def
+                elseif ms.traits[strait.REQUIRED] then
+                    -- Error correction: fill zero-value for required members
+                    local t = ms.type
+                    if t == stype.STRING or t == stype.ENUM then result[name] = ""
+                    elseif t == stype.BOOLEAN then result[name] = false
+                    elseif t == stype.BYTE or t == stype.SHORT or t == stype.INTEGER
+                        or t == stype.LONG or t == stype.FLOAT or t == stype.DOUBLE
+                        or t == stype.INT_ENUM or t == stype.TIMESTAMP then result[name] = 0
+                    elseif t == stype.BLOB then result[name] = ""
+                    elseif t == stype.LIST or t == stype.MAP then result[name] = {}
+                    end
+                end
             end
         end
         return result
@@ -296,6 +335,9 @@ local function decode_schema_value(v, schema, codec)
         return v
 
     elseif st == stype.TIMESTAMP then
+        if type(v) == "string" then
+            return M._parse_iso8601(v)
+        end
         return tonumber(v)
 
     elseif st == stype.DOCUMENT then
@@ -317,6 +359,51 @@ function M.deserialize(self, bytes, schema)
         return nil, { type = "sdk", message = "json deserialize: " .. derr }
     end
     return result, nil
+end
+
+-- Timestamp formatting/parsing helpers
+
+local floor = math.floor
+
+--- Format epoch seconds as ISO 8601 date-time string (UTC).
+function M._format_iso8601(epoch)
+    local frac = epoch - floor(epoch)
+    local t = os.date("!*t", floor(epoch))
+    local s = format("%04d-%02d-%02dT%02d:%02d:%02d", t.year, t.month, t.day, t.hour, t.min, t.sec)
+    if frac > 0 then
+        -- up to 3 decimal places, strip trailing zeros
+        local ms = format("%.3f", frac):sub(2):gsub("0+$", "")
+        s = s .. ms
+    end
+    return s .. "Z"
+end
+
+--- Format epoch seconds as HTTP-date (RFC 7231).
+function M._format_http_date(epoch)
+    return os.date("!%a, %d %b %Y %H:%M:%S GMT", floor(epoch))
+end
+
+--- Parse ISO 8601 date-time string to epoch seconds.
+function M._parse_iso8601(s)
+    local y, mo, d, h, mi, sec, frac, tz = s:match(
+        "^(%d%d%d%d)-(%d%d)-(%d%d)[T ](%d%d):(%d%d):(%d%d)(%.?%d*)(.*)$")
+    if not y then return tonumber(s) end
+    frac = tonumber(frac or "") or 0
+    -- Compute epoch via os.time in UTC
+    local t = os.time({year=tonumber(y), month=tonumber(mo), day=tonumber(d),
+                        hour=tonumber(h), min=tonumber(mi), sec=tonumber(sec), isdst=false})
+    -- os.time returns local time, adjust to UTC
+    local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
+    t = t - utc_offset
+    -- Apply timezone offset from the string
+    if tz and tz ~= "" and tz ~= "Z" then
+        local sign, oh, om = tz:match("^([%+%-])(%d%d):?(%d%d)$")
+        if sign then
+            local off = tonumber(oh) * 3600 + tonumber(om) * 60
+            if sign == "+" then t = t - off else t = t + off end
+        end
+    end
+    return t + frac
 end
 
 -- Minimal base64 for blob support
