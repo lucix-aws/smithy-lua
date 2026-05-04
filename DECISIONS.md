@@ -29,3 +29,18 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Don't want to over-design upfront. Need to ship a working call fast.
 **Decision:** Lock down: protocol, http_client, endpoint_provider, identity_resolver, signer, signing_name, region, service_id. Stub: retry_strategy, auth_schemes, auth_scheme_resolver, interceptors. Full contract in INVOKE_OPERATION.md.
 **Affects:** All runtime modules, codegen.
+
+## 2026-05-04 — Codegen file layout: flat per-service directory with client.lua + types.lua
+**Context:** Need to decide how generated Lua files are organized per service.
+**Decision:** Each service gets a flat directory named after the service (lowercased). Two `.lua` files: `client.lua` (constructor + operation methods) and `types.lua` (all schemas — structures, unions, enums, errors). Two `.d.tl` files alongside. Example: `weather/client.lua`, `weather/types.lua`, `weather/client.d.tl`, `weather/types.d.tl`.
+**Affects:** All codegen, aws-sdk-lua codegen, require() paths in runtime.
+
+## 2026-05-04 — Schema format for generated types
+**Context:** Schema-serde approach requires codegen to emit runtime-readable schema declarations.
+**Decision:** Each schema is a Lua table with `type` (string/number/boolean/structure/union/list/map/etc.), `members` (table of member schemas), and per-member `traits` (required, http_label, http_query, http_header, http_payload, json_name, xml_name, timestamp_format, etc.). Lists include `member_type`, maps include `key_type`/`value_type`. Error shapes include `error` field with the error kind.
+**Affects:** Runtime serde/protocol implementations (must understand this schema format).
+
+## 2026-05-04 — LuaSymbolProvider uses ShapeVisitor pattern
+**Context:** Need proper symbol resolution for different shape types.
+**Decision:** `LuaSymbolProvider` implements both `SymbolProvider` and `ShapeVisitor<Symbol>`. Service/operation shapes → `client.lua`, aggregate shapes (structure/union/enum) → `types.lua`, simple shapes → native Lua type names with no definition file.
+**Affects:** All codegen, WriterDelegator file routing.
