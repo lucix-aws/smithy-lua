@@ -40,5 +40,18 @@
       "implement schema, serde, json encoder/decoder, json codec with tests"
     ],
     "outcome": "Implemented schema.lua (type/trait constants, member lookup), serde.lua (codec interface), json/encoder.lua (pure Lua JSON encoder), json/decoder.lua (pure Lua JSON decoder), codec/json.lua (schema-aware JSON codec with base64, timestamp, NaN/Infinity support). 71 tests passing (40 encoder/decoder + 31 codec). Teal .d.tl declarations for all modules."
+  },
+  {
+    "session": 4,
+    "task": "Phase 2B: http.lua, auth.lua, crypto (SHA-256, HMAC), SigV4 signer",
+    "start": "2026-05-04T10:24:00-04:00",
+    "end": null,
+    "duration_minutes": null,
+    "branch": "auth-signing",
+    "prompts": [
+      "scope discussion: auth scheme resolution and signing",
+      "confirmed http.lua should be broken out from client.d.tl"
+    ],
+    "outcome": null
   }
 ]

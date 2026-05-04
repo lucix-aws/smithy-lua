@@ -1,29 +1,10 @@
 -- Teal declarations for smithy-lua runtime/client
 -- See INVOKE_OPERATION.md for the full contract.
 
+local http = require("http")
+local auth = require("auth")
+
 local record M
-
-    -- HTTP request as produced by protocol.serialize and consumed by http_client/signer.
-    record Request
-        method: string
-        url: string
-        headers: {string: string}
-        body: function(): string, string -- reader: () -> chunk, err
-    end
-
-    -- HTTP response as returned by http_client and consumed by protocol.deserialize.
-    record Response
-        status_code: integer
-        headers: {string: string}
-        body: function(): string, string -- reader: () -> chunk, err
-    end
-
-    -- Identity returned by identity_resolver (AWS credentials for now).
-    record Identity
-        access_key: string
-        secret_key: string
-        session_token: string
-    end
 
     -- Resolved endpoint.
     record Endpoint
@@ -44,8 +25,8 @@ local record M
 
     -- Protocol interface: serialize input to request, deserialize response to output.
     record ClientProtocol
-        serialize: function(input: table, operation: Operation): Request, table
-        deserialize: function(response: Response, operation: Operation): table, table
+        serialize: function(input: table, operation: Operation): http.Request, table
+        deserialize: function(response: http.Response, operation: Operation): table, table
     end
 
     -- Static operation metadata, produced by codegen.
@@ -68,14 +49,14 @@ local record M
     record Config
         service_id: string
         protocol: ClientProtocol
-        http_client: function(request: Request): Response, table
+        http_client: function(request: http.Request): http.Response, table
         endpoint_provider: function(params: EndpointParameters): Endpoint, table
-        identity_resolver: function(): Identity, table
-        signer: function(request: Request, identity: Identity, props: SigningProperties): Request, table
+        identity_resolver: function(): auth.Credentials, table
+        signer: function(request: http.Request, identity: auth.Credentials, props: SigningProperties): http.Request, table
         signing_name: string
         region: string
         -- retry_strategy: RetryStrategy
-        -- auth_schemes: {string: AuthScheme}
+        -- auth_schemes: {string: auth.AuthScheme}
         -- auth_scheme_resolver: function(config: Config, operation: Operation): {string}
         -- interceptors: {Interceptor}
     end
