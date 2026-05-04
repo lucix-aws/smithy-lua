@@ -1,7 +1,7 @@
 [
   {
     "session": 1,
-    "task": "Project setup — constitution review, session tracking",
+    "task": "Project setup \u2014 constitution review, session tracking",
     "start": "2026-05-04T09:36:34-04:00",
     "end": null,
     "duration_minutes": null,
@@ -14,7 +14,7 @@
   },
   {
     "session": 2,
-    "task": "Track 2A — Codegen: client scaffolding, schemas, operations, .d.tl declarations",
+    "task": "Track 2A \u2014 Codegen: client scaffolding, schemas, operations, .d.tl declarations",
     "start": "2026-05-04T09:53:00-04:00",
     "end": "2026-05-04T10:06:00-04:00",
     "duration_minutes": 13,
@@ -28,7 +28,7 @@
   },
   {
     "session": 3,
-    "task": "Phase 2B: schema, serde, JSON codec — foundational serde runtime modules",
+    "task": "Phase 2B: schema, serde, JSON codec \u2014 foundational serde runtime modules",
     "start": "2026-05-04T09:52:00-04:00",
     "end": "2026-05-04T10:10:00-04:00",
     "duration_minutes": 18,
@@ -50,7 +50,7 @@
     "branch": "codegen-wire",
     "prompts": [
       "assess project state, list track A status",
-      "work on step 5 — wire generated client to runtime"
+      "work on step 5 \u2014 wire generated client to runtime"
     ],
     "outcome": "Updated DirectedLuaCodegen.generateService() to require base_client, copy invokeOperation onto Client prototype, and wrap base_client.new(config) with generated Client metatable. 5 tests passing: invokeOperation available, service_id/signing_name set, full pipeline flow, error propagation, per-call plugin mutation. TealGenerator unchanged (wiring is internal)."
   },
@@ -71,7 +71,7 @@
   },
   {
     "session": 6,
-    "task": "Phase 2B: endpoint.lua — Smithy endpoint rules engine interpreter + partition data",
+    "task": "Phase 2B: endpoint.lua \u2014 Smithy endpoint rules engine interpreter + partition data",
     "start": "2026-05-04T10:29:00-04:00",
     "end": "2026-05-04T10:37:00-04:00",
     "duration_minutes": 8,
@@ -85,7 +85,7 @@
   },
   {
     "session": 7,
-    "task": "Phase 2B: error.lua, retry.lua, retry/standard.lua — error types + AWS standard retry",
+    "task": "Phase 2B: error.lua, retry.lua, retry/standard.lua \u2014 error types + AWS standard retry",
     "start": "2026-05-04T10:47:00-04:00",
     "end": "2026-05-04T10:57:00-04:00",
     "duration_minutes": 10,
@@ -98,7 +98,7 @@
   },
   {
     "session": 8,
-    "task": "Phase 2B: protocol/json.lua — awsJson1.0/1.1 protocol implementation + schema format fix",
+    "task": "Phase 2B: protocol/json.lua \u2014 awsJson1.0/1.1 protocol implementation + schema format fix",
     "start": "2026-05-04T10:47:00-04:00",
     "end": "2026-05-04T10:55:00-04:00",
     "duration_minutes": 8,
@@ -137,11 +137,11 @@
       "treat as full session, confirm constitution workflow",
       "go for it"
     ],
-    "outcome": "Added writeAdditionalFiles(LuaContext) default method to LuaIntegration. Wired into DirectedLuaCodegen.customizeAfterIntegrations — iterates over all registered integrations and calls the hook after standard codegen completes. Full build passes including integration test project. Decision appended."
+    "outcome": "Added writeAdditionalFiles(LuaContext) default method to LuaIntegration. Wired into DirectedLuaCodegen.customizeAfterIntegrations \u2014 iterates over all registered integrations and calls the hook after standard codegen completes. Full build passes including integration test project. Decision appended."
   },
   {
     "session": 11,
-    "task": "Phase 3: Convergence — real AWS call with full pipeline",
+    "task": "Phase 3: Convergence \u2014 real AWS call with full pipeline",
     "start": "2026-05-04T11:39:00-04:00",
     "end": "2026-05-04T11:52:00-04:00",
     "duration_minutes": 13,
@@ -152,7 +152,7 @@
       "implement curl_ffi and curl_subprocess",
       "implement env credential provider, STS client, convergence test, run it"
     ],
-    "outcome": "Phase 3 convergence achieved. Implemented: http/curl_ffi.lua (libcurl via LuaJIT FFI), http/curl_subprocess.lua (curl subprocess fallback), http/client.lua (resolver — probes backends in priority order), credentials/environment.lua (env var credential provider). Hand-wrote minimal DynamoDB + STS clients matching codegen output pattern. Discovered STS uses awsQuery (not awsJson), pivoted to DynamoDB ListTables for convergence. Real AWS call succeeded: DynamoDB ListTables returned table 'fugazitab'. Full pipeline: DynamoDB client → awsJson 1.0 → SigV4 → env creds → libcurl FFI → real AWS endpoint."
+    "outcome": "Phase 3 convergence achieved. Implemented: http/curl_ffi.lua (libcurl via LuaJIT FFI), http/curl_subprocess.lua (curl subprocess fallback), http/client.lua (resolver \u2014 probes backends in priority order), credentials/environment.lua (env var credential provider). Hand-wrote minimal DynamoDB + STS clients matching codegen output pattern. Discovered STS uses awsQuery (not awsJson), pivoted to DynamoDB ListTables for convergence. Real AWS call succeeded: DynamoDB ListTables returned table 'fugazitab'. Full pipeline: DynamoDB client \u2192 awsJson 1.0 \u2192 SigV4 \u2192 env creds \u2192 libcurl FFI \u2192 real AWS endpoint."
   },
   {
     "session": 12,
@@ -208,11 +208,11 @@
       "correction: auto-discover protocol test models, not manual smithy-build.json",
       "reference PR for auto-discovery approach"
     ],
-    "outcome": "Implemented protocol test generation. HttpProtocolTestGenerator (LuaIntegration) generates Lua test files from @httpRequestTests/@httpResponseTests traits. protocoltest/ Gradle project auto-discovers all protocol test services via Model.assembler().discoverModels(), generates smithy-build.json programmatically. 16 projections, 374 test files generated. awsJson1.0: 31 pass, 9 fail (unions, defaults, required members, content encoding — expected runtime gaps). All 13 error tests pass. Fixed if/else/end codegen bug, body string escaping (Lua long strings), service_id for X-Amz-Target, format string."
+    "outcome": "Implemented protocol test generation. HttpProtocolTestGenerator (LuaIntegration) generates Lua test files from @httpRequestTests/@httpResponseTests traits. protocoltest/ Gradle project auto-discovers all protocol test services via Model.assembler().discoverModels(), generates smithy-build.json programmatically. 16 projections, 374 test files generated. awsJson1.0: 31 pass, 9 fail (unions, defaults, required members, content encoding \u2014 expected runtime gaps). All 13 error tests pass. Fixed if/else/end codegen bug, body string escaping (Lua long strings), service_id for X-Amz-Target, format string."
   },
   {
     "session": 16,
-    "task": "Phase 4: All remaining protocols — XML codec, restXml, awsQuery, ec2Query, CBOR codec, rpcv2Cbor",
+    "task": "Phase 4: All remaining protocols \u2014 XML codec, restXml, awsQuery, ec2Query, CBOR codec, rpcv2Cbor",
     "start": "2026-05-04T13:39:00-04:00",
     "end": "2026-05-04T14:10:00-04:00",
     "duration_minutes": 31,
@@ -264,7 +264,7 @@
       "implement default credential chain with process credentials",
       "commit directly in both repos"
     ],
-    "outcome": "Fixed two codegen bugs: (1) awsJson protocol constructor now receives service_id for X-Amz-Target header, (2) signing_name resolved from aws.auth#sigv4 trait instead of shape name. Built default credential chain in aws-sdk-lua: static, environment, shared config, process credentials. Created sdk_defaults.lua to wire the chain. Created example/dynamodb_list_tables.lua — end-to-end real AWS call succeeded via credential_process. Regenerated all 400+ service clients."
+    "outcome": "Fixed two codegen bugs: (1) awsJson protocol constructor now receives service_id for X-Amz-Target header, (2) signing_name resolved from aws.auth#sigv4 trait instead of shape name. Built default credential chain in aws-sdk-lua: static, environment, shared config, process credentials. Created sdk_defaults.lua to wire the chain. Created example/dynamodb_list_tables.lua \u2014 end-to-end real AWS call succeeded via credential_process. Regenerated all 400+ service clients."
   },
   {
     "session": 20,
@@ -275,7 +275,7 @@
     "branch": "auth-resolution",
     "prompts": [
       "new agent workflow, confirm steps",
-      "review auth resolution behavior — design full SRA pipeline",
+      "review auth resolution behavior \u2014 design full SRA pipeline",
       "implement runtime auth.lua, client.lua, defaults.lua, codegen, update all tests"
     ],
     "outcome": "Implemented full SRA auth resolution pipeline. Runtime: auth.lua (AuthScheme with identity_type + signer, select_scheme, apply_endpoint_auth_overrides, no_auth_scheme), client.lua (auth_scheme_resolver -> select_scheme -> resolve identity -> endpoint -> apply overrides -> sign -> send), defaults.lua (resolve_auth_schemes, resolve_identity_resolvers). Codegen: per-operation effective_auth_schemes from ServiceIndex, default auth_scheme_resolver with signing_name from @sigv4 trait + signing_region from cfg.region, smithy-aws-traits dependency. Signer updated to use signing_region. Removed flat identity_resolver/signer/signing_name. All tests passing: 9 client, 18 retry, 7 codegen wire, 6 harness, 12 signer, plus all codec/protocol/endpoint/waiter tests unchanged."
@@ -295,5 +295,19 @@
       "close out session"
     ],
     "outcome": "Major protocol test infrastructure overhaul. Codegen: nodeToLua bracket syntax for non-identifier keys, query param assertions (assert_url_path + assert_query_param + assert_no_query_param), full URI template for http_path (constant query params), @timestampFormat/@mediaType/@idempotencyToken from target shapes, all 6 protocols wired in test preamble, expanded skip list. Runtime restjson.lua: timestamp headers/labels/query (http-date default for headers, date-time for query/labels), NaN/Infinity formatting, @mediaType base64 headers, Content-Type for string/enum/blob payloads, empty body handling, constant query params from URI template, prefix header precedence, header list quoting, document type payload, parse_header_value. codec/json.lua: _parse_http_date, timestamp_format-aware deserialization. Excluded 4 service-specific test suites (ML, S3, API Gateway, Glacier). Results: 602/814 test cases passing (74%), up from ~187 reachable at session start. All unit tests pass."
+  },
+  {
+    "session": 22,
+    "task": "Namespace prefix: move runtime modules under smithy/ directory",
+    "start": "2026-05-04T16:35:00-04:00",
+    "end": "2026-05-04T16:45:00-04:00",
+    "duration_minutes": 10,
+    "branch": "namespace-prefix",
+    "prompts": [
+      "move runtime modules to runtime/smithy/, update all requires to smithy.* prefix",
+      "update tests to use new requires",
+      "merge to main"
+    ],
+    "outcome": "All runtime modules moved to runtime/smithy/. All internal requires use smithy.* prefix. Tests updated and passing. Enables clean multi-repo LUA_PATH setup without collisions."
   }
 ]
