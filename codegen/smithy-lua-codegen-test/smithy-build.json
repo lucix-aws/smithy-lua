@@ -1,8 +1,19 @@
 {
     "version": "1.0",
-    "plugins": {
-        "lua-client-codegen": {
-            "service": "com.amazonaws.sqs#AmazonSQS"
+    "projections": {
+        "sqs": {
+            "plugins": {
+                "lua-client-codegen": {
+                    "service": "com.amazonaws.sqs#AmazonSQS"
+                }
+            }
+        },
+        "test-waiters": {
+            "plugins": {
+                "lua-client-codegen": {
+                    "service": "com.example.test#TestWaitersService"
+                }
+            }
         }
     }
 }

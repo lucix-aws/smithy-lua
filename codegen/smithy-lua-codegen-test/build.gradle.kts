@@ -10,4 +10,5 @@ dependencies {
     smithyBuild("software.amazon.smithy:smithy-aws-traits:$smithyVersion")
     smithyBuild("software.amazon.smithy:smithy-rules-engine:$smithyVersion")
     smithyBuild("software.amazon.smithy:smithy-aws-endpoints:$smithyVersion")
+    smithyBuild("software.amazon.smithy:smithy-waiters:$smithyVersion")
 }
