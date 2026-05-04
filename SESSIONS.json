@@ -279,5 +279,19 @@
       "implement runtime auth.lua, client.lua, defaults.lua, codegen, update all tests"
     ],
     "outcome": "Implemented full SRA auth resolution pipeline. Runtime: auth.lua (AuthScheme with identity_type + signer, select_scheme, apply_endpoint_auth_overrides, no_auth_scheme), client.lua (auth_scheme_resolver -> select_scheme -> resolve identity -> endpoint -> apply overrides -> sign -> send), defaults.lua (resolve_auth_schemes, resolve_identity_resolvers). Codegen: per-operation effective_auth_schemes from ServiceIndex, default auth_scheme_resolver with signing_name from @sigv4 trait + signing_region from cfg.region, smithy-aws-traits dependency. Signer updated to use signing_region. Removed flat identity_resolver/signer/signing_name. All tests passing: 9 client, 18 retry, 7 codegen wire, 6 harness, 12 signer, plus all codec/protocol/endpoint/waiter tests unchanged."
+  },
+  {
+    "session": 21,
+    "task": "Endpoint ruleset test generation from @endpointTests trait",
+    "start": "2026-05-04T16:03:00-04:00",
+    "end": "2026-05-04T16:15:00-04:00",
+    "duration_minutes": 12,
+    "branch": "endpoint-tests",
+    "prompts": [
+      "new agent workflow: generate endpoint ruleset tests",
+      "create worktree and review agent workflow steps",
+      "implement and verify"
+    ],
+    "outcome": "Implemented EndpointTestGenerator.java (LuaIntegration) that reads @endpointTests trait from service shapes and generates test_endpoint_rules.lua per service. Each test calls endpoint.resolve(ruleset, params) directly and asserts expected URL/headers/properties or error message. Registered via SPI. Verified with SQS: 48 test cases generated, all 48 pass (standard regions, FIPS, DualStack, China, GovCloud, ISO, custom endpoints, error cases)."
   }
 ]

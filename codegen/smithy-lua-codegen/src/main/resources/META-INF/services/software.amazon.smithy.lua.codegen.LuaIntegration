@@ -1,2 +1,3 @@
 software.amazon.smithy.lua.codegen.HttpProtocolTestGenerator
 software.amazon.smithy.lua.codegen.WaiterGenerator
+software.amazon.smithy.lua.codegen.EndpointTestGenerator

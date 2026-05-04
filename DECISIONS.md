@@ -264,3 +264,8 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Removed:** `config.identity_resolver`, `config.signer`, `config.signing_name`, `defaults.resolve_signer()`.
 **Added:** `config.auth_schemes`, `config.identity_resolvers`, `config.auth_scheme_resolver`, `defaults.resolve_auth_schemes()`, `defaults.resolve_identity_resolvers()`.
 **Affects:** client.lua, auth.lua, defaults.lua, signer.lua, all codegen, all tests, convergence test, harness test.
+
+## 2026-05-04 — Endpoint ruleset test generation from @endpointTests trait
+**Context:** Need to verify the endpoint resolver implementation against the test cases defined in Smithy models.
+**Decision:** `EndpointTestGenerator` is a `LuaIntegration` that reads `EndpointTestsTrait` from the service shape and generates `{ns}/test_endpoint_rules.lua`. Each test case calls `endpoint.resolve(ruleset, params)` directly and asserts the expected URL, headers, and properties (for endpoint expectations) or error message (for error expectations). Tests are self-contained — they require the generated `endpoint_rules.lua` and the runtime `endpoint.lua` module. No protocol or client pipeline involvement.
+**Affects:** Codegen (new SPI-registered integration), endpoint resolver validation.
