@@ -200,3 +200,13 @@ Chronological log of design decisions made during implementation. All agents sho
 2. **Codegen (`WaiterGenerator.java`):** `LuaIntegration` that reads `WaitableTrait` from operations, emits `{ns}/waiters.lua` with `wait_until_{snake_case}` functions and `{ns}/waiters.d.tl` with Teal declarations. Each function captures the acceptor config as a Lua table literal and delegates to `waiter.wait()`. Services without `@waitable` operations produce no waiters file.
 **Generated API:** `waiters.wait_until_table_exists(client, input, { max_wait_time = 300 })`
 **Affects:** Generated service clients (new waiters.lua file per service with waiters), runtime (new waiter.lua module).
+
+## 2026-05-04 — Config resolver system: LuaIntegration.getConfigResolvers() hook
+**Context:** Generated client constructors need to resolve defaults for protocol, signer, HTTP client, retry, and credentials. Some resolvers are generic Smithy concerns, others are SDK-specific (e.g. credential chain).
+**Decision:** Added `ConfigResolver` record (requirePath, requireAlias, functionCall) and `getConfigResolvers(LuaContext)` default method on `LuaIntegration`. `DirectedLuaCodegen.generateService()` collects resolvers from all integrations and emits them in the generated `new(cfg)` constructor. Base codegen also detects protocol traits on the service shape and emits the appropriate protocol default. Created `defaults.lua` in runtime with `resolve_signer`, `resolve_http_client`, `resolve_retry_strategy`.
+**Affects:** All generated client constructors, aws-sdk-lua codegen (uses this hook for identity_resolver).
+
+## 2026-05-04 — Service namespace uses sdkId from aws.api#service trait
+**Context:** `getServiceNamespace()` used the Smithy shape name, causing collisions (RDS/DocDB/Neptune all mapped to `amazonRDSv19`) and ugly names (`aWSSecurityTokenServiceV20110615`).
+**Decision:** Use `sdkId` from the `aws.api#service` trait when present, normalized (remove dashes/spaces, lowercase). Falls back to uncapitalized shape name for non-AWS services. Produces clean names: `dynamodb`, `s3`, `sts`, `lambda`.
+**Affects:** All generated service client directory names, all require() paths in generated code.
