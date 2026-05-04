@@ -18,6 +18,42 @@ function M.new(config)
     return { config = config, invokeOperation = M.invokeOperation }
 end
 
+--- Execute a single attempt (identity → endpoint → sign → send → deserialize).
+--- Returns output, err. The request is mutated (endpoint applied).
+local function do_attempt(config, request, operation)
+    -- Resolve identity
+    local identity, err = config.identity_resolver()
+    if err then return nil, err end
+
+    -- Resolve endpoint
+    local endpoint
+    endpoint, err = config.endpoint_provider({ region = config.region })
+    if err then return nil, err end
+
+    -- Apply endpoint to request (build full URL for this attempt)
+    request.url = endpoint.url .. request._path
+    if endpoint.headers then
+        for k, v in pairs(endpoint.headers) do
+            request.headers[k] = v
+        end
+    end
+
+    -- Sign
+    request, err = config.signer(request, identity, {
+        signing_name = config.signing_name,
+        region = config.region,
+    })
+    if err then return nil, err end
+
+    -- Transmit
+    local response
+    response, err = config.http_client(request)
+    if err then return nil, err end
+
+    -- Deserialize
+    return config.protocol.deserialize(response, operation)
+end
+
 --- The SDK operation pipeline.
 --- @param self table: client
 --- @param input table: user input (modeled members)
@@ -33,79 +69,55 @@ function M.invokeOperation(self, input, operation, options)
         end
     end
 
-    -- [STUB] interceptors: readBeforeExecution
-    -- [STUB] interceptors: modifyBeforeSerialization
-    -- [STUB] interceptors: readBeforeSerialization
-
     -- 5. Serialize
     local request, err = config.protocol.serialize(input, operation)
     if err then return nil, err end
 
-    -- [STUB] interceptors: readAfterSerialization
-    -- [STUB] interceptors: modifyBeforeRetryLoop
-    -- [STUB] retry_strategy:acquire_token()
+    -- Stash the original path so we can rebuild the URL on each attempt
+    request._path = request.url
 
-    -- == begin attempt (single attempt, no retry loop yet) ==
-
-    -- [STUB] interceptors: readBeforeAttempt
-    -- [STUB] auth scheme resolution
-
-    -- 9c. Resolve identity
-    local identity
-    identity, err = config.identity_resolver()
-    if err then return nil, err end
-
-    -- 9d. Resolve endpoint
-    local endpoint
-    endpoint, err = config.endpoint_provider({ region = config.region })
-    if err then return nil, err end
-
-    -- 9e. Apply endpoint to request
-    request.url = endpoint.url .. request.url
-    if endpoint.headers then
-        for k, v in pairs(endpoint.headers) do
-            request.headers[k] = v
-        end
+    -- 8. Retry loop
+    local retryer = config.retry_strategy
+    if not retryer then
+        -- No retry strategy: single attempt
+        local output
+        output, err = do_attempt(config, request, operation)
+        return output, err
     end
 
-    -- [STUB] interceptors: modifyBeforeSigning
-    -- [STUB] interceptors: readBeforeSigning
-
-    -- 9h. Sign
-    request, err = config.signer(request, identity, {
-        signing_name = config.signing_name,
-        region = config.region,
-    })
+    local token
+    token, err = retryer:acquire_token()
     if err then return nil, err end
 
-    -- [STUB] interceptors: readAfterSigning
-    -- [STUB] interceptors: modifyBeforeTransmit
-    -- [STUB] interceptors: readBeforeTransmit
-
-    -- 9l. Transmit
-    local response
-    response, err = config.http_client(request)
-    if err then return nil, err end
-
-    -- [STUB] interceptors: readAfterTransmit
-    -- [STUB] interceptors: modifyBeforeDeserialization
-    -- [STUB] interceptors: readBeforeDeserialization
-
-    -- 9p. Deserialize
     local output
-    output, err = config.protocol.deserialize(response, operation)
+    while true do
+        output, err = do_attempt(config, request, operation)
 
-    -- [STUB] interceptors: readAfterDeserialization
-    -- [STUB] interceptors: modifyBeforeAttemptCompletion
-    -- [STUB] interceptors: readAfterAttempt
+        if not err then
+            retryer:record_success(token)
+            return output, nil
+        end
 
-    -- == end attempt ==
+        -- Attempt failed — ask retryer if we should retry
+        local delay
+        delay, err = retryer:retry_token(token, err)
+        if not delay then
+            -- Not retryable or max attempts exhausted
+            return nil, err
+        end
 
-    -- [STUB] retry classification
-    -- [STUB] interceptors: modifyBeforeCompletion
-    -- [STUB] interceptors: readAfterExecution
-
-    return output, err
+        -- Wait before next attempt
+        if delay > 0 then
+            local socket_ok, socket = pcall(require, "socket")
+            if socket_ok and socket.sleep then
+                socket.sleep(delay)
+            else
+                -- Fallback: busy-wait (only for environments without socket)
+                local target = os.clock() + delay
+                while os.clock() < target do end
+            end
+        end
+    end
 end
 
 return M

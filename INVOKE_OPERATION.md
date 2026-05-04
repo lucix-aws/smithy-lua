@@ -31,9 +31,12 @@ config = {
     signing_name   = "sts",              -- string: service signing name
     region         = "us-east-1",        -- string: AWS region
 
+    -- == IMPLEMENTED ==
+
+    retry_strategy = <Retryer|nil>,    -- acquire_token / retry_token / record_success (nil = single attempt)
+
     -- == STUBBED: come back to these ==
 
-    -- retry_strategy    = <RetryStrategy>,    -- acquire_token / retry_token / record_success
     -- auth_schemes      = {},                 -- keyed by scheme ID, each has identity_resolver + signer
     -- auth_scheme_resolver = <fn>,            -- (config, operation) -> ordered list of scheme IDs
     -- interceptors       = {},                -- list of Interceptor tables
@@ -53,11 +56,16 @@ config = {
 | `signing_name` | string | SigV4 service name |
 | `region` | string | AWS region |
 
+### Implemented (optional)
+
+| Field | Type | Description |
+|---|---|---|
+| `retry_strategy` | Retryer or nil | Token-bucket retry. `nil` = single attempt (no retry). |
+
 ### Stubbed fields (deferred)
 
 | Field | Notes |
 |---|---|
-| `retry_strategy` | Token-bucket retry. For now, no retry (single attempt). |
 | `auth_schemes` | Full auth scheme resolution per ref arch. For now, single identity_resolver + signer. |
 | `auth_scheme_resolver` | Per-service auth scheme selection. For now, always use the one signer. |
 | `interceptors` | 17-hook interceptor pipeline per ref arch. For now, no interceptor calls. |
@@ -122,8 +130,12 @@ invokeOperation(self, input, operation, options):
   -- [STUB] 6. interceptors: readAfterSerialization
   -- [STUB] 7. interceptors: modifyBeforeRetryLoop (may mutate request)
 
-  -- 8. Retry loop (single attempt for now)
-  -- [STUB] retry_token = config.retry_strategy:acquire_token()
+  -- 8. Retry loop
+  -- If config.retry_strategy is set, use it. Otherwise single attempt.
+  -- request._path = request.url (stash original path for URL rebuild)
+  -- token = config.retry_strategy:acquire_token()
+
+  -- while true:
 
       -- [STUB] 9a. interceptors: readBeforeAttempt
 
@@ -137,8 +149,8 @@ invokeOperation(self, input, operation, options):
       endpoint, err = config.endpoint_provider({ region = config.region })
       if err then return nil, err end
 
-      -- 9e. Apply endpoint to request
-      request.url = endpoint.url .. request.url
+      -- 9e. Apply endpoint to request (rebuild URL from _path each attempt)
+      request.url = endpoint.url .. request._path
       if endpoint.headers then
           for k, v in pairs(endpoint.headers) do
               request.headers[k] = v
@@ -174,10 +186,10 @@ invokeOperation(self, input, operation, options):
       -- [STUB] 9r. interceptors: modifyBeforeAttemptCompletion
       -- [STUB] 9s. interceptors: readAfterAttempt
 
-  -- [STUB] 10. Classify response for retry
-  --   success -> retry_strategy:record_success(token)
-  --   retryable -> retry_strategy:retry_token(token, err) -> delay, sleep, goto attempt
-  --   non-retryable -> fall through
+  -- 10. Classify response for retry
+  --   success -> retry_strategy:record_success(token); return output
+  --   retryable -> delay = retry_strategy:retry_token(token, err); sleep(delay); continue loop
+  --   non-retryable or exhausted -> fall through with error
 
   -- [STUB] 11. interceptors: modifyBeforeCompletion
   -- [STUB] 12. interceptors: readAfterExecution
@@ -221,7 +233,8 @@ end
   mutable config copy and can do anything. Sugar deferred to post-hackathon.
 - **Single auth path.** No auth scheme resolution for now. `config.identity_resolver` and
   `config.signer` are used directly. Full auth scheme resolver wired later.
-- **No retry.** Single attempt. Retry strategy stubbed.
+- **Retry implemented.** Optional `retry_strategy` field. `nil` = single attempt (backward compat).
+  Standard retry: token bucket (500 capacity, 5/10 cost), exponential jitter backoff, max 3 attempts.
 - **No interceptors.** All 17 hooks stubbed in the pipeline. Wired later.
 - **Endpoint params are minimal.** Just `{ region }` for now. Per-operation input members
   feeding into endpoint params deferred.

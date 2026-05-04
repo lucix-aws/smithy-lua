@@ -65,3 +65,23 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Constitution says JSON can use cjson or dkjson, but we need schema-aware serde anyway.
 **Decision:** Write our own pure Lua JSON encoder and decoder. The codec layer uses them internally. This avoids an external dependency and gives us full control over Smithy-specific formatting (NaN/Infinity as strings, integer vs float distinction, base64 blobs).
 **Affects:** No external JSON dependency needed.
+
+## 2026-05-04 — Error module: three categories, retry classification helpers
+**Context:** Need structured error types for the retry strategy to classify errors.
+**Decision:** `error.lua` defines three categories (`api`, `http`, `sdk`) with constructors. Classification helpers: `is_throttle` (429 + AWS throttle error codes), `is_transient` (HTTP errors + 500/502/503/504), `is_timeout` (RequestTimeout/RequestTimeoutException), `is_retryable` (any of the above). Throttle codes match Go SDK v2's `DefaultThrottleErrorCodes`.
+**Affects:** All protocol implementations (must use `error.new_api_error` for service errors), retry strategy.
+
+## 2026-05-04 — Retry strategy: optional, nil = single attempt
+**Context:** Need to wire retry into client.lua without breaking existing code that doesn't set retry_strategy.
+**Decision:** `config.retry_strategy` is optional. If nil, client.lua does a single attempt (no retry loop). If set, the full acquire_token/retry_token/record_success loop runs. This preserves backward compatibility.
+**Affects:** client.lua, all generated client constructors (can optionally wire standard retry).
+
+## 2026-05-04 — Standard retry constants match Go SDK v2
+**Context:** Need concrete values for token bucket and backoff.
+**Decision:** Token bucket: 500 capacity, 5 retry cost, 10 timeout cost, 1 success increment. Backoff: `rand() * 2^attempt`, capped at 20s. Max 3 attempts. All configurable via options table. Constants match `aws-sdk-go-v2/aws/retry/standard.go`.
+**Affects:** Default retry behavior for all SDK clients.
+
+## 2026-05-04 — Request URL rebuild on retry via _path stash
+**Context:** Endpoint resolution appends the endpoint URL to the request path. On retry, we need to re-resolve the endpoint and rebuild the URL, but the original path is lost after the first attempt.
+**Decision:** After serialization, stash `request._path = request.url` (the protocol-produced path). On each attempt, rebuild: `request.url = endpoint.url .. request._path`. This is an internal implementation detail, not part of the public contract.
+**Affects:** client.lua internals only.

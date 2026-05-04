@@ -82,5 +82,18 @@
       "commit and merge"
     ],
     "outcome": "Implemented Smithy endpoint rules engine interpreter. runtime/endpoint.lua (rules engine with all standard library + AWS library functions, template string resolution), runtime/endpoint/partitions.lua (AWS partition data for 7 partitions), runtime/endpoint.d.tl (Teal declarations). 34 endpoint tests passing, all existing tests unaffected."
+  },
+  {
+    "session": 7,
+    "task": "Phase 2B: error.lua, retry.lua, retry/standard.lua — error types + AWS standard retry",
+    "start": "2026-05-04T10:47:00-04:00",
+    "end": "2026-05-04T10:57:00-04:00",
+    "duration_minutes": 10,
+    "branch": "retry-runtime",
+    "prompts": [
+      "new agent task: work on retries, confirm workflow",
+      "go for it"
+    ],
+    "outcome": "Implemented error.lua (3 categories, constructors, retry classification), retry.lua (retryer interface + none()), retry/standard.lua (AWS standard retry with token bucket, exponential jitter backoff). Rewrote client.lua with retry loop (optional, backward compat). 39 new tests (21 error + 18 retry), 172 total passing. Teal .d.tl declarations for all modules. Updated INVOKE_OPERATION.md."
   }
 ]
