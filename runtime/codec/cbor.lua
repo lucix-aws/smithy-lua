@@ -123,6 +123,27 @@ local function encode_text(s, buf, pos)
     return pos
 end
 
+-- Encode a float32 value
+local function encode_float32(v, buf, pos)
+    local f32 = ffi.new("float[1]")
+    f32[0] = v
+    local u32 = ffi.cast("uint8_t*", f32)
+    pos = pos + 1; buf[pos] = char(0xFA, u32[3], u32[2], u32[1], u32[0])
+    return pos
+end
+
+-- Encode a float64 value
+local function encode_float64(v, buf, pos)
+    dbl_buf[0] = v
+    pos = pos + 1; buf[pos] = char(0xFB,
+        u64_buf[7], u64_buf[6], u64_buf[5], u64_buf[4],
+        u64_buf[3], u64_buf[2], u64_buf[1], u64_buf[0])
+    return pos
+end
+
+-- CBOR break byte for indefinite-length containers
+local BREAK = char(0xFF)
+
 -- Schema-aware CBOR encoding
 local function encode_value(v, schema, buf, pos)
     if v == nil then
@@ -134,18 +155,17 @@ local function encode_value(v, schema, buf, pos)
 
     if st == stype.STRUCTURE then
         local members = schema.members or {}
-        -- Count non-nil members
-        local count = 0
         local keys = {}
         for k in pairs(members) do
-            if v[k] ~= nil then count = count + 1; keys[#keys + 1] = k end
+            if v[k] ~= nil then keys[#keys + 1] = k end
         end
         table.sort(keys)
-        pos = encode_uint(MT_MAP, count, buf, pos)
+        pos = pos + 1; buf[pos] = char(0xBF) -- indefinite-length map
         for _, k in ipairs(keys) do
             pos = encode_text(k, buf, pos)
             pos = encode_value(v[k], members[k], buf, pos)
         end
+        pos = pos + 1; buf[pos] = BREAK
         return pos
 
     elseif st == stype.MAP then
@@ -153,32 +173,36 @@ local function encode_value(v, schema, buf, pos)
         local keys = {}
         for k in pairs(v) do keys[#keys + 1] = k end
         table.sort(keys)
-        pos = encode_uint(MT_MAP, #keys, buf, pos)
+        pos = pos + 1; buf[pos] = char(0xBF) -- indefinite-length map
         for _, k in ipairs(keys) do
             pos = encode_text(k, buf, pos)
             pos = encode_value(v[k], val_schema, buf, pos)
         end
+        pos = pos + 1; buf[pos] = BREAK
         return pos
 
     elseif st == stype.LIST then
         local elem_schema = schema.member or { type = stype.STRING }
-        pos = encode_uint(MT_ARRAY, #v, buf, pos)
+        pos = pos + 1; buf[pos] = char(0x9F) -- indefinite-length array
         for i = 1, #v do
             pos = encode_value(v[i], elem_schema, buf, pos)
         end
+        pos = pos + 1; buf[pos] = BREAK
         return pos
 
     elseif st == stype.UNION then
         local members = schema.members or {}
         for k, ms in pairs(members) do
             if v[k] ~= nil then
-                pos = encode_uint(MT_MAP, 1, buf, pos)
+                pos = pos + 1; buf[pos] = char(0xBF) -- indefinite-length map
                 pos = encode_text(k, buf, pos)
                 pos = encode_value(v[k], ms, buf, pos)
+                pos = pos + 1; buf[pos] = BREAK
                 return pos
             end
         end
-        pos = encode_uint(MT_MAP, 0, buf, pos)
+        pos = pos + 1; buf[pos] = char(0xBF)
+        pos = pos + 1; buf[pos] = BREAK
         return pos
 
     elseif st == stype.STRING or st == stype.ENUM then
@@ -195,16 +219,24 @@ local function encode_value(v, schema, buf, pos)
         or st == stype.LONG or st == stype.INT_ENUM then
         return encode_int(v, buf, pos)
 
-    elseif st == stype.FLOAT or st == stype.DOUBLE then
-        -- Encode as integer if no precision loss
+    elseif st == stype.FLOAT then
+        if v ~= v then return encode_float32(v, buf, pos) end -- NaN
+        if v == huge or v == -huge then return encode_float32(v, buf, pos) end
         if v == floor(v) and v >= -2^53 and v <= 2^53 then
             return encode_int(v, buf, pos)
         end
-        return encode_double(v, buf, pos)
+        return encode_float32(v, buf, pos)
+
+    elseif st == stype.DOUBLE then
+        if v ~= v then return encode_float64(v, buf, pos) end -- NaN
+        if v == huge or v == -huge then return encode_float64(v, buf, pos) end
+        if v == floor(v) and v >= -2^53 and v <= 2^53 then
+            return encode_int(v, buf, pos)
+        end
+        return encode_float64(v, buf, pos)
 
     elseif st == stype.TIMESTAMP then
         -- RPCv2 CBOR: always epoch-seconds, tag 1
-        -- Millisecond resolution
         pos = encode_uint(MT_TAG, 1, buf, pos)
         if v == floor(v) then
             return encode_int(v, buf, pos)
@@ -323,6 +355,15 @@ function decode_item(data, pos)
         return data:sub(npos + 1, npos + len), npos + len
 
     elseif mt == MT_ARRAY then
+        if info == 31 then
+            -- indefinite-length array
+            local arr = {}
+            local npos = pos
+            while byte(data, npos + 1) ~= 0xFF do
+                arr[#arr + 1], npos = decode_item(data, npos + 1)
+            end
+            return arr, npos + 1 -- skip break byte
+        end
         local len, npos = read_uint(data, pos, info)
         local arr = {}
         for i = 1, len do
@@ -331,6 +372,18 @@ function decode_item(data, pos)
         return arr, npos
 
     elseif mt == MT_MAP then
+        if info == 31 then
+            -- indefinite-length map
+            local map = {}
+            local npos = pos
+            while byte(data, npos + 1) ~= 0xFF do
+                local k, v
+                k, npos = decode_item(data, npos + 1)
+                v, npos = decode_item(data, npos + 1)
+                map[k] = v
+            end
+            return map, npos + 1 -- skip break byte
+        end
         local len, npos = read_uint(data, pos, info)
         local map = {}
         for _ = 1, len do

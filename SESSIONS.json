@@ -279,5 +279,21 @@
       "implement runtime auth.lua, client.lua, defaults.lua, codegen, update all tests"
     ],
     "outcome": "Implemented full SRA auth resolution pipeline. Runtime: auth.lua (AuthScheme with identity_type + signer, select_scheme, apply_endpoint_auth_overrides, no_auth_scheme), client.lua (auth_scheme_resolver -> select_scheme -> resolve identity -> endpoint -> apply overrides -> sign -> send), defaults.lua (resolve_auth_schemes, resolve_identity_resolvers). Codegen: per-operation effective_auth_schemes from ServiceIndex, default auth_scheme_resolver with signing_name from @sigv4 trait + signing_region from cfg.region, smithy-aws-traits dependency. Signer updated to use signing_region. Removed flat identity_resolver/signer/signing_name. All tests passing: 9 client, 18 retry, 7 codegen wire, 6 harness, 12 signer, plus all codec/protocol/endpoint/waiter tests unchanged."
+  },
+  {
+    "session": 21,
+    "task": "Protocol test infrastructure + fix restJson/restXml/awsQuery protocol test failures",
+    "start": "2026-05-04T15:11:00-04:00",
+    "end": "2026-05-04T16:15:00-04:00",
+    "duration_minutes": 64,
+    "branch": "fix-protocol-tests",
+    "prompts": [
+      "run all protocol tests and take stock",
+      "fix them",
+      "convert to worktree",
+      "exclude service-specific test models",
+      "close out session"
+    ],
+    "outcome": "Major protocol test infrastructure overhaul. Codegen: nodeToLua bracket syntax for non-identifier keys, query param assertions (assert_url_path + assert_query_param + assert_no_query_param), full URI template for http_path (constant query params), @timestampFormat/@mediaType/@idempotencyToken from target shapes, all 6 protocols wired in test preamble, expanded skip list. Runtime restjson.lua: timestamp headers/labels/query (http-date default for headers, date-time for query/labels), NaN/Infinity formatting, @mediaType base64 headers, Content-Type for string/enum/blob payloads, empty body handling, constant query params from URI template, prefix header precedence, header list quoting, document type payload, parse_header_value. codec/json.lua: _parse_http_date, timestamp_format-aware deserialization. Excluded 4 service-specific test suites (ML, S3, API Gateway, Glacier). Results: 602/814 test cases passing (74%), up from ~187 reachable at session start. All unit tests pass."
   }
 ]
