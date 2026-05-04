@@ -336,6 +336,13 @@ local function decode_schema_value(v, schema, codec)
 
     elseif st == stype.TIMESTAMP then
         if type(v) == "string" then
+            local ts_format = codec.default_timestamp_format
+            if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
+                ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+            end
+            if ts_format == "http-date" then
+                return M._parse_http_date(v)
+            end
             return M._parse_iso8601(v)
         end
         return tonumber(v)
@@ -404,6 +411,18 @@ function M._parse_iso8601(s)
         end
     end
     return t + frac
+end
+
+--- Parse HTTP-date (RFC 7231) string to epoch seconds.
+function M._parse_http_date(s)
+    local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
+    local day, mon, year, h, mi, sec = s:match("%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
+    if not day then return tonumber(s) end
+    local t = {year=tonumber(year), month=months[mon] or 1, day=tonumber(day),
+               hour=tonumber(h), min=tonumber(mi), sec=tonumber(sec), isdst=false}
+    local epoch = os.time(t)
+    local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
+    return epoch - utc_offset
 end
 
 -- Minimal base64 for blob support

@@ -36,6 +36,10 @@ dependencies {
 // Services to exclude (validation tests, etc.)
 val excludedServices = setOf(
     "aws.protocoltests.restjson.validation#RestJsonValidation",
+    "com.amazonaws.machinelearning#AmazonML_20141212",
+    "com.amazonaws.s3#AmazonS3",
+    "com.amazonaws.apigateway#BackplaneControlService",
+    "com.amazonaws.glacier#Glacier",
 )
 
 tasks.register("generate-smithy-build") {

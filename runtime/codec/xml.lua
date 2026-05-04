@@ -45,9 +45,12 @@ local function format_timestamp(v, schema, codec)
         ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
     end
     if ts_format == schema_mod.timestamp.EPOCH_SECONDS then
-        return format("%.3f", v)
+        if v % 1 == 0 then return format("%.0f", v) end
+        return tostring(v)
+    elseif ts_format == schema_mod.timestamp.HTTP_DATE then
+        return json_codec._format_http_date(v)
     end
-    return tostring(v)
+    return json_codec._format_iso8601(v)
 end
 
 -- Serialize a simple value to its XML text representation
@@ -63,7 +66,7 @@ local function simple_value(v, schema, codec)
         end
     end
     if st == stype.INTEGER or st == stype.LONG or st == stype.SHORT
-        or st == stype.BYTE or st == stype.INT_ENUM then
+        or st == stype.BYTE or st == stype.INT_ENUM or st == "number" then
         return format("%.0f", v)
     end
     return tostring(v)
@@ -298,9 +301,20 @@ local function decode_simple(text, schema, codec)
     local st = schema.type
     if st == stype.BOOLEAN then return text == "true" end
     if st == stype.BLOB then return base64_decode(text) end
-    if st == stype.TIMESTAMP then return tonumber(text) or text end
+    if st == stype.TIMESTAMP then
+        local n = tonumber(text)
+        if n then return n end
+        local ts_format = codec.default_timestamp_format
+        if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
+            ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+        end
+        if ts_format == schema_mod.timestamp.HTTP_DATE then
+            return json_codec._parse_http_date(text)
+        end
+        return json_codec._parse_iso8601(text)
+    end
     if st == stype.INTEGER or st == stype.LONG or st == stype.SHORT
-        or st == stype.BYTE or st == stype.INT_ENUM then
+        or st == stype.BYTE or st == stype.INT_ENUM or st == "number" then
         return tonumber(text)
     end
     if st == stype.FLOAT or st == stype.DOUBLE then

@@ -9,6 +9,9 @@ local strait = schema_mod.trait
 local M = {}
 M.__index = M
 
+-- Sentinel for key-only query params (no value, no equals sign)
+local KEY_ONLY = {}
+
 function M.new(settings)
     return setmetatable({
         codec = json_codec.new({
@@ -48,22 +51,34 @@ local function expand_path(template, labels)
     end))
 end
 
+-- Format a value for query string (handles special floats)
+local function format_query_value(v)
+    if type(v) == "number" then
+        if v ~= v then return "NaN" end
+        if v == math.huge then return "Infinity" end
+        if v == -math.huge then return "-Infinity" end
+    end
+    return tostring(v)
+end
+
 -- Build query string from a table of key=value pairs
 local function build_query(params)
     local parts = {}
-    -- Sort for deterministic output
     local keys = {}
     for k in pairs(params) do keys[#keys + 1] = k end
     table.sort(keys)
     for _, k in ipairs(keys) do
         local v = params[k]
         if type(v) == "table" then
-            -- list-valued query param
             for _, item in ipairs(v) do
-                parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(tostring(item))
+                parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(item))
             end
+        elseif v == "" then
+            parts[#parts + 1] = uri_encode(k) .. "="
+        elseif v == KEY_ONLY then
+            parts[#parts + 1] = uri_encode(k)
         else
-            parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(tostring(v))
+            parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(v))
         end
     end
     if #parts == 0 then return "" end
@@ -73,6 +88,11 @@ end
 -- Format a header value from a typed schema member
 local function format_header_value(v, member_schema)
     if type(v) == "boolean" then return v and "true" or "false" end
+    if type(v) == "number" then
+        if v ~= v then return "NaN" end
+        if v == math.huge then return "Infinity" end
+        if v == -math.huge then return "-Infinity" end
+    end
     if member_schema and member_schema.type == "timestamp" then
         -- Default header timestamp format is http-date (RFC 7231)
         local ts_format = "http-date"
@@ -96,12 +116,29 @@ local function format_header_value(v, member_schema)
     if type(v) == "table" then
         -- list header: comma-separated, quote items containing commas or quotes
         local items = {}
+        local elem = member_schema and member_schema.member
         for _, item in ipairs(v) do
-            local s = tostring(item)
-            if s:find('[,"]') then
-                items[#items + 1] = '"' .. s:gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
+            if elem and elem.type == "timestamp" then
+                -- Format each timestamp in the list
+                local tf = "http-date"
+                if elem.traits and elem.traits[strait.TIMESTAMP_FORMAT] then
+                    tf = elem.traits[strait.TIMESTAMP_FORMAT]
+                end
+                if tf == "http-date" then
+                    items[#items + 1] = json_codec._format_http_date(item)
+                elseif tf == "date-time" then
+                    items[#items + 1] = json_codec._format_iso8601(item)
+                else
+                    if item % 1 == 0 then items[#items + 1] = string.format("%.0f", item)
+                    else items[#items + 1] = tostring(item) end
+                end
             else
-                items[#items + 1] = s
+                local s = tostring(item)
+                if s:find('[,"]') then
+                    items[#items + 1] = '"' .. s:gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
+                else
+                    items[#items + 1] = s
+                end
             end
         end
         return table.concat(items, ", ")
@@ -218,19 +255,69 @@ function M.serialize(self, input, operation)
     local payload_name, payload_schema
     local body_members = {}
 
-    -- Partition members by HTTP binding
+    -- Partition members by HTTP binding (two passes: prefix headers first, then specific headers)
+    for name, ms in pairs(members) do
+        local t = ms.traits
+        if t and t[strait.HTTP_PREFIX_HEADERS] then
+            if type(input[name]) == "table" then
+                local prefix = t[strait.HTTP_PREFIX_HEADERS]
+                for k, v in pairs(input[name]) do
+                    headers[prefix .. k] = tostring(v)
+                end
+            end
+        end
+    end
     for name, ms in pairs(members) do
         local t = ms.traits
         if t and t[strait.HTTP_LABEL] then
-            labels[name] = input[name]
+            local lv = input[name]
+            -- Format timestamps in labels
+            if ms.type == "timestamp" and type(lv) == "number" then
+                local tf = (t[strait.TIMESTAMP_FORMAT]) or "date-time"
+                if tf == "date-time" then
+                    lv = json_codec._format_iso8601(lv)
+                elseif tf == "http-date" then
+                    lv = json_codec._format_http_date(lv)
+                end
+            elseif type(lv) == "number" then
+                -- Handle special float values
+                if lv ~= lv then lv = "NaN"
+                elseif lv == math.huge then lv = "Infinity"
+                elseif lv == -math.huge then lv = "-Infinity"
+                end
+            end
+            labels[name] = lv
         elseif t and t[strait.HTTP_QUERY] then
             if input[name] ~= nil then
-                query[t[strait.HTTP_QUERY]] = input[name]
+                local qv = input[name]
+                -- Format timestamps as ISO 8601 for query strings
+                if ms.type == "timestamp" then
+                    local tf = t[strait.TIMESTAMP_FORMAT] or "date-time"
+                    if tf == "date-time" then
+                        qv = json_codec._format_iso8601(qv)
+                    elseif tf == "http-date" then
+                        qv = json_codec._format_http_date(qv)
+                    end
+                elseif ms.type == "list" and ms.member and ms.member.type == "timestamp" then
+                    local tf = (ms.member.traits and ms.member.traits[strait.TIMESTAMP_FORMAT]) or "date-time"
+                    local formatted = {}
+                    for _, item in ipairs(qv) do
+                        if tf == "date-time" then
+                            formatted[#formatted+1] = json_codec._format_iso8601(item)
+                        elseif tf == "http-date" then
+                            formatted[#formatted+1] = json_codec._format_http_date(item)
+                        else
+                            formatted[#formatted+1] = item
+                        end
+                    end
+                    qv = formatted
+                end
+                query[t[strait.HTTP_QUERY]] = qv
             end
         elseif t and t[strait.HTTP_QUERY_PARAMS] then
             if type(input[name]) == "table" then
                 for k, v in pairs(input[name]) do
-                    query[k] = v
+                    if not query[k] then query[k] = v end
                 end
             end
         elseif t and t[strait.HTTP_HEADER] then
@@ -238,12 +325,7 @@ function M.serialize(self, input, operation)
                 headers[t[strait.HTTP_HEADER]] = format_header_value(input[name], ms)
             end
         elseif t and t[strait.HTTP_PREFIX_HEADERS] then
-            if type(input[name]) == "table" then
-                local prefix = t[strait.HTTP_PREFIX_HEADERS]
-                for k, v in pairs(input[name]) do
-                    headers[prefix .. k] = tostring(v)
-                end
-            end
+            -- Already handled in first pass
         elseif t and t[strait.HTTP_PAYLOAD] then
             payload_name = name
             payload_schema = ms
@@ -252,26 +334,53 @@ function M.serialize(self, input, operation)
         end
     end
 
-    -- Build URL
+    -- Build URL: merge constant query params from path template with dynamic ones
     local path = expand_path(operation.http_path or "/", labels)
+    local base_path, existing_qs = path:match("^([^?]*)%??(.*)")
+    if existing_qs and #existing_qs > 0 then
+        -- Constant query params from URI template always present
+        for pair in existing_qs:gmatch("[^&]+") do
+            local k, eq, v = pair:match("^([^=]*)(=?)(.*)")
+            if k and not query[k] then
+                if eq == "=" then
+                    query[k] = v
+                else
+                    query[k] = KEY_ONLY
+                end
+            end
+        end
+    end
     local qs = build_query(query)
-    local url = path .. qs
+    local url = base_path .. qs
 
     -- Build body
     local body_str
     if payload_name then
         local v = input[payload_name]
         if v == nil then
-            body_str = ""
+            if payload_schema.type == "structure" then
+                body_str = "{}"
+            else
+                body_str = ""
+            end
         elseif payload_schema.type == "structure" or payload_schema.type == "union" then
             local err
             body_str, err = self.codec:serialize(v, payload_schema)
             if err then return nil, err end
+        elseif payload_schema.type == "document" then
+            body_str = require("json.encoder").encode(v)
         elseif payload_schema.type == "blob" then
             body_str = v
-            if not headers["Content-Type"] or headers["Content-Type"] == "application/json" then
+            -- Use @mediaType if present, then check if header member already set it
+            local mt = payload_schema.traits and payload_schema.traits[strait.MEDIA_TYPE]
+            if mt then
+                headers["Content-Type"] = mt
+            elseif headers["Content-Type"] == "application/json" then
                 headers["Content-Type"] = "application/octet-stream"
             end
+        elseif payload_schema.type == "string" or payload_schema.type == "enum" then
+            body_str = tostring(v)
+            headers["Content-Type"] = "text/plain"
         else
             body_str = tostring(v)
         end
@@ -286,6 +395,9 @@ function M.serialize(self, input, operation)
             local err
             body_str, err = self.codec:serialize(input, body_schema)
             if err then return nil, err end
+        elseif next(body_members) then
+            -- Body members exist but all nil — send empty JSON object
+            body_str = "{}"
         else
             body_str = ""
             headers["Content-Type"] = nil
@@ -362,15 +474,7 @@ function M.deserialize(self, response, operation)
             local hdr = t[strait.HTTP_HEADER]
             local v = response.headers and (response.headers[hdr] or response.headers[hdr:lower()])
             if v ~= nil then
-                if ms.type == "boolean" then
-                    output[name] = (v == "true")
-                elseif ms.type == "number" or ms.type == "integer" or ms.type == "long"
-                    or ms.type == "float" or ms.type == "double"
-                    or ms.type == "short" or ms.type == "byte" then
-                    output[name] = tonumber(v)
-                else
-                    output[name] = v
-                end
+                output[name] = parse_header_value(v, ms)
             end
         elseif t and t[strait.HTTP_PREFIX_HEADERS] then
             local prefix = t[strait.HTTP_PREFIX_HEADERS]:lower()
@@ -398,6 +502,8 @@ function M.deserialize(self, response, operation)
                 local v, err = self.codec:deserialize(body_str, payload_schema)
                 if err then return nil, err end
                 output[payload_name] = v
+            elseif payload_schema.type == "document" then
+                output[payload_name] = require("json.decoder").decode(body_str)
             elseif payload_schema.type == "blob" or payload_schema.type == "string" then
                 output[payload_name] = body_str
             else

@@ -1,6 +1,7 @@
 -- smithy-lua runtime: restXml protocol
 -- REST-style protocol with XML body (S3, CloudFront, Route 53).
 
+local json_codec = require("codec.json")
 local xml_codec = require("codec.xml")
 local http = require("http")
 local schema_mod = require("schema")
@@ -9,6 +10,9 @@ local stype = schema_mod.type
 
 local M = {}
 M.__index = M
+
+-- Sentinel for key-only query params (no value, no equals sign)
+local KEY_ONLY = {}
 
 function M.new(settings)
     settings = settings or {}
@@ -49,6 +53,17 @@ local function expand_path(template, labels)
     end))
 end
 
+-- Format a value for query string (handles special floats)
+local function format_query_value(v)
+    if type(v) == "number" then
+        if v ~= v then return "NaN" end
+        if v == math.huge then return "Infinity" end
+        if v == -math.huge then return "-Infinity" end
+    end
+    return tostring(v)
+end
+
+-- Build query string from a table of key=value pairs
 local function build_query(params)
     local parts = {}
     local keys = {}
@@ -58,24 +73,162 @@ local function build_query(params)
         local v = params[k]
         if type(v) == "table" then
             for _, item in ipairs(v) do
-                parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(tostring(item))
+                parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(item))
             end
+        elseif v == "" then
+            parts[#parts + 1] = uri_encode(k) .. "="
+        elseif v == KEY_ONLY then
+            parts[#parts + 1] = uri_encode(k)
         else
-            parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(tostring(v))
+            parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(v))
         end
     end
     if #parts == 0 then return "" end
     return "?" .. table.concat(parts, "&")
 end
 
+-- Format a header value from a typed schema member
 local function format_header_value(v, member_schema)
     if type(v) == "boolean" then return v and "true" or "false" end
+    if type(v) == "number" then
+        if v ~= v then return "NaN" end
+        if v == math.huge then return "Infinity" end
+        if v == -math.huge then return "-Infinity" end
+    end
+    if member_schema and member_schema.type == stype.TIMESTAMP then
+        local ts_format = "http-date"
+        if member_schema.traits and member_schema.traits[strait.TIMESTAMP_FORMAT] then
+            ts_format = member_schema.traits[strait.TIMESTAMP_FORMAT]
+        end
+        if ts_format == "http-date" then
+            return json_codec._format_http_date(v)
+        elseif ts_format == "date-time" then
+            return json_codec._format_iso8601(v)
+        else
+            if v % 1 == 0 then return string.format("%.0f", v) end
+            return tostring(v)
+        end
+    end
+    if member_schema and member_schema.traits and member_schema.traits[strait.MEDIA_TYPE] then
+        return json_codec._base64_encode(tostring(v))
+    end
     if type(v) == "table" then
         local items = {}
-        for _, item in ipairs(v) do items[#items + 1] = tostring(item) end
+        local elem = member_schema and member_schema.member
+        for _, item in ipairs(v) do
+            if elem and elem.type == stype.TIMESTAMP then
+                local tf = "http-date"
+                if elem.traits and elem.traits[strait.TIMESTAMP_FORMAT] then
+                    tf = elem.traits[strait.TIMESTAMP_FORMAT]
+                end
+                if tf == "http-date" then
+                    items[#items + 1] = json_codec._format_http_date(item)
+                elseif tf == "date-time" then
+                    items[#items + 1] = json_codec._format_iso8601(item)
+                else
+                    if item % 1 == 0 then items[#items + 1] = string.format("%.0f", item)
+                    else items[#items + 1] = tostring(item) end
+                end
+            else
+                local s = tostring(item)
+                if s:find('[,"]') then
+                    items[#items + 1] = '"' .. s:gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
+                else
+                    items[#items + 1] = s
+                end
+            end
+        end
         return table.concat(items, ", ")
     end
     return tostring(v)
+end
+
+-- Parse a header value into a typed Lua value
+local function parse_header_value(v, member_schema)
+    if member_schema.type == stype.BOOLEAN then
+        return (v == "true")
+    elseif member_schema.type == stype.TIMESTAMP then
+        local ts_format = "http-date"
+        if member_schema.traits and member_schema.traits[strait.TIMESTAMP_FORMAT] then
+            ts_format = member_schema.traits[strait.TIMESTAMP_FORMAT]
+        end
+        if ts_format == "http-date" then
+            local t = {}
+            t.day, t.month, t.year, t.hour, t.min, t.sec = v:match(
+                "%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
+            if not t.day then return tonumber(v) end
+            local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
+            t.month = months[t.month] or 1
+            t.year = tonumber(t.year); t.day = tonumber(t.day)
+            t.hour = tonumber(t.hour); t.min = tonumber(t.min); t.sec = tonumber(t.sec)
+            t.isdst = false
+            local epoch = os.time(t)
+            local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
+            return epoch - utc_offset
+        elseif ts_format == "date-time" then
+            return json_codec._parse_iso8601(v)
+        else
+            return tonumber(v)
+        end
+    elseif member_schema.traits and member_schema.traits[strait.MEDIA_TYPE] then
+        return json_codec._base64_decode(v)
+    elseif member_schema.type == stype.INTEGER or member_schema.type == stype.LONG
+        or member_schema.type == stype.FLOAT or member_schema.type == stype.DOUBLE
+        or member_schema.type == stype.SHORT or member_schema.type == stype.BYTE then
+        return tonumber(v)
+    elseif member_schema.type == stype.LIST then
+        local items = {}
+        local i = 1
+        while i <= #v do
+            while i <= #v and v:sub(i,i) == " " do i = i + 1 end
+            if i > #v then break end
+            if v:sub(i,i) == '"' then
+                i = i + 1
+                local s = {}
+                while i <= #v and v:sub(i,i) ~= '"' do
+                    if v:sub(i,i) == '\\' then i = i + 1 end
+                    s[#s+1] = v:sub(i,i)
+                    i = i + 1
+                end
+                i = i + 1
+                items[#items+1] = table.concat(s)
+            else
+                local j = v:find(",", i)
+                if j then
+                    items[#items+1] = v:sub(i, j-1):match("^%s*(.-)%s*$")
+                    i = j
+                else
+                    items[#items+1] = v:sub(i):match("^%s*(.-)%s*$")
+                    i = #v + 1
+                end
+            end
+            while i <= #v and (v:sub(i,i) == "," or v:sub(i,i) == " ") do i = i + 1 end
+        end
+        local elem = member_schema.member
+        if elem then
+            for idx, item in ipairs(items) do
+                if elem.type == stype.INTEGER or elem.type == stype.LONG or elem.type == stype.SHORT
+                    or elem.type == stype.BYTE or elem.type == stype.FLOAT or elem.type == stype.DOUBLE then
+                    items[idx] = tonumber(item)
+                elseif elem.type == stype.BOOLEAN then
+                    items[idx] = (item == "true")
+                elseif elem.type == stype.TIMESTAMP then
+                    local tf = "http-date"
+                    if elem.traits and elem.traits[strait.TIMESTAMP_FORMAT] then
+                        tf = elem.traits[strait.TIMESTAMP_FORMAT]
+                    end
+                    if tf == "http-date" then
+                        items[idx] = tonumber(item) or item
+                    else
+                        items[idx] = tonumber(item) or item
+                    end
+                end
+            end
+        end
+        return items
+    else
+        return v
+    end
 end
 
 function M.serialize(self, input, operation)
@@ -89,25 +242,75 @@ function M.serialize(self, input, operation)
     local payload_name, payload_schema
     local body_members = {}
 
+    -- First pass: prefix headers
+    for name, ms in pairs(members) do
+        local t = ms.traits
+        if t and t[strait.HTTP_PREFIX_HEADERS] then
+            if type(input[name]) == "table" then
+                local prefix = t[strait.HTTP_PREFIX_HEADERS]
+                for k, v in pairs(input[name]) do
+                    headers[prefix .. k] = tostring(v)
+                end
+            end
+        end
+    end
+    -- Second pass: all other bindings (specific headers override prefix)
     for name, ms in pairs(members) do
         local t = ms.traits
         if t and t[strait.HTTP_LABEL] then
-            labels[name] = input[name]
+            local lv = input[name]
+            if ms.type == stype.TIMESTAMP and type(lv) == "number" then
+                local tf = (t[strait.TIMESTAMP_FORMAT]) or "date-time"
+                if tf == "date-time" then
+                    lv = json_codec._format_iso8601(lv)
+                elseif tf == "http-date" then
+                    lv = json_codec._format_http_date(lv)
+                end
+            elseif type(lv) == "number" then
+                if lv ~= lv then lv = "NaN"
+                elseif lv == math.huge then lv = "Infinity"
+                elseif lv == -math.huge then lv = "-Infinity"
+                end
+            end
+            labels[name] = lv
         elseif t and t[strait.HTTP_QUERY] then
-            if input[name] ~= nil then query[t[strait.HTTP_QUERY]] = input[name] end
+            if input[name] ~= nil then
+                local qv = input[name]
+                if ms.type == stype.TIMESTAMP then
+                    local tf = t[strait.TIMESTAMP_FORMAT] or "date-time"
+                    if tf == "date-time" then
+                        qv = json_codec._format_iso8601(qv)
+                    elseif tf == "http-date" then
+                        qv = json_codec._format_http_date(qv)
+                    end
+                elseif ms.type == stype.LIST and ms.member and ms.member.type == stype.TIMESTAMP then
+                    local tf = (ms.member.traits and ms.member.traits[strait.TIMESTAMP_FORMAT]) or "date-time"
+                    local formatted = {}
+                    for _, item in ipairs(qv) do
+                        if tf == "date-time" then
+                            formatted[#formatted+1] = json_codec._format_iso8601(item)
+                        elseif tf == "http-date" then
+                            formatted[#formatted+1] = json_codec._format_http_date(item)
+                        else
+                            formatted[#formatted+1] = item
+                        end
+                    end
+                    qv = formatted
+                end
+                query[t[strait.HTTP_QUERY]] = qv
+            end
         elseif t and t[strait.HTTP_QUERY_PARAMS] then
             if type(input[name]) == "table" then
-                for k, v in pairs(input[name]) do query[k] = v end
+                for k, v in pairs(input[name]) do
+                    if not query[k] then query[k] = v end
+                end
             end
         elseif t and t[strait.HTTP_HEADER] then
             if input[name] ~= nil then
                 headers[t[strait.HTTP_HEADER]] = format_header_value(input[name], ms)
             end
         elseif t and t[strait.HTTP_PREFIX_HEADERS] then
-            if type(input[name]) == "table" then
-                local prefix = t[strait.HTTP_PREFIX_HEADERS]
-                for k, v in pairs(input[name]) do headers[prefix .. k] = tostring(v) end
-            end
+            -- Already handled in first pass
         elseif t and t[strait.HTTP_PAYLOAD] then
             payload_name = name
             payload_schema = ms
@@ -116,24 +319,55 @@ function M.serialize(self, input, operation)
         end
     end
 
+    -- Build URL: merge constant query params from path template with dynamic ones
     local path = expand_path(operation.http_path or "/", labels)
+    local base_path, existing_qs = path:match("^([^?]*)%??(.*)")
+    if existing_qs and #existing_qs > 0 then
+        for pair in existing_qs:gmatch("[^&]+") do
+            local k, eq, v = pair:match("^([^=]*)(=?)(.*)")
+            if k and not query[k] then
+                if eq == "=" then
+                    query[k] = v
+                else
+                    query[k] = KEY_ONLY
+                end
+            end
+        end
+    end
     local qs = build_query(query)
-    local url = path .. qs
+    local url = base_path .. qs
 
+    -- Build body
     local body_str
     if payload_name then
         local v = input[payload_name]
         if v == nil then
-            body_str = ""
+            if payload_schema.type == stype.STRUCTURE then
+                -- Serialize as empty XML root element
+                local root = payload_schema.traits and payload_schema.traits[strait.XML_NAME] or payload_name
+                body_str = "<" .. root .. "/>"
+            else
+                body_str = ""
+            end
         elseif payload_schema.type == stype.STRUCTURE or payload_schema.type == stype.UNION then
             headers["Content-Type"] = "application/xml"
             local root = payload_schema.traits and payload_schema.traits[strait.XML_NAME] or payload_name
             local err
             body_str, err = self.codec:serialize(v, payload_schema, root)
             if err then return nil, err end
+        elseif payload_schema.type == stype.DOCUMENT then
+            body_str = require("json.encoder").encode(v)
         elseif payload_schema.type == stype.BLOB then
             body_str = v
-            headers["Content-Type"] = headers["Content-Type"] or "application/octet-stream"
+            local mt = payload_schema.traits and payload_schema.traits[strait.MEDIA_TYPE]
+            if mt then
+                headers["Content-Type"] = mt
+            elseif not headers["Content-Type"] then
+                headers["Content-Type"] = "application/octet-stream"
+            end
+        elseif payload_schema.type == stype.STRING or payload_schema.type == stype.ENUM then
+            body_str = tostring(v)
+            headers["Content-Type"] = "text/plain"
         else
             body_str = tostring(v)
         end
@@ -149,6 +383,10 @@ function M.serialize(self, input, operation)
             local err
             body_str, err = self.codec:serialize(input, body_schema, root)
             if err then return nil, err end
+        elseif next(body_members) then
+            -- Body members exist but all nil — send Content-Type + empty body
+            headers["Content-Type"] = "application/xml"
+            body_str = ""
         else
             body_str = ""
         end
@@ -220,18 +458,16 @@ function M.deserialize(self, response, operation)
             local hdr = t[strait.HTTP_HEADER]
             local v = response.headers and (response.headers[hdr] or response.headers[hdr:lower()])
             if v ~= nil then
-                if ms.type == stype.BOOLEAN then output[name] = (v == "true")
-                elseif ms.type == stype.INTEGER or ms.type == stype.LONG or ms.type == stype.FLOAT
-                    or ms.type == stype.DOUBLE or ms.type == stype.SHORT or ms.type == stype.BYTE then
-                    output[name] = tonumber(v)
-                else output[name] = v end
+                output[name] = parse_header_value(v, ms)
             end
         elseif t and t[strait.HTTP_PREFIX_HEADERS] then
             local prefix = t[strait.HTTP_PREFIX_HEADERS]:lower()
             local map = {}
             if response.headers then
                 for k, v in pairs(response.headers) do
-                    if k:lower():sub(1, #prefix) == prefix then map[k:sub(#prefix + 1)] = v end
+                    if k:lower():sub(1, #prefix) == prefix then
+                        map[k:sub(#prefix + 1)] = v
+                    end
                 end
             end
             if next(map) then output[name] = map end
@@ -249,6 +485,8 @@ function M.deserialize(self, response, operation)
                 local v, err = self.codec:deserialize(body_str, payload_schema)
                 if err then return nil, err end
                 output[payload_name] = v
+            elseif payload_schema.type == stype.DOCUMENT then
+                output[payload_name] = require("json.decoder").decode(body_str)
             elseif payload_schema.type == stype.BLOB or payload_schema.type == stype.STRING then
                 output[payload_name] = body_str
             else

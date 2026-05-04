@@ -16,6 +16,7 @@ import software.amazon.smithy.model.node.StringNode;
 import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.traits.HttpTrait;
 import software.amazon.smithy.protocoltests.traits.AppliesTo;
 import software.amazon.smithy.protocoltests.traits.HttpMessageTestCase;
 import software.amazon.smithy.protocoltests.traits.HttpRequestTestCase;
@@ -41,7 +42,16 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsJson1_0",
         "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsJson1_1",
         "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsQuery",
-        "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_ec2Query"
+        "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_ec2Query",
+        "SDKAppendedGzipAfterProvidedEncoding_restJson1",
+        "SDKAppendedGzipAfterProvidedEncoding_restXml",
+        // Content-MD5 not implemented
+        "RestJsonHttpChecksumRequired",
+        // Host prefix not implemented (endpoint concern, not protocol)
+        "RestJsonHostWithPath",
+        "RestJsonHostWithPathNoBasePath",
+        // Query-compatible mode header not implemented
+        "QueryCompatibleAwsJson10CborSendsQueryModeHeader"
     );
 
     @Override
@@ -64,7 +74,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                 var inputShape = operationIndex.expectInputShape(operation);
                 context.writerDelegator().useFileWriter(
                         serviceNs + "/test_" + toSnake(opName) + "_request.lua", serviceNs, writer ->
-                        writeRequestTests(writer, serviceNs, service, opName, inputShape, cases, protocol));
+                        writeRequestTests(writer, serviceNs, service, opName, inputShape, cases, protocol, operation));
             });
 
             operation.getTrait(HttpResponseTestsTrait.class).ifPresent(trait -> {
@@ -91,8 +101,12 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
     }
 
     private void writeRequestTests(LuaWriter w, String ns, ServiceShape svc,
-            String opName, StructureShape inputShape, List<HttpRequestTestCase> cases, String proto) {
+            String opName, StructureShape inputShape, List<HttpRequestTestCase> cases, String proto,
+            OperationShape operation) {
         writePreamble(w, ns, proto, svc);
+        // Get the full URI template from @http trait (includes constant query params)
+        var httpTrait = operation.getTrait(HttpTrait.class).orElse(null);
+        var fullUriTemplate = httpTrait != null ? httpTrait.getUri().toString() : null;
         w.write("");
         for (var tc : cases) {
             if (SKIP_TESTS.contains(tc.getId())) {
@@ -109,7 +123,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("input_schema = types.$L,", inputShape.getId().getName(svc));
             w.write("output_schema = {},");
             w.write("http_method = $S,", tc.getMethod());
-            w.write("http_path = $S,", tc.getUri());
+            // Use full URI template (with constant query params) if available
+            w.write("http_path = $S,", fullUriTemplate != null ? fullUriTemplate : tc.getUri());
             w.dedent();
             w.write("}");
             w.write("local request, err = protocol:serialize(input, operation)");
@@ -241,6 +256,18 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         } else if (proto.contains("restJson")) {
             w.write("local protocol_mod = require(\"protocol.restjson\")");
             w.write("local protocol = protocol_mod.new()");
+        } else if (proto.contains("restXml")) {
+            w.write("local protocol_mod = require(\"protocol.restxml\")");
+            w.write("local protocol = protocol_mod.new()");
+        } else if (proto.contains("awsQuery")) {
+            w.write("local protocol_mod = require(\"protocol.awsquery\")");
+            w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());
+        } else if (proto.contains("ec2Query")) {
+            w.write("local protocol_mod = require(\"protocol.ec2query\")");
+            w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());
+        } else if (proto.contains("rpcv2Cbor")) {
+            w.write("local protocol_mod = require(\"protocol.rpcv2cbor\")");
+            w.write("local protocol = protocol_mod.new({ service_name = $S })", serviceName);
         } else {
             w.write("-- TODO: protocol module for $L", proto);
             w.write("local protocol = nil");
@@ -304,7 +331,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("end");
         w.write("");
         w.write("local function get_query_params(url)");
-        w.write("    local qs = url:match(\"?(.*)$\")");
+        w.writeWithNoFormatting("    local qs = url:match(\"?(.*)$\")");
+        w.write("    if not qs then return {} end");
         w.write("    if not qs then return {} end");
         w.write("    local params = {}");
         w.write("    for pair in qs:gmatch(\"[^&]+\") do");

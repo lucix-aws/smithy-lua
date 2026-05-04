@@ -265,15 +265,32 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Added:** `config.auth_schemes`, `config.identity_resolvers`, `config.auth_scheme_resolver`, `defaults.resolve_auth_schemes()`, `defaults.resolve_identity_resolvers()`.
 **Affects:** client.lua, auth.lua, defaults.lua, signer.lua, all codegen, all tests, convergence test, harness test.
 
-## 2026-05-04 — Paginator runtime + codegen from @paginated trait
-**Context:** Need paginators for operations with the Smithy `@paginated` trait, alongside existing waiters.
-**Decision:** Two-part design:
-1. **Runtime (`paginator.lua`):** Generic `paginator.pages(client, op_name, input, config)` returns a Lua iterator function yielding `(output, err)` per page. `paginator.items(client, op_name, input, config)` returns an iterator yielding individual items flattened across pages. Config table has `input_token`, `output_token`, `items` (all strings, output_token/items are dot-paths). Stops on nil/empty token or duplicate token. Shallow-copies input to inject next token without mutating the original.
-2. **Codegen (`PaginatorGenerator.java`):** `LuaIntegration` that reads `@paginated` trait via `PaginatedIndex`, emits `{ns}/paginators.lua` + `paginators.d.tl` per service. Each paginated operation gets `pages_{snake_case}` and (if items path exists) `items_{snake_case}` functions. Services without `@paginated` operations produce no paginators file.
-**Generated API:** `for page in paginators.pages_list_queues(client, input) do ... end` / `for item in paginators.items_list_queues(client, input) do ... end`
-**Affects:** Generated service clients (new paginators.lua file per service with paginated ops), runtime (new paginator.lua module).
+## 2026-05-04 — Protocol test infrastructure: per-case counting, all protocols wired, service exclusions
 
-## 2026-05-04 — Endpoint ruleset test generation from @endpointTests trait
-**Context:** Need to verify the endpoint resolver implementation against the test cases defined in Smithy models.
-**Decision:** `EndpointTestGenerator` is a `LuaIntegration` that reads `EndpointTestsTrait` from the service shape and generates `{ns}/test_endpoint_rules.lua`. Each test case calls `endpoint.resolve(ruleset, params)` directly and asserts the expected URL, headers, and properties (for endpoint expectations) or error message (for error expectations). Tests are self-contained — they require the generated `endpoint_rules.lua` and the runtime `endpoint.lua` module. No protocol or client pipeline involvement.
-**Affects:** Codegen (new SPI-registered integration), endpoint resolver validation.
+**Context:** Protocol tests were only wired for awsJson and restJson, and the runner counted per-file not per-case. Many tests were silently skipped.
+**Decision:** (1) Wire all 6 protocol implementations into the test generator preamble (awsJson, restJson, restXml, awsQuery, ec2Query, rpcv2Cbor). (2) Exclude service-specific test suites that test customizations not protocol behavior: AmazonML, AmazonS3, BackplaneControlService (API Gateway), Glacier. (3) Test runner counts individual PASS/FAIL per test case, not per file.
+**Affects:** Protocol test generation, protocoltest/build.gradle.kts exclusion list.
+
+## 2026-05-04 — HTTP binding timestamp defaults by location
+
+**Context:** Smithy spec defines different default timestamp formats depending on where the timestamp appears in the HTTP message.
+**Decision:** Default timestamp formats: headers → `http-date`, query params → `date-time` (ISO 8601), URI labels → `date-time`, body → protocol-specific (epoch-seconds for JSON, date-time for XML). The `@timestampFormat` trait on the member or target shape overrides the default. Codegen now emits `timestamp_format` from both member and target shape.
+**Affects:** All REST protocol implementations (restjson, restxml), codegen (DirectedLuaCodegen collectTraits).
+
+## 2026-05-04 — Codegen emits @mediaType and @idempotencyToken traits from target shapes
+
+**Context:** `@mediaType` lives on the target shape (e.g. a blob shape), not the member. `@idempotencyToken` is on the member. Both are needed at runtime for correct serialization.
+**Decision:** `collectTraits` now accepts the model and checks target shapes for `@timestampFormat` and `@mediaType`. Added `MEDIA_TYPE` to schema.trait constants. `@idempotencyToken` emitted from member.
+**Affects:** All generated schemas, protocol implementations that check these traits.
+
+## 2026-05-04 — Protocol test query param assertions use queryParams/forbidQueryParams/requireQueryParams
+
+**Context:** The test generator was asserting `request.url == path` which failed when query params were present. The Smithy protocol test spec separates URL path from query param assertions.
+**Decision:** Tests now assert `assert_url_path(request.url, path)` for the path portion, then `assert_query_param` for each expected param, `assert_no_query_param` for forbidden ones, and `assert_has_query_key` for required keys. The operation's `http_path` uses the full URI template from `@http` trait (includes constant query params).
+**Affects:** All generated protocol test files, protocol implementations (must handle constant query params in URI template).
+
+## 2026-05-04 — Constant query params from URI template merged at serialize time
+
+**Context:** The `@http` trait URI can include constant query params (e.g. `/path?foo=bar&hello`). These must always appear in the serialized URL.
+**Decision:** The restjson/restxml protocol `serialize` splits `http_path` on `?`, parses constant params, and merges them into the query table. A `KEY_ONLY` sentinel distinguishes key-only params (no `=`) from empty-string values (has `=`). `@httpQuery` params take precedence over `@httpQueryParams` map entries.
+**Affects:** restjson.lua, restxml.lua (and any future REST protocol).

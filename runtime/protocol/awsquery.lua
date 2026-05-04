@@ -117,9 +117,15 @@ local function serialize_query(v, prefix, schema, params, ec2)
         end
         local formatted
         if ts_format == schema_mod.timestamp.EPOCH_SECONDS then
-            formatted = string.format("%.3f", v)
+            if v % 1 == 0 then
+                formatted = string.format("%.0f", v)
+            else
+                formatted = tostring(v)
+            end
+        elseif ts_format == schema_mod.timestamp.HTTP_DATE then
+            formatted = require("codec.json")._format_http_date(v)
         else
-            formatted = tostring(v)
+            formatted = require("codec.json")._format_iso8601(v)
         end
         params[#params + 1] = pct_encode(prefix) .. "=" .. pct_encode(formatted)
         return
@@ -134,7 +140,7 @@ local function serialize_query(v, prefix, schema, params, ec2)
         return
 
     elseif st == stype.INTEGER or st == stype.LONG or st == stype.SHORT
-        or st == stype.BYTE or st == stype.INT_ENUM then
+        or st == stype.BYTE or st == stype.INT_ENUM or st == "number" then
         params[#params + 1] = pct_encode(prefix) .. "=" .. pct_encode(string.format("%.0f", v))
         return
 
@@ -146,19 +152,25 @@ end
 
 function M.serialize(self, input, operation)
     input = input or {}
-    local params = {
+    local prefix_parts = {
         "Action=" .. pct_encode(operation.name),
         "Version=" .. pct_encode(self.version),
     }
 
+    local params = {}
     local schema = operation.input_schema
     if schema and schema.members then
         serialize_query(input, "", schema, params, self.ec2)
     end
 
-    -- Sort for deterministic output
+    -- Sort member params, but keep Action and Version first
     table.sort(params)
-    local body = table.concat(params, "&")
+    local body
+    if #params > 0 then
+        body = table.concat(prefix_parts, "&") .. "&" .. table.concat(params, "&")
+    else
+        body = table.concat(prefix_parts, "&")
+    end
 
     return http.new_request(
         "POST",
