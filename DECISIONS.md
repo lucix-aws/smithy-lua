@@ -152,3 +152,18 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Need a ClientProtocol for restJson1 services (Lambda, API Gateway, etc.) which use HTTP bindings unlike awsJson.
 **Decision:** `protocol/restjson.lua` implements serialize/deserialize with full HTTP binding support. Serialization partitions input members by schema traits: `http_label` → URI path expansion, `http_query`/`http_query_params` → query string, `http_header`/`http_prefix_headers` → headers, `http_payload` → body (structure/blob/string), unbound → JSON body via codec. Deserialization is the mirror: `http_response_code` → status code, headers → member values, `http_payload` → body, unbound → JSON decode. The JSON codec is configured with `use_json_name = true` (unlike awsJson). When `@httpPayload` targets a structure, that structure's schema is the root for codec serde — not wrapped in the outer input. When no body members have values, no Content-Type header is set and body is empty.
 **Affects:** Generated clients using restJson1 protocol, codegen (already emits all HTTP traits on schemas).
+
+## 2026-05-04 — Protocol test generation: auto-discovery + direct protocol testing
+**Context:** Need to generate Lua test files from Smithy `@httpRequestTests` / `@httpResponseTests` traits to validate protocol implementations.
+**Decision:** Three-part design:
+1. **HttpProtocolTestGenerator** — a `LuaIntegration` in `smithy-lua-codegen` that iterates operations, extracts test cases from traits, filters by protocol and `appliesTo`, and emits Lua test files. Request tests call `protocol:serialize()` directly and assert HTTP request fields. Response/error tests call `protocol:deserialize()` with mock HTTP responses and assert output/error fields. Body comparison uses semantic JSON comparison via `json_decoder.decode()` + `deep_eq()`.
+2. **protocoltest/ Gradle project** — uses `Model.assembler().discoverModels()` in a `generate-smithy-build` task to auto-discover all service shapes from `smithy-protocol-tests` and `smithy-aws-protocol-tests` JARs. Generates `smithy-build.json` programmatically with one projection per service. No manual maintenance needed — new protocol test services are picked up automatically.
+3. **Generated test files** — one file per operation per test type: `test_{op}_request.lua`, `test_{op}_response.lua`, `test_{op}_{error}_error.lua`. Each file is self-contained with test helpers (assert_eq, assert_header, assert_json_eq, deep_eq, etc.).
+**Key details:** Lua long strings `[[...]]` used for body literals (avoids escaping issues). Protocol `service_id` passed at construction for `X-Amz-Target` header. Test helpers written manually (not via `block()`) to avoid if/else/end issues.
+**Affects:** All protocol implementations (tests validate them), codegen (HttpProtocolTestGenerator is SPI-registered).
+
+## 2026-05-04 — Protocol tests call serialize/deserialize directly, not through invokeOperation
+**Context:** Go SDK protocol tests go through the full client pipeline with middleware capture. For Lua, the pipeline is simpler.
+**Decision:** Protocol tests call `protocol:serialize(input, operation)` and `protocol:deserialize(response, operation)` directly, bypassing the client pipeline. This tests the protocol implementation in isolation, which is the primary goal. Full pipeline integration is tested separately via harness tests.
+**Rationale:** Simpler generated code, no need to mock the full client stack, and directly validates the protocol contract.
+**Affects:** Protocol test files only — they don't exercise retry, signing, or endpoint resolution.

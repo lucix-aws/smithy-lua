@@ -11,3 +11,4 @@ build/
 *.iml
 *.iws
 smithy-lua-wt/
+protocoltest/smithy-build.json
