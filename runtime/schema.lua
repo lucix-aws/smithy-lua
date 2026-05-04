@@ -46,6 +46,8 @@ M.trait = {
     IDEMPOTENCY_TOKEN = "idempotency_token",
     HOST_LABEL       = "host_label",
     CONTEXT_PARAM    = "context_param",
+    EC2_QUERY_NAME   = "ec2_query_name",
+    AWS_QUERY_ERROR  = "aws_query_error",
 }
 
 -- Timestamp format constants
