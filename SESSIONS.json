@@ -294,5 +294,19 @@
       "yes (merge)"
     ],
     "outcome": "Implemented paginators end-to-end. Runtime: paginator.lua with pages() (page iterator) and items() (item iterator), dot-path resolution for outputToken/items, stops on nil/empty/duplicate token, shallow-copies input for token injection. Codegen: PaginatorGenerator.java (LuaIntegration) reads @paginated via PaginatedIndex, emits {ns}/paginators.lua + paginators.d.tl with pages_{op} and items_{op} functions. SQS generates 2 paginated ops (listQueues, listDeadLetterSourceQueues). 25 new tests, all existing tests pass. Teal .d.tl declarations for runtime and generated code."
+  },
+  {
+    "session": 22,
+    "task": "Endpoint ruleset test generation from @endpointTests trait",
+    "start": "2026-05-04T16:03:00-04:00",
+    "end": "2026-05-04T16:09:00-04:00",
+    "duration_minutes": 6,
+    "branch": "endpoint-tests",
+    "prompts": [
+      "new agent workflow: generate endpoint ruleset tests",
+      "create worktree and review agent workflow steps",
+      "implement and verify"
+    ],
+    "outcome": "Implemented EndpointTestGenerator.java (LuaIntegration) that reads @endpointTests trait from service shapes and generates test_endpoint_rules.lua per service. Each test calls endpoint.resolve(ruleset, params) directly and asserts expected URL/headers/properties or error message. Registered via SPI. Verified with SQS: 48 test cases generated, all 48 pass (standard regions, FIPS, DualStack, China, GovCloud, ISO, custom endpoints, error cases)."
   }
 ]

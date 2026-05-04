@@ -272,3 +272,8 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 2. **Codegen (`PaginatorGenerator.java`):** `LuaIntegration` that reads `@paginated` trait via `PaginatedIndex`, emits `{ns}/paginators.lua` + `paginators.d.tl` per service. Each paginated operation gets `pages_{snake_case}` and (if items path exists) `items_{snake_case}` functions. Services without `@paginated` operations produce no paginators file.
 **Generated API:** `for page in paginators.pages_list_queues(client, input) do ... end` / `for item in paginators.items_list_queues(client, input) do ... end`
 **Affects:** Generated service clients (new paginators.lua file per service with paginated ops), runtime (new paginator.lua module).
+
+## 2026-05-04 — Endpoint ruleset test generation from @endpointTests trait
+**Context:** Need to verify the endpoint resolver implementation against the test cases defined in Smithy models.
+**Decision:** `EndpointTestGenerator` is a `LuaIntegration` that reads `EndpointTestsTrait` from the service shape and generates `{ns}/test_endpoint_rules.lua`. Each test case calls `endpoint.resolve(ruleset, params)` directly and asserts the expected URL, headers, and properties (for endpoint expectations) or error message (for error expectations). Tests are self-contained — they require the generated `endpoint_rules.lua` and the runtime `endpoint.lua` module. No protocol or client pipeline involvement.
+**Affects:** Codegen (new SPI-registered integration), endpoint resolver validation.
