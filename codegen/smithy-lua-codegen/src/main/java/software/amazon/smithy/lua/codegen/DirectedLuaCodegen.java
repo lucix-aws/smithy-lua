@@ -1,8 +1,10 @@
 package software.amazon.smithy.lua.codegen;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TreeMap;
 import software.amazon.smithy.codegen.core.SymbolProvider;
 import software.amazon.smithy.codegen.core.WriterDelegator;
@@ -17,12 +19,14 @@ import software.amazon.smithy.codegen.core.directed.GenerateServiceDirective;
 import software.amazon.smithy.codegen.core.directed.GenerateStructureDirective;
 import software.amazon.smithy.codegen.core.directed.GenerateUnionDirective;
 import software.amazon.smithy.model.knowledge.OperationIndex;
+import software.amazon.smithy.model.knowledge.ServiceIndex;
 import software.amazon.smithy.model.knowledge.TopDownIndex;
 import software.amazon.smithy.model.node.Node;
 import software.amazon.smithy.model.shapes.MemberShape;
 import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.Shape;
+import software.amazon.smithy.model.shapes.ShapeId;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
 import software.amazon.smithy.model.traits.ClientOptionalTrait;
@@ -138,8 +142,14 @@ public final class DirectedLuaCodegen
             writer.block("function M.new(cfg)", () -> {
                 writer.write("cfg = cfg or {}");
                 writer.write("cfg.service_id = $S", service.getId().getName());
-                writer.write("cfg.signing_name = $S",
-                        service.getId().getName().toLowerCase(Locale.US));
+
+                // Determine signing name from @aws.auth#sigv4 trait
+                String signingName = service.getId().getName().toLowerCase(Locale.US);
+                var sigv4Trait = service.getTrait(
+                        software.amazon.smithy.aws.traits.auth.SigV4Trait.class);
+                if (sigv4Trait.isPresent()) {
+                    signingName = sigv4Trait.get().getName();
+                }
 
                 // Service-specific: protocol resolver
                 writeProtocolResolver(writer, service);
@@ -155,8 +165,31 @@ public final class DirectedLuaCodegen
                     });
                 }
 
+                // Default auth scheme resolver: maps effective_auth_schemes to options
+                // with signer properties (signing_name from model, region from config)
+                final String finalSigningName = signingName;
+                writer.block("if not cfg.auth_scheme_resolver then", () -> {
+                    writer.block("cfg.auth_scheme_resolver = function(operation)", () -> {
+                        writer.write("local options = {}");
+                        writer.block("for _, scheme_id in ipairs(operation.effective_auth_schemes) do", () -> {
+                            writer.write("if scheme_id == \"aws.auth#sigv4\" or scheme_id == \"aws.auth#sigv4a\" then");
+                            writer.indent();
+                            writer.write("options[#options + 1] = { scheme_id = scheme_id, signer_properties = { signing_name = $S, signing_region = cfg.region } }",
+                                    finalSigningName);
+                            writer.dedent();
+                            writer.write("else");
+                            writer.indent();
+                            writer.write("options[#options + 1] = { scheme_id = scheme_id }");
+                            writer.dedent();
+                            writer.write("end");
+                        });
+                        writer.write("return options");
+                    });
+                });
+
                 // Generic defaults from smithy-lua runtime
-                writer.write("defaults.resolve_signer(cfg)");
+                writer.write("defaults.resolve_auth_schemes(cfg)");
+                writer.write("defaults.resolve_identity_resolvers(cfg)");
                 writer.write("defaults.resolve_http_client(cfg)");
                 writer.write("defaults.resolve_retry_strategy(cfg)");
 
@@ -249,6 +282,10 @@ public final class DirectedLuaCodegen
         var serviceNs = LuaSymbolProvider.getServiceNamespace(service);
         writer.addRequire("types", serviceNs + ".types");
 
+        // Compute effective auth schemes for this operation
+        var serviceIndex = ServiceIndex.of(model);
+        var effectiveAuth = serviceIndex.getEffectiveAuthSchemes(service, operation);
+
         writer.block("function Client:" + opSymbol.getName() + "(input, options)", () -> {
             writer.write("return self:invokeOperation(input, {");
             writer.indent();
@@ -257,6 +294,15 @@ public final class DirectedLuaCodegen
             writer.write("output_schema = types.$L,", outputName);
             writer.write("http_method = $S,", httpMethod);
             writer.write("http_path = $S,", httpPath);
+
+            // Emit effective auth scheme IDs (static from model)
+            writer.write("effective_auth_schemes = {");
+            writer.indent();
+            for (var schemeId : effectiveAuth.keySet()) {
+                writer.write("$S,", schemeId.toString());
+            }
+            writer.dedent();
+            writer.write("},");
 
             // Emit context_params from @contextParam traits on input members
             var contextParams = new TreeMap<String, String>();

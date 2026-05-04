@@ -250,5 +250,19 @@
       "skip content encoding tests like Go SDK does"
     ],
     "outcome": "Fixed 15 awsJson protocol test failures down to 0 (160 pass). Fixes: (1) ISO 8601 timestamp formatting/parsing + HTTP-date in JSON codec, epoch-seconds without trailing .000. (2) Codegen references M.ShapeName for structure/union member targets instead of empty inline schemas. (3) Lists/maps emit full member/value schema objects. (4) Codegen emits specific numeric types (byte/short/integer/long/float/double) instead of generic 'number'. (5) Default value population: codegen emits @default (skipping @clientOptional), runtime applies in nested structures on serialize, all structures on deserialize. Blob defaults base64-decoded. Required member zero-value error correction. (6) NaN/Infinity handling in test generator (0/0, math.huge) and codec (string input for float types). (7) awsjson protocol no longer short-circuits on '{}' body so defaults apply. (8) Protocol test skip list for unimplemented request compression tests. All runtime tests pass with zero regressions."
+  },
+  {
+    "session": 19,
+    "task": "Auth scheme resolution: full SRA auth resolution pipeline",
+    "start": "2026-05-04T14:57:00-04:00",
+    "end": "2026-05-04T15:18:00-04:00",
+    "duration_minutes": 21,
+    "branch": "auth-resolution",
+    "prompts": [
+      "new agent workflow, confirm steps",
+      "review auth resolution behavior — design full SRA pipeline",
+      "implement runtime auth.lua, client.lua, defaults.lua, codegen, update all tests"
+    ],
+    "outcome": "Implemented full SRA auth resolution pipeline. Runtime: auth.lua (AuthScheme with identity_type + signer, select_scheme, apply_endpoint_auth_overrides, no_auth_scheme), client.lua (auth_scheme_resolver -> select_scheme -> resolve identity -> endpoint -> apply overrides -> sign -> send), defaults.lua (resolve_auth_schemes, resolve_identity_resolvers). Codegen: per-operation effective_auth_schemes from ServiceIndex, default auth_scheme_resolver with signing_name from @sigv4 trait + signing_region from cfg.region, smithy-aws-traits dependency. Signer updated to use signing_region. Removed flat identity_resolver/signer/signing_name. All tests passing: 9 client, 18 retry, 7 codegen wire, 6 harness, 12 signer, plus all codec/protocol/endpoint/waiter tests unchanged."
   }
 ]

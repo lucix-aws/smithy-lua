@@ -12,6 +12,7 @@ package.path = root .. "../runtime/?.lua;"
 local dynamodb = require("dynamodb.client")
 local protocol_json = require("protocol.awsjson")
 local signer = require("signer")
+local auth = require("auth")
 local env_creds = require("credentials.environment")
 local http_resolver = require("http.client")
 
@@ -29,10 +30,14 @@ local client = dynamodb.new({
     region = region,
     protocol = protocol_json.new({ version = "1.0", service_id = "DynamoDB_20120810" }),
     http_client = http_client,
-    identity_resolver = env_creds.new(),
-    signer = signer.sign,
+    auth_schemes = {
+        [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", signer.sign),
+    },
+    identity_resolvers = {
+        aws_credentials = env_creds.new(),
+    },
     endpoint_provider = function(params)
-        return { url = "https://dynamodb." .. params.region .. ".amazonaws.com" }, nil
+        return { url = "https://dynamodb." .. params.Region .. ".amazonaws.com" }, nil
     end,
 })
 

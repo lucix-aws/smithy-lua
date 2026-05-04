@@ -244,3 +244,18 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Context:** Request compression (`@requestCompression`) is not implemented. The corresponding protocol tests fail.
 **Decision:** `HttpProtocolTestGenerator` has a static `SKIP_TESTS` set of test IDs. Matching tests emit an empty test body with a skip comment instead of the full test. Currently skips all `SDKAppliedContentEncoding_*` and `SDKAppendsGzipAndIgnoresHttpProvidedEncoding_*` tests.
 **Affects:** Protocol test generation only.
+
+## 2026-05-04 — Full SRA auth resolution pipeline
+**Context:** The client pipeline used flat `identity_resolver` + `signer` + `signing_name` fields. This doesn't support per-operation auth schemes, noAuth, or endpoint-driven signing property overrides.
+**Decision:** Implemented the full SRA auth resolution pipeline:
+1. **`auth_schemes`** — map of scheme ID → `{ scheme_id, identity_type, signer, identity_resolver(self, identity_resolvers) }`. The auth scheme knows its identity type and looks up the resolver from a separate pool. Not baked in.
+2. **`identity_resolvers`** — separate collection on config, keyed by identity type string (e.g. `"aws_credentials"`). The auth scheme asks this collection for a resolver matching its identity type.
+3. **`auth_scheme_resolver`** — function that takes an operation and returns ordered list of `{ scheme_id, signer_properties }`. Default is codegen-generated, maps `operation.effective_auth_schemes` to options with `signing_name` (from model) and `signing_region` (from config).
+4. **`signing_name`** is NOT a client config field. It lives in `signer_properties` returned by the auth scheme resolver, sourced from the `@sigv4` trait at codegen time.
+5. **Endpoint `authSchemes` overrides** — `auth.apply_endpoint_auth_overrides()` reads `endpoint.properties.authSchemes` and overrides `signing_name`/`signing_region` on the selected scheme's signer properties.
+6. **noAuth** — built-in `no_auth_scheme` with anonymous identity resolver and no-op signer. Always available when `smithy.api#noAuth` is in the options.
+7. **Per-operation effective auth schemes** — codegen emits `effective_auth_schemes` (list of scheme ID strings) per operation from `ServiceIndex.getEffectiveAuthSchemes()`.
+8. **Signer** updated to use `props.signing_region` instead of `props.region`.
+**Removed:** `config.identity_resolver`, `config.signer`, `config.signing_name`, `defaults.resolve_signer()`.
+**Added:** `config.auth_schemes`, `config.identity_resolvers`, `config.auth_scheme_resolver`, `defaults.resolve_auth_schemes()`, `defaults.resolve_identity_resolvers()`.
+**Affects:** client.lua, auth.lua, defaults.lua, signer.lua, all codegen, all tests, convergence test, harness test.
