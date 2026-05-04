@@ -264,3 +264,11 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Removed:** `config.identity_resolver`, `config.signer`, `config.signing_name`, `defaults.resolve_signer()`.
 **Added:** `config.auth_schemes`, `config.identity_resolvers`, `config.auth_scheme_resolver`, `defaults.resolve_auth_schemes()`, `defaults.resolve_identity_resolvers()`.
 **Affects:** client.lua, auth.lua, defaults.lua, signer.lua, all codegen, all tests, convergence test, harness test.
+
+## 2026-05-04 — Paginator runtime + codegen from @paginated trait
+**Context:** Need paginators for operations with the Smithy `@paginated` trait, alongside existing waiters.
+**Decision:** Two-part design:
+1. **Runtime (`paginator.lua`):** Generic `paginator.pages(client, op_name, input, config)` returns a Lua iterator function yielding `(output, err)` per page. `paginator.items(client, op_name, input, config)` returns an iterator yielding individual items flattened across pages. Config table has `input_token`, `output_token`, `items` (all strings, output_token/items are dot-paths). Stops on nil/empty token or duplicate token. Shallow-copies input to inject next token without mutating the original.
+2. **Codegen (`PaginatorGenerator.java`):** `LuaIntegration` that reads `@paginated` trait via `PaginatedIndex`, emits `{ns}/paginators.lua` + `paginators.d.tl` per service. Each paginated operation gets `pages_{snake_case}` and (if items path exists) `items_{snake_case}` functions. Services without `@paginated` operations produce no paginators file.
+**Generated API:** `for page in paginators.pages_list_queues(client, input) do ... end` / `for item in paginators.items_list_queues(client, input) do ... end`
+**Affects:** Generated service clients (new paginators.lua file per service with paginated ops), runtime (new paginator.lua module).
