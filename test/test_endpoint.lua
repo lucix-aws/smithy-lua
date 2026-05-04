@@ -410,7 +410,7 @@ test("fn: split unlimited", function()
               conditions = {
                   { fn = "split", argv = { { ref = "Name" }, "--", 0 }, assign = "parts" },
               },
-              endpoint = { url = "https://{parts#[1]}.example.com" } },
+              endpoint = { url = "https://{parts#[0]}.example.com" } },
         },
     }
     assert_eq(endpoint.resolve(ruleset, { Name = "a--b--c" }).url, "https://a.example.com")
@@ -424,7 +424,7 @@ test("fn: split with limit", function()
               conditions = {
                   { fn = "split", argv = { { ref = "Name" }, "--", 2 }, assign = "parts" },
               },
-              endpoint = { url = "https://{parts#[2]}.example.com" } },
+              endpoint = { url = "https://{parts#[1]}.example.com" } },
         },
     }
     assert_eq(endpoint.resolve(ruleset, { Name = "a--b--c" }).url, "https://b--c.example.com")

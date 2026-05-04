@@ -23,6 +23,8 @@ local function get_attr(obj, path)
             idx = tonumber(idx)
             if idx < 0 then
                 idx = #obj + idx + 1
+            else
+                idx = idx + 1 -- convert 0-based to 1-based
             end
             obj = obj[idx]
         else
@@ -89,8 +91,9 @@ end
 local function fn_parseURL(args)
     local url = args[1]
     if type(url) ~= "string" then return nil end
-    -- Reject URLs with query strings
+    -- Reject URLs with query strings or fragments
     if url:find("?", 1, true) then return nil end
+    if url:find("#", 1, true) then return nil end
 
     local scheme, rest = url:match("^([a-zA-Z][a-zA-Z0-9+%-.]*)://(.+)$")
     if not scheme then return nil end
@@ -103,7 +106,7 @@ local function fn_parseURL(args)
         path = rest:sub(slash_pos)
     else
         authority = rest
-        path = "/"
+        path = ""
     end
 
     -- Strip default ports
@@ -116,8 +119,15 @@ local function fn_parseURL(args)
 
     -- normalizedPath: ensure starts and ends with /
     local normalized = path
-    if normalized:sub(-1) ~= "/" then
-        normalized = normalized .. "/"
+    if normalized == "" then
+        normalized = "/"
+    else
+        if normalized:sub(1, 1) ~= "/" then
+            normalized = "/" .. normalized
+        end
+        if normalized:sub(-1) ~= "/" then
+            normalized = normalized .. "/"
+        end
     end
 
     -- isIp: check for IPv4 or IPv6
@@ -225,13 +235,20 @@ local function fn_aws_parseArn(args)
     if parts[1] ~= "arn" then return nil end
     if parts[2] == "" or parts[3] == "" then return nil end
 
-    -- resourceId: rejoin remaining parts, then split on : and /
+    -- resourceId: rejoin remaining parts, then split on : and / (preserving empty segments)
     local resource_str = table.concat(parts, ":", 6)
+    if resource_str == "" then return nil end
     local resource_id = {}
-    for seg in resource_str:gmatch("[^:/]+") do
-        resource_id[#resource_id + 1] = seg
+    local offset = 1
+    while offset <= #resource_str + 1 do
+        local i = resource_str:find("[:/]", offset)
+        if not i then
+            resource_id[#resource_id + 1] = resource_str:sub(offset)
+            break
+        end
+        resource_id[#resource_id + 1] = resource_str:sub(offset, i - 1)
+        offset = i + 1
     end
-    if #resource_id == 0 then return nil end
 
     return {
         partition = parts[2],
@@ -244,7 +261,7 @@ end
 
 local function fn_aws_isVirtualHostableS3Bucket(args)
     local value, allow_sub = args[1], args[2]
-    if type(value) ~= "string" or value == "" then return false end
+    if type(value) ~= "string" or #value < 3 then return false end
     -- Must not contain ..
     if value:find("..", 1, true) then return false end
     -- Must not look like an IP
@@ -304,6 +321,9 @@ local function resolve_arg(arg, scope)
             return M._call_fn(arg.fn, arg.argv, scope)
         end
     end
+    if type(arg) == "string" then
+        return resolve_template(arg, scope)
+    end
     return arg
 end
 
@@ -318,7 +338,11 @@ function M._call_fn(name, argv, scope)
         local a = argv[1]
         if type(a) == "table" and a.ref then
             local val = scope[a.ref]
-            resolved[1] = (val ~= nil and val ~= UNSET) and val or nil
+            if val ~= nil and val ~= UNSET then
+                resolved[1] = val
+            else
+                resolved[1] = nil
+            end
         else
             resolved[1] = resolve_arg(a, scope)
         end
@@ -357,6 +381,19 @@ end
 -- Rule evaluation
 ---------------------------------------------------------------------------
 
+local function resolve_deep(val, scope)
+    if type(val) == "string" then
+        return resolve_template(val, scope)
+    elseif type(val) == "table" then
+        local out = {}
+        for k, v in pairs(val) do
+            out[k] = resolve_deep(v, scope)
+        end
+        return out
+    end
+    return val
+end
+
 local function eval_endpoint(endpoint, scope)
     local url
     if type(endpoint.url) == "string" then
@@ -381,7 +418,10 @@ local function eval_endpoint(endpoint, scope)
         end
     end
 
-    local properties = endpoint.properties
+    local properties
+    if endpoint.properties then
+        properties = resolve_deep(endpoint.properties, scope)
+    end
 
     return { url = url, headers = headers, properties = properties }
 end
