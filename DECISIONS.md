@@ -137,3 +137,13 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** The endpoint ruleset defines parameters like `Region`, `UseFIPS`, `UseDualStack`, `Endpoint` (PascalCase). The runtime config uses `region`, `use_fips`, etc. (snake_case).
 **Decision:** The builtIn binding in client.lua maps snake_case config fields to PascalCase ruleset parameter names. The `endpoint_provider` function always receives PascalCase params matching the ruleset definitions. Mock endpoint providers in tests must use `params.Region` not `params.region`.
 **Affects:** All code that provides or consumes endpoint_provider functions.
+
+## 2026-05-04 — ClientProtocol interface extracted to runtime/protocol module
+**Context:** The protocol interface (serialize/deserialize) was duck-typed — only defined implicitly by how client.lua called it. The Teal type was inline in client.d.tl with incorrect signatures (missing self).
+**Decision:** Created `runtime/protocol.lua` (documentation-only) and `runtime/protocol.d.tl` as the canonical definition. `protocol.d.tl` exports `ClientProtocol` (with correct `self` signatures for colon-call) and `Operation` records. `client.d.tl` imports from `protocol` instead of defining them inline. Protocol implementations (e.g. `awsjson.d.tl`) import `Operation` from `protocol` instead of `client`.
+**Affects:** All protocol implementations (.d.tl files), client.d.tl, any future code that types the protocol interface.
+
+## 2026-05-04 — Renamed protocol/json to protocol/awsjson
+**Context:** `protocol/json.lua` was ambiguous — it could be confused with the JSON codec or a generic JSON protocol.
+**Decision:** Renamed to `protocol/awsjson.lua` (and `.d.tl`). Future protocols will follow the same naming: `protocol/restjson.lua`, `protocol/query.lua`, etc.
+**Affects:** All code that requires the awsJson protocol module.

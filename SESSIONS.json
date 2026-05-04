@@ -167,5 +167,18 @@
       "implement end-to-end"
     ],
     "outcome": "Implemented end-to-end endpoint resolution. Runtime: client.lua binds builtIn params (Region, UseFIPS, UseDualStack, Endpoint) from config + context_params from operation input before calling endpoint_provider. Codegen: EndpointRulesetGenerator.java walks endpointRuleSet trait Node tree and emits Lua table literal. DirectedLuaCodegen wires default endpoint_provider (closure over endpoint_rules + endpoint.resolve) in generated client constructor, emits context_params on operations from @contextParam traits. Added smithy-rules-engine dep. New codegen wire test verifies SQS resolves sqs.us-west-2.amazonaws.com from real rules. All 173+ tests pass."
+  },
+  {
+    "session": 13,
+    "task": "Extract ClientProtocol interface into runtime/protocol module",
+    "start": "2026-05-04T13:21:00-04:00",
+    "end": "2026-05-04T13:28:00-04:00",
+    "duration_minutes": 7,
+    "branch": "protocol-interface",
+    "prompts": [
+      "protocol interface should exist as a formal module, not duck-typed",
+      "perform as full session with worktree"
+    ],
+    "outcome": "Created runtime/protocol.lua (documentation-only interface module) and runtime/protocol.d.tl (ClientProtocol + Operation records with correct self signatures for colon-call). Updated client.d.tl to import from protocol module instead of defining inline. Updated protocol/awsjson.d.tl to reference protocol.Operation. Also renamed protocol/json -> protocol/awsjson for clarity (pre-session). All runtime tests pass."
   }
 ]
