@@ -90,7 +90,7 @@ end
 --- Sign an HTTP request with SigV4.
 --- @param request table: HTTP request {method, url, headers, body}
 --- @param identity table: {access_key, secret_key, session_token?}
---- @param props table: {signing_name, region}
+--- @param props table: {signing_name, signing_region}
 --- @return table, table: signed request, err
 function M.sign(request, identity, props)
     local host, path, query = parse_url(request.url)
@@ -156,7 +156,7 @@ function M.sign(request, identity, props)
     }, "\n")
 
     -- String to sign
-    local scope = date_stamp .. "/" .. props.region .. "/" .. props.signing_name .. "/aws4_request"
+    local scope = date_stamp .. "/" .. props.signing_region .. "/" .. props.signing_name .. "/aws4_request"
     local string_to_sign = table.concat({
         "AWS4-HMAC-SHA256",
         amz_date,
@@ -166,7 +166,7 @@ function M.sign(request, identity, props)
 
     -- Signing key
     local k_date = hmac.digest("AWS4" .. identity.secret_key, date_stamp)
-    local k_region = hmac.digest(k_date, props.region)
+    local k_region = hmac.digest(k_date, props.signing_region)
     local k_service = hmac.digest(k_region, props.signing_name)
     local k_signing = hmac.digest(k_service, "aws4_request")
 

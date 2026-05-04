@@ -4,10 +4,10 @@
 -- Set up package path: runtime + generated code
 local root = debug.getinfo(1, "S").source:match("@(.*/)")
 package.path = root .. "../runtime/?.lua;"
-    .. root .. "../codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test/source/lua-client-codegen/?.lua;"
+    .. root .. "../codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test/sqs/lua-client-codegen/?.lua;"
     .. package.path
 
-local sqs = require("amazonSQS.client")
+local sqs = require("sqs.client")
 
 local passed, failed = 0, 0
 local function test(name, fn)
@@ -27,6 +27,8 @@ local function assert_eq(a, b, msg)
     end
 end
 
+local auth = require("auth")
+
 -- helper: build a client with mock config
 local function mock_client(overrides)
     local config = {
@@ -41,8 +43,12 @@ local function mock_client(overrides)
         endpoint_provider = function(params)
             return { url = "https://sqs.us-east-1.amazonaws.com" }, nil
         end,
-        identity_resolver = function() return { access_key = "AKID", secret_key = "secret" }, nil end,
-        signer = function(req, id, props) return req, nil end,
+        auth_schemes = {
+            [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", function(req, id, props) return req, nil end),
+        },
+        identity_resolvers = {
+            aws_credentials = function() return { access_key = "AKID", secret_key = "secret" }, nil end,
+        },
     }
     if overrides then
         for k, v in pairs(overrides) do config[k] = v end
@@ -57,7 +63,7 @@ test("generated client has invokeOperation", function()
     assert(client.invokeOperation, "missing invokeOperation")
 end)
 
-test("generated client sets service_id and signing_name", function()
+test("generated client sets service_id", function()
     local client = mock_client()
     assert_eq(client.config.service_id, "AmazonSQS")
 end)
@@ -88,10 +94,12 @@ test("sendMessage flows through full pipeline", function()
             captured_request = request
             return { status_code = 200, headers = {} }, nil
         end,
-        signer = function(request, identity, props)
-            request.headers["Authorization"] = "signed"
-            return request, nil
-        end,
+        auth_schemes = {
+            [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", function(request, identity, props)
+                request.headers["Authorization"] = "signed"
+                return request, nil
+            end),
+        },
     })
 
     local output, err = client:sendMessage({
@@ -147,8 +155,12 @@ test("default endpoint_provider resolves from generated endpoint rules", functio
             captured_url = req.url
             return { status_code = 200, headers = {} }, nil
         end,
-        identity_resolver = function() return { access_key = "AKID", secret_key = "secret" }, nil end,
-        signer = function(req, id, props) return req, nil end,
+        auth_schemes = {
+            [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", function(req, id, props) return req, nil end),
+        },
+        identity_resolvers = {
+            aws_credentials = function() return { access_key = "AKID", secret_key = "secret" }, nil end,
+        },
     })
 
     client:sendMessage({ QueueUrl = "x", MessageBody = "y" })

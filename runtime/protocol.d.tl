@@ -13,6 +13,8 @@ local record protocol
         http_method: string
         http_path: string
         context_params: {string: string}
+        effective_auth_schemes: {string}
+        auth_schemes: {table}
     end
 
     -- Protocol interface: serialize input to request, deserialize response to output.

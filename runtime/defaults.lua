@@ -4,11 +4,23 @@
 
 local M = {}
 
---- Resolve the default SigV4 signer.
-function M.resolve_signer(cfg)
-    if cfg.signer then return end
+--- Resolve the default auth schemes (sigv4 + noAuth).
+function M.resolve_auth_schemes(cfg)
+    if cfg.auth_schemes then return end
+    local auth = require("auth")
     local signer = require("signer")
-    cfg.signer = signer.sign
+    cfg.auth_schemes = {
+        [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", signer.sign),
+        [auth.NO_AUTH] = auth.no_auth_scheme,
+    }
+end
+
+--- Resolve the default identity resolvers.
+--- This is a no-op at the smithy-lua layer. The aws-sdk-lua layer provides
+--- the default credential chain via its own config resolver integration.
+function M.resolve_identity_resolvers(cfg)
+    if cfg.identity_resolvers then return end
+    cfg.identity_resolvers = {}
 end
 
 --- Resolve the default HTTP client (auto-detect backend).

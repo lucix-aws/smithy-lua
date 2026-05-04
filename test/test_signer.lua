@@ -40,7 +40,7 @@ local creds = {
 
 local props = {
     signing_name = "service",
-    region = "us-east-1",
+    signing_region = "us-east-1",
 }
 
 -- URI encoding tests

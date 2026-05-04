@@ -1,6 +1,8 @@
 -- smithy-lua runtime: base client + invokeOperation pipeline
 -- See INVOKE_OPERATION.md for the full contract.
 
+local auth = require("auth")
+
 local M = {}
 
 local function shallow_copy(t)
@@ -12,20 +14,26 @@ local function shallow_copy(t)
 end
 
 --- Create a new base client.
---- @param config table: locked fields per INVOKE_OPERATION.md
---- @return table: client with invokeOperation method
 function M.new(config)
     return { config = config, invokeOperation = M.invokeOperation }
 end
 
---- Execute a single attempt (identity → endpoint → sign → send → deserialize).
---- Returns output, err. The request is mutated (endpoint applied).
+--- Execute a single attempt.
+--- Auth resolution → endpoint → apply endpoint auth overrides → sign → send → deserialize.
 local function do_attempt(config, input, request, operation)
-    -- Resolve identity
-    local identity, err = config.identity_resolver()
+    -- 1. Resolve auth scheme
+    local resolver = config.auth_scheme_resolver or auth.default_auth_scheme_resolver
+    local options = resolver(operation)
+
+    local selected, err = auth.select_scheme(options, config.auth_schemes, config.identity_resolvers)
+    if not selected then return nil, { type = "sdk", message = err } end
+
+    -- 2. Resolve identity
+    local identity
+    identity, err = selected.identity_resolver()
     if err then return nil, err end
 
-    -- Bind endpoint parameters: builtIns from config + context params from input
+    -- 3. Bind endpoint parameters
     local ep_params = {}
     if config.region then ep_params.Region = config.region end
     if config.use_fips ~= nil then ep_params.UseFIPS = config.use_fips end
@@ -37,12 +45,16 @@ local function do_attempt(config, input, request, operation)
         end
     end
 
-    -- Resolve endpoint
+    -- 4. Resolve endpoint
     local endpoint
     endpoint, err = config.endpoint_provider(ep_params)
     if err then return nil, err end
 
-    -- Apply endpoint to request (build full URL for this attempt)
+    -- 5. Apply endpoint auth scheme overrides to signer properties
+    local signer_props = shallow_copy(selected.signer_properties)
+    auth.apply_endpoint_auth_overrides(endpoint, selected.scheme.scheme_id, signer_props)
+
+    -- 6. Apply endpoint to request
     request.url = endpoint.url .. request._path
     if endpoint.headers then
         for k, v in pairs(endpoint.headers) do
@@ -50,28 +62,20 @@ local function do_attempt(config, input, request, operation)
         end
     end
 
-    -- Sign
-    request, err = config.signer(request, identity, {
-        signing_name = config.signing_name,
-        region = config.region,
-    })
+    -- 7. Sign
+    request, err = selected.scheme.signer(request, identity, signer_props)
     if err then return nil, err end
 
-    -- Transmit
+    -- 8. Transmit
     local response
     response, err = config.http_client(request)
     if err then return nil, err end
 
-    -- Deserialize
+    -- 9. Deserialize
     return config.protocol:deserialize(response, operation)
 end
 
 --- The SDK operation pipeline.
---- @param self table: client
---- @param input table: user input (modeled members)
---- @param operation table: static codegen operation metadata
---- @param options table|nil: { plugins = { fn, ... } }
---- @return table|nil, table|nil: output, err
 function M.invokeOperation(self, input, operation, options)
     -- 1. Config resolution: copy + apply operation plugins
     local config = shallow_copy(self.config)
@@ -92,9 +96,7 @@ function M.invokeOperation(self, input, operation, options)
     local retryer = config.retry_strategy
     if not retryer then
         -- No retry strategy: single attempt
-        local output
-        output, err = do_attempt(config, input, request, operation)
-        return output, err
+        return do_attempt(config, input, request, operation)
     end
 
     local token
@@ -114,17 +116,14 @@ function M.invokeOperation(self, input, operation, options)
         local delay
         delay, err = retryer:retry_token(token, err)
         if not delay then
-            -- Not retryable or max attempts exhausted
             return nil, err
         end
 
-        -- Wait before next attempt
         if delay > 0 then
             local socket_ok, socket = pcall(require, "socket")
             if socket_ok and socket.sleep then
                 socket.sleep(delay)
             else
-                -- Fallback: busy-wait (only for environments without socket)
                 local target = os.clock() + delay
                 while os.clock() < target do end
             end

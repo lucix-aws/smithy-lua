@@ -1,9 +1,10 @@
--- Test: runtime/client.lua pipeline wiring
+-- Test: runtime/client.lua pipeline wiring with SRA auth resolution
 -- Run: luajit test/test_client.lua
 
 package.path = "runtime/?.lua;" .. package.path
 
 local client_mod = require("client")
+local auth = require("auth")
 
 local function test(name, fn)
     local ok, err = pcall(fn)
@@ -70,31 +71,49 @@ local function mock_http_client(request)
     return { status_code = 200, headers = {}, body = nil }, nil
 end
 
+-- Standard auth config for tests
+local function make_auth_config(overrides)
+    local cfg = {
+        service_id = "sts",
+        protocol = mock_protocol,
+        http_client = mock_http_client,
+        endpoint_provider = mock_endpoint_provider,
+        region = "us-east-1",
+        auth_schemes = {
+            [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", mock_signer),
+        },
+        identity_resolvers = {
+            aws_credentials = mock_identity_resolver,
+        },
+        auth_scheme_resolver = function(operation)
+            return operation.auth_schemes
+        end,
+    }
+    if overrides then
+        for k, v in pairs(overrides) do cfg[k] = v end
+    end
+    return cfg
+end
+
 local operation = {
     name = "GetCallerIdentity",
     input_schema = {},
     output_schema = {},
     http_method = "POST",
     http_path = "/",
+    effective_auth_schemes = { "aws.auth#sigv4" },
+    auth_schemes = {
+        { scheme_id = "aws.auth#sigv4", signer_properties = { signing_name = "sts", signing_region = "us-east-1" } },
+    },
 }
 
 -- === Tests ===
 
 test("pipeline calls components in correct order", function()
     calls = {}
-    local c = client_mod.new({
-        service_id = "sts",
-        protocol = mock_protocol,
-        http_client = mock_http_client,
-        endpoint_provider = mock_endpoint_provider,
-        identity_resolver = mock_identity_resolver,
-        signer = mock_signer,
-        signing_name = "sts",
-        region = "us-east-1",
-    })
-
+    local c = client_mod.new(make_auth_config())
     local output, err = c:invokeOperation({}, operation)
-    assert(not err, "unexpected error: " .. tostring(err))
+    assert(not err, "unexpected error: " .. tostring(err and err.message))
     assert_eq(output.Result, "ok", "output")
 
     -- Verify order: serialize -> identity -> endpoint -> sign -> transmit -> deserialize
@@ -110,60 +129,37 @@ end)
 test("endpoint is applied to request URL", function()
     calls = {}
     local captured_request
-    local c = client_mod.new({
-        service_id = "sts",
-        protocol = mock_protocol,
+    local c = client_mod.new(make_auth_config({
+        region = "us-west-2",
         http_client = function(req)
             captured_request = req
             return { status_code = 200, headers = {}, body = nil }, nil
         end,
-        endpoint_provider = mock_endpoint_provider,
-        identity_resolver = mock_identity_resolver,
-        signer = function(req, _, _) return req, nil end,
-        signing_name = "sts",
-        region = "us-west-2",
-    })
+    }))
 
     c:invokeOperation({}, operation)
     assert_eq(captured_request.url, "https://sts.us-west-2.amazonaws.com/", "url")
 end)
 
-test("signer receives correct identity and props", function()
+test("signer receives correct identity and signer_properties", function()
     calls = {}
     signer_args = {}
-    local c = client_mod.new({
-        service_id = "sts",
-        protocol = mock_protocol,
-        http_client = mock_http_client,
-        endpoint_provider = mock_endpoint_provider,
-        identity_resolver = mock_identity_resolver,
-        signer = mock_signer,
-        signing_name = "sts",
-        region = "eu-west-1",
-    })
-
+    local c = client_mod.new(make_auth_config())
     c:invokeOperation({}, operation)
     assert_eq(signer_args.identity.access_key, "AKID", "access_key")
     assert_eq(signer_args.props.signing_name, "sts", "signing_name")
-    assert_eq(signer_args.props.region, "eu-west-1", "region")
+    assert_eq(signer_args.props.signing_region, "us-east-1", "signing_region")
 end)
 
 test("operation plugins can override config", function()
     calls = {}
     local captured_request
-    local c = client_mod.new({
-        service_id = "sts",
-        protocol = mock_protocol,
+    local c = client_mod.new(make_auth_config({
         http_client = function(req)
             captured_request = req
             return { status_code = 200, headers = {}, body = nil }, nil
         end,
-        endpoint_provider = mock_endpoint_provider,
-        identity_resolver = mock_identity_resolver,
-        signer = function(req, _, _) return req, nil end,
-        signing_name = "sts",
-        region = "us-east-1",
-    })
+    }))
 
     c:invokeOperation({}, operation, {
         plugins = {
@@ -174,17 +170,7 @@ test("operation plugins can override config", function()
 end)
 
 test("plugins do not mutate original client config", function()
-    local c = client_mod.new({
-        service_id = "sts",
-        protocol = mock_protocol,
-        http_client = mock_http_client,
-        endpoint_provider = mock_endpoint_provider,
-        identity_resolver = mock_identity_resolver,
-        signer = function(req, _, _) return req, nil end,
-        signing_name = "sts",
-        region = "us-east-1",
-    })
-
+    local c = client_mod.new(make_auth_config())
     c:invokeOperation({}, operation, {
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
@@ -195,24 +181,76 @@ end)
 
 test("serialize error short-circuits pipeline", function()
     calls = {}
-    local c = client_mod.new({
-        service_id = "sts",
+    local c = client_mod.new(make_auth_config({
         protocol = {
             serialize = function(self) return nil, { type = "sdk", message = "bad input" } end,
             deserialize = function(self) error("should not be called") end,
         },
-        http_client = mock_http_client,
-        endpoint_provider = mock_endpoint_provider,
-        identity_resolver = mock_identity_resolver,
-        signer = mock_signer,
-        signing_name = "sts",
-        region = "us-east-1",
-    })
+    }))
 
     local output, err = c:invokeOperation({}, operation)
     assert(output == nil, "output should be nil")
     assert_eq(err.message, "bad input", "error message")
     assert_eq(#calls, 0, "no further calls after serialize error")
+end)
+
+test("noAuth scheme skips signing", function()
+    calls = {}
+    local noauth_op = {
+        name = "AssumeRoleWithWebIdentity",
+        input_schema = {},
+        output_schema = {},
+        http_method = "POST",
+        http_path = "/",
+        effective_auth_schemes = { "smithy.api#noAuth" },
+        auth_schemes = {
+            { scheme_id = "smithy.api#noAuth" },
+        },
+    }
+    local c = client_mod.new(make_auth_config())
+    local output, err = c:invokeOperation({}, noauth_op)
+    assert(not err, "unexpected error: " .. tostring(err and err.message))
+    -- Should not call identity resolver or signer
+    local has_identity = false
+    local has_sign = false
+    for _, call in ipairs(calls) do
+        if call == "identity" then has_identity = true end
+        if call == "sign" then has_sign = true end
+    end
+    assert(not has_identity, "should not resolve identity for noAuth")
+    assert(not has_sign, "should not sign for noAuth")
+end)
+
+test("endpoint authSchemes overrides signer properties", function()
+    calls = {}
+    signer_args = {}
+    local c = client_mod.new(make_auth_config({
+        endpoint_provider = function(params)
+            return {
+                url = "https://custom.endpoint.com",
+                properties = {
+                    authSchemes = {
+                        { name = "sigv4", signingName = "custom-service", signingRegion = "us-west-2" },
+                    },
+                },
+            }, nil
+        end,
+    }))
+
+    c:invokeOperation({}, operation)
+    assert_eq(signer_args.props.signing_name, "custom-service", "overridden signing_name")
+    assert_eq(signer_args.props.signing_region, "us-west-2", "overridden signing_region")
+end)
+
+test("no supported auth scheme returns error", function()
+    calls = {}
+    local c = client_mod.new(make_auth_config({
+        auth_schemes = {}, -- no schemes supported
+    }))
+
+    local output, err = c:invokeOperation({}, operation)
+    assert(output == nil, "output should be nil")
+    assert(err.message:find("no auth scheme"), "error should mention no auth scheme: " .. err.message)
 end)
 
 print("\nAll tests passed.")

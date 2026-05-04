@@ -6,12 +6,13 @@
 local root = debug.getinfo(1, "S").source:match("@(.*/)")
 package.path = root .. "../runtime/?.lua;"
     .. root .. "../runtime/?/init.lua;"
-    .. root .. "../codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test/source/lua-client-codegen/?.lua;"
+    .. root .. "../codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test/sqs/lua-client-codegen/?.lua;"
     .. package.path
 
-local sqs = require("amazonSQS.client")
+local sqs = require("sqs.client")
 local protocol_json = require("protocol.awsjson")
 local signer = require("signer")
+local auth = require("auth")
 local http = require("http")
 
 local passed, failed = 0, 0
@@ -69,12 +70,6 @@ local function mock_transport(response_status, response_body)
     return transport, captured
 end
 
--- Wrapping signer: delegates to real SigV4 but logs
-local function logging_signer(request, identity, props)
-    print("  [signer] signing for " .. props.signing_name .. " / " .. props.region)
-    return signer.sign(request, identity, props)
-end
-
 -- Build a client wired to real runtime components
 local function make_client(transport)
     return sqs.new({
@@ -85,11 +80,18 @@ local function make_client(transport)
             print("  [endpoint] resolved for region=" .. params.Region)
             return { url = "https://sqs." .. params.Region .. ".amazonaws.com" }, nil
         end,
-        identity_resolver = function()
-            print("  [identity] returning test credentials")
-            return { access_key = "AKIAIOSFODNN7EXAMPLE", secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" }, nil
-        end,
-        signer = logging_signer,
+        auth_schemes = {
+            [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", function(request, identity, props)
+                print("  [signer] signing for " .. (props.signing_name or "?") .. " / " .. (props.signing_region or "?"))
+                return signer.sign(request, identity, props)
+            end),
+        },
+        identity_resolvers = {
+            aws_credentials = function()
+                print("  [identity] returning test credentials")
+                return { access_key = "AKIAIOSFODNN7EXAMPLE", secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" }, nil
+            end,
+        },
     })
 end
 
