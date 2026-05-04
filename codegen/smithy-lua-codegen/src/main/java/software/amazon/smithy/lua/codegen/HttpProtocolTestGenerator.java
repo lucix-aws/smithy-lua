@@ -154,6 +154,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                     var mediaType = tc.getBodyMediaType().orElse("");
                     if (mediaType.contains("json")) {
                         w.write("assert_json_eq(body_str, $L)", luaLongString(body));
+                    } else if (mediaType.contains("xml") || proto.contains("restXml")) {
+                        w.write("assert_xml_eq(body_str, $L)", luaLongString(body));
                     } else {
                         w.write("assert_eq(body_str, $L, \"body\")", luaLongString(body));
                     }
@@ -399,6 +401,38 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("    local expected = json_decoder.decode(expected_str)");
         w.write("    if not deep_eq(actual, expected) then");
         w.write("        error(\"JSON mismatch:\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
+        w.write("    end");
+        w.write("end");
+        w.write("");
+
+        // assert_xml_eq — semantic XML comparison
+        w.write("local xml_codec = require(\"smithy.codec.xml\")");
+        w.write("local function normalize_xml(node)");
+        w.write("    if type(node) ~= \"table\" then return node end");
+        w.write("    local children = {}");
+        w.write("    for _, c in ipairs(node.children or {}) do children[#children+1] = normalize_xml(c) end");
+        w.write("    table.sort(children, function(a, b) return (a.tag or \"\") < (b.tag or \"\") end)");
+        w.writeWithNoFormatting("    return { tag = node.tag, attrs = node.attrs, children = children, text = (node.text or \"\"):match(\"^%s*(.-)%s*$\") }");
+        w.write("end");
+        w.write("local function xml_nodes_eq(a, b)");
+        w.write("    if not a and not b then return true end");
+        w.write("    if not a or not b then return false end");
+        w.write("    if a.tag ~= b.tag then return false end");
+        w.write("    if (a.text or \"\") ~= (b.text or \"\") then return false end");
+        w.write("    local aa, ba = a.attrs or {}, b.attrs or {}");
+        w.write("    for k, v in pairs(aa) do if ba[k] ~= v then return false end end");
+        w.write("    for k, v in pairs(ba) do if aa[k] ~= v then return false end end");
+        w.write("    if #(a.children or {}) ~= #(b.children or {}) then return false end");
+        w.write("    for i, ac in ipairs(a.children or {}) do");
+        w.write("        if not xml_nodes_eq(ac, (b.children or {})[i]) then return false end");
+        w.write("    end");
+        w.write("    return true");
+        w.write("end");
+        w.write("local function assert_xml_eq(actual_str, expected_str)");
+        w.write("    local a = normalize_xml(xml_codec.parse_xml(actual_str))");
+        w.write("    local b = normalize_xml(xml_codec.parse_xml(expected_str))");
+        w.write("    if not xml_nodes_eq(a, b) then");
+        w.write("        error(\"XML mismatch:\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
         w.write("    end");
         w.write("end");
         w.write("");

@@ -218,7 +218,23 @@ local function parse_header_value(v, member_schema)
                         tf = elem.traits[strait.TIMESTAMP_FORMAT]
                     end
                     if tf == "http-date" then
-                        items[idx] = tonumber(item) or item
+                        local t = {}
+                        t.day, t.month, t.year, t.hour, t.min, t.sec = item:match(
+                            "%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
+                        if t.day then
+                            local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
+                            t.month = months[t.month] or 1
+                            t.year = tonumber(t.year); t.day = tonumber(t.day)
+                            t.hour = tonumber(t.hour); t.min = tonumber(t.min); t.sec = tonumber(t.sec)
+                            t.isdst = false
+                            local epoch = os.time(t)
+                            local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
+                            items[idx] = epoch - utc_offset
+                        else
+                            items[idx] = tonumber(item) or item
+                        end
+                    elseif tf == "date-time" then
+                        items[idx] = json_codec._parse_iso8601(item)
                     else
                         items[idx] = tonumber(item) or item
                     end
@@ -235,6 +251,13 @@ function M.serialize(self, input, operation)
     input = input or {}
     local schema = operation.input_schema
     local members = schema and schema.members or {}
+
+    -- Auto-fill idempotency tokens
+    for name, ms in pairs(members) do
+        if ms.traits and ms.traits[strait.IDEMPOTENCY_TOKEN] and input[name] == nil then
+            input[name] = "00000000-0000-4000-8000-000000000000"
+        end
+    end
 
     local labels = {}
     local query = {}
@@ -351,7 +374,7 @@ function M.serialize(self, input, operation)
             end
         elseif payload_schema.type == stype.STRUCTURE or payload_schema.type == stype.UNION then
             headers["Content-Type"] = "application/xml"
-            local root = payload_schema.traits and payload_schema.traits[strait.XML_NAME] or payload_name
+            local root = payload_schema.traits and payload_schema.traits[strait.XML_NAME] or payload_schema.id or payload_name
             local err
             body_str, err = self.codec:serialize(v, payload_schema, root)
             if err then return nil, err end
@@ -470,7 +493,7 @@ function M.deserialize(self, response, operation)
                     end
                 end
             end
-            if next(map) then output[name] = map end
+            output[name] = map
         elseif t and t[strait.HTTP_PAYLOAD] then
             payload_name = name
             payload_schema = ms

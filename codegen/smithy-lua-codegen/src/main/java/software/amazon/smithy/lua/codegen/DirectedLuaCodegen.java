@@ -45,7 +45,9 @@ import software.amazon.smithy.model.traits.JsonNameTrait;
 import software.amazon.smithy.model.traits.MediaTypeTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
 import software.amazon.smithy.model.traits.TimestampFormatTrait;
+import software.amazon.smithy.model.traits.XmlFlattenedTrait;
 import software.amazon.smithy.model.traits.XmlNameTrait;
+import software.amazon.smithy.model.traits.XmlNamespaceTrait;
 import software.amazon.smithy.rulesengine.traits.ContextParamTrait;
 import software.amazon.smithy.rulesengine.traits.EndpointRuleSetTrait;
 
@@ -355,6 +357,7 @@ public final class DirectedLuaCodegen
             writer.write("M.$L = {", name);
             writer.indent();
             writer.write("type = \"union\",");
+            writer.write("id = $S,", name);
             if (!shape.members().isEmpty()) {
                 writer.write("members = {");
                 writer.indent();
@@ -419,15 +422,42 @@ public final class DirectedLuaCodegen
 
     private void writeSchema(LuaWriter writer, StructureShape shape, LuaContext context, String schemaType) {
         var name = shape.getId().getName(context.service());
+        var rawName = shape.getId().getName();
         var model = context.model();
 
         writer.write("M.$L = {", name);
         writer.indent();
         writer.write("type = $S,", schemaType);
+        writer.write("id = $S,", name);
 
         // Error trait
         shape.getTrait(ErrorTrait.class).ifPresent(t ->
                 writer.write("error = $S,", t.getValue()));
+
+        // XML traits on the structure itself
+        var structTraits = new TreeMap<String, String>();
+        shape.getTrait(XmlNameTrait.class).ifPresent(t ->
+                structTraits.put("xml_name", "\"" + t.getValue() + "\""));
+        if (!structTraits.containsKey("xml_name") && !rawName.equals(name)) {
+            structTraits.put("xml_name", "\"" + rawName + "\"");
+        }
+        shape.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+            var prefix = ns.getPrefix().orElse(null);
+            if (prefix != null) {
+                structTraits.put("xml_namespace", "{ uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
+            } else {
+                structTraits.put("xml_namespace", "\"" + ns.getUri() + "\"");
+            }
+        });
+        if (!structTraits.isEmpty()) {
+            writer.write("traits = {");
+            writer.indent();
+            for (var entry : structTraits.entrySet()) {
+                writer.write("$L = $L,", entry.getKey(), entry.getValue());
+            }
+            writer.dedent();
+            writer.write("},");
+        }
 
         if (!shape.members().isEmpty()) {
             writer.write("members = {");
@@ -488,14 +518,16 @@ public final class DirectedLuaCodegen
         // If the target is a map, include key/value schemas
         if (targetType == ShapeType.MAP) {
             var mapShape = target.asMapShape().get();
-            var keyTarget = model.expectShape(mapShape.getKey().getTarget());
-            var valueTarget = model.expectShape(mapShape.getValue().getTarget());
+            var keyMember = mapShape.getKey();
+            var keyTarget = model.expectShape(keyMember.getTarget());
+            var valueMember = mapShape.getValue();
+            var valueTarget = model.expectShape(valueMember.getTarget());
             var valueTargetType = valueTarget.getType();
-            writer.write("key = { type = $S },", toLuaSchemaType(keyTarget));
+            writeMapSubSchema(writer, "key", keyMember, keyTarget, service, model);
             if (valueTargetType == ShapeType.STRUCTURE || valueTargetType == ShapeType.UNION) {
                 writer.write("value = M.$L,", valueTarget.getId().getName(service));
             } else {
-                writer.write("value = { type = $S },", toLuaSchemaType(valueTarget));
+                writeMapSubSchema(writer, "value", valueMember, valueTarget, service, model);
             }
         }
 
@@ -514,6 +546,32 @@ public final class DirectedLuaCodegen
 
         writer.dedent();
         writer.write("},");
+    }
+
+    private void writeMapSubSchema(LuaWriter writer, String field, MemberShape member, Shape target,
+                                    ServiceShape service, software.amazon.smithy.model.Model model) {
+        var subTraits = new TreeMap<String, String>();
+        member.getTrait(XmlNameTrait.class).ifPresent(t ->
+                subTraits.put("xml_name", "\"" + t.getValue() + "\""));
+        member.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+            var prefix = ns.getPrefix().orElse(null);
+            if (prefix != null) {
+                subTraits.put("xml_namespace", "{ uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
+            } else {
+                subTraits.put("xml_namespace", "\"" + ns.getUri() + "\"");
+            }
+        });
+        if (subTraits.isEmpty()) {
+            writer.write("$L = { type = $S },", field, toLuaSchemaType(target));
+        } else {
+            writer.write("$L = { type = $S, traits = {", field, toLuaSchemaType(target));
+            writer.indent();
+            for (var entry : subTraits.entrySet()) {
+                writer.write("$L = $L,", entry.getKey(), entry.getValue());
+            }
+            writer.dedent();
+            writer.write("} },");
+        }
     }
 
     private TreeMap<String, String> collectTraits(MemberShape member) {
@@ -545,6 +603,15 @@ public final class DirectedLuaCodegen
                 traits.put("json_name", "\"" + t.getValue() + "\""));
         member.getTrait(XmlNameTrait.class).ifPresent(t ->
                 traits.put("xml_name", "\"" + t.getValue() + "\""));
+        if (member.hasTrait(XmlFlattenedTrait.class)) traits.put("xml_flattened", "true");
+        member.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+            var prefix = ns.getPrefix().orElse(null);
+            if (prefix != null) {
+                traits.put("xml_namespace", "{ uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
+            } else {
+                traits.put("xml_namespace", "\"" + ns.getUri() + "\"");
+            }
+        });
         // @timestampFormat: check member first, then target shape
         member.getTrait(TimestampFormatTrait.class).ifPresent(t ->
                 traits.put("timestamp_format", "\"" + t.getValue() + "\""));
