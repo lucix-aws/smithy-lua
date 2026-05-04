@@ -222,5 +222,18 @@
       "implement ALL remaining protocols, awsQuery has ec2Query variant, reference smithy docs"
     ],
     "outcome": "Implemented all remaining protocols. XML codec (codec/xml.lua): serialize/deserialize with xmlAttribute, xmlFlattened, xmlName, xmlNamespace, minimal XML parser, decode_node exposed for protocol use. restXml (protocol/restxml.lua): REST-style with XML body, full HTTP bindings (same as restJson1), error parsing with noErrorWrapping option. awsQuery (protocol/awsquery.lua): form-urlencoded serialization with Action/Version, flattened/non-flattened lists/maps, xmlName support, XML response deserialization with OpResult unwrapping, ec2 mode flag. ec2Query (protocol/ec2query.lua): thin wrapper setting ec2=true for always-flattened lists, capitalized keys, ec2QueryName trait, no Result wrapper, different error format. CBOR codec (codec/cbor.lua): pure Lua CBOR encoder/decoder using LuaJIT bit+FFI, all major types, half/single/double floats, tag 1 timestamps. rpcv2Cbor (protocol/rpcv2cbor.lua): POST to /service/{svc}/operation/{op}, Smithy-Protocol header, CBOR body, __type error identification. Added ec2_query_name and aws_query_error traits to schema. 81 new tests (27 XML + 22 CBOR + 32 protocol), all existing tests pass. Teal .d.tl for all modules."
+  },
+  {
+    "session": 17,
+    "task": "Waiters: runtime waiter module + codegen WaiterGenerator from @waitable trait",
+    "start": "2026-05-04T14:12:00-04:00",
+    "end": "2026-05-04T14:30:00-04:00",
+    "duration_minutes": 18,
+    "branch": "waiters",
+    "prompts": [
+      "new agent task: waiters, confirm workflow",
+      "confirm worktree usage"
+    ],
+    "outcome": "Implemented waiters end-to-end. Runtime: waiter.lua with eval_path (dot-path + [] flatten), acceptor matching (output/inputOutput/success/errorType), 4 comparators, exponential jitter backoff, polling loop with max_wait_time. Codegen: WaiterGenerator.java (LuaIntegration) reads @waitable traits, emits {ns}/waiters.lua + waiters.d.tl per service. Verified with test-waiters model (3 waiters: WidgetExists, WidgetNotExists, WidgetReady). SQS correctly produces no waiters. 33 new tests, all existing tests pass."
   }
 ]

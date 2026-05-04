@@ -192,3 +192,11 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Need Smithy RPCv2 CBOR protocol for modern AWS services.
 **Decision:** `protocol/rpcv2cbor.lua` implements serialize/deserialize. Request: POST to `/service/{service_name}/operation/{op_name}`, `Smithy-Protocol: rpc-v2-cbor` header, `Accept: application/cbor`. Empty input = no body, no Content-Type. Errors identified by `__type` field in CBOR body (full shape ID, strip namespace). Validates `Smithy-Protocol` response header.
 **Affects:** Generated clients using rpcv2Cbor protocol.
+
+## 2026-05-04 — Waiter runtime + codegen from @waitable trait
+**Context:** Need waiters (polling loops) for operations with the Smithy `@waitable` trait.
+**Decision:** Two-part design:
+1. **Runtime (`waiter.lua`):** Generic `waiter.wait(client, operation_fn, input, waiter_config, options)` function. `waiter_config` is a table with `acceptors`, `min_delay`, `max_delay` — emitted by codegen as Lua table literals. Acceptor matching supports 4 matcher types: `output` (path eval on output), `inputOutput` (path eval on `{input, output}`), `success` (bool), `errorType` (string match on `err.code`). Path evaluation handles dot-path traversal and `[]` list flattening (covers DynamoDB, EC2, S3 waiter patterns). Comparators: `stringEquals`, `booleanEquals`, `allStringEquals`, `anyStringEquals`. Exponential backoff with jitter between minDelay and maxDelay, capped by `max_wait_time` budget.
+2. **Codegen (`WaiterGenerator.java`):** `LuaIntegration` that reads `WaitableTrait` from operations, emits `{ns}/waiters.lua` with `wait_until_{snake_case}` functions and `{ns}/waiters.d.tl` with Teal declarations. Each function captures the acceptor config as a Lua table literal and delegates to `waiter.wait()`. Services without `@waitable` operations produce no waiters file.
+**Generated API:** `waiters.wait_until_table_exists(client, input, { max_wait_time = 300 })`
+**Affects:** Generated service clients (new waiters.lua file per service with waiters), runtime (new waiter.lua module).
