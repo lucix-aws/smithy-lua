@@ -123,3 +123,17 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Constitution places credential providers in aws-sdk-lua, but for convergence we need at least the environment provider.
 **Decision:** Environment credential provider at `runtime/credentials/environment.lua` in smithy-lua for now. Will migrate to aws-sdk-lua when that repo has runtime code. The provider returns a function conforming to the identity_resolver interface.
 **Affects:** Future aws-sdk-lua credential chain work.
+
+## 2026-05-04 — Endpoint resolution is a first-class pipeline step with builtIn + context param binding
+**Context:** Need to wire codegen-emitted endpoint rulesets into the runtime pipeline. The runtime endpoint.lua evaluator already exists (session 6), but nothing generates rulesets or binds parameters.
+**Decision:** Three-part design:
+1. **Runtime (client.lua):** `do_attempt` binds endpoint parameters before calling `endpoint_provider(params)`. BuiltIn params are bound from config fields: `Region` ← `config.region`, `UseFIPS` ← `config.use_fips`, `UseDualStack` ← `config.use_dual_stack`, `Endpoint` ← `config.endpoint_url`. Per-operation context params are bound from `operation.context_params` (a table mapping ruleset param name → input field name).
+2. **Codegen (EndpointRulesetGenerator.java):** Reads the `endpointRuleSet` trait from the service shape, walks the Node tree, and emits it as a Lua table literal in `endpoint_rules.lua`.
+3. **Codegen (DirectedLuaCodegen.java):** Generated client constructor sets a default `endpoint_provider` (closure over `endpoint_rules` + `endpoint.resolve`) if the user doesn't provide one. Operations emit `context_params` from `@contextParam` traits on input members.
+**Key property:** `endpoint_provider` remains user-configurable — the generated default is just the fallback.
+**Affects:** client.lua, all generated service clients, codegen plugin.
+
+## 2026-05-04 — Endpoint parameter names use Smithy ruleset casing (PascalCase)
+**Context:** The endpoint ruleset defines parameters like `Region`, `UseFIPS`, `UseDualStack`, `Endpoint` (PascalCase). The runtime config uses `region`, `use_fips`, etc. (snake_case).
+**Decision:** The builtIn binding in client.lua maps snake_case config fields to PascalCase ruleset parameter names. The `endpoint_provider` function always receives PascalCase params matching the ruleset definitions. Mock endpoint providers in tests must use `params.Region` not `params.region`.
+**Affects:** All code that provides or consumes endpoint_provider functions.

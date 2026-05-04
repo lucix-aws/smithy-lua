@@ -20,14 +20,26 @@ end
 
 --- Execute a single attempt (identity → endpoint → sign → send → deserialize).
 --- Returns output, err. The request is mutated (endpoint applied).
-local function do_attempt(config, request, operation)
+local function do_attempt(config, input, request, operation)
     -- Resolve identity
     local identity, err = config.identity_resolver()
     if err then return nil, err end
 
+    -- Bind endpoint parameters: builtIns from config + context params from input
+    local ep_params = {}
+    if config.region then ep_params.Region = config.region end
+    if config.use_fips ~= nil then ep_params.UseFIPS = config.use_fips end
+    if config.use_dual_stack ~= nil then ep_params.UseDualStack = config.use_dual_stack end
+    if config.endpoint_url then ep_params.Endpoint = config.endpoint_url end
+    if operation.context_params then
+        for param_name, input_field in pairs(operation.context_params) do
+            ep_params[param_name] = input[input_field]
+        end
+    end
+
     -- Resolve endpoint
     local endpoint
-    endpoint, err = config.endpoint_provider({ region = config.region })
+    endpoint, err = config.endpoint_provider(ep_params)
     if err then return nil, err end
 
     -- Apply endpoint to request (build full URL for this attempt)
@@ -81,7 +93,7 @@ function M.invokeOperation(self, input, operation, options)
     if not retryer then
         -- No retry strategy: single attempt
         local output
-        output, err = do_attempt(config, request, operation)
+        output, err = do_attempt(config, input, request, operation)
         return output, err
     end
 
@@ -91,7 +103,7 @@ function M.invokeOperation(self, input, operation, options)
 
     local output
     while true do
-        output, err = do_attempt(config, request, operation)
+        output, err = do_attempt(config, input, request, operation)
 
         if not err then
             retryer:record_success(token)

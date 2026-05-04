@@ -52,7 +52,7 @@ end
 -- Mock endpoint provider
 local function mock_endpoint_provider(params)
     record("endpoint")
-    return { url = "https://sts." .. params.region .. ".amazonaws.com" }, nil
+    return { url = "https://sts." .. params.Region .. ".amazonaws.com" }, nil
 end
 
 -- Mock signer: records what it received, returns request unchanged

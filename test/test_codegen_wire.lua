@@ -119,7 +119,7 @@ test("per-call plugins modify config", function()
     local used_region = nil
     local client = mock_client({
         endpoint_provider = function(params)
-            used_region = params.region
+            used_region = params.Region
             return { url = "https://sqs.eu-west-1.amazonaws.com" }, nil
         end,
     })
@@ -130,6 +130,31 @@ test("per-call plugins modify config", function()
         },
     })
     assert_eq(used_region, "eu-west-1")
+end)
+
+test("default endpoint_provider resolves from generated endpoint rules", function()
+    local captured_url = nil
+    -- Create client WITHOUT endpoint_provider — should use the generated default
+    local client = sqs.new({
+        region = "us-west-2",
+        protocol = {
+            serialize = function(self, input, op)
+                return { method = "POST", url = "/", headers = {} }, nil
+            end,
+            deserialize = function(self, resp, op) return {}, nil end,
+        },
+        http_client = function(req)
+            captured_url = req.url
+            return { status_code = 200, headers = {} }, nil
+        end,
+        identity_resolver = function() return { access_key = "AKID", secret_key = "secret" }, nil end,
+        signer = function(req, id, props) return req, nil end,
+    })
+
+    client:sendMessage({ QueueUrl = "x", MessageBody = "y" })
+    -- The SQS endpoint rules should resolve to https://sqs.us-west-2.amazonaws.com/
+    assert(captured_url, "expected a URL")
+    assert(captured_url:find("sqs%.us%-west%-2"), "expected sqs.us-west-2 in URL, got: " .. captured_url)
 end)
 
 test("all 23 SQS operations exist on client", function()

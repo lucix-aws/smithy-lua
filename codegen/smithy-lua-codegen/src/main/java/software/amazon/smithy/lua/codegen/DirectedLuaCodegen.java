@@ -35,6 +35,8 @@ import software.amazon.smithy.model.traits.JsonNameTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
 import software.amazon.smithy.model.traits.TimestampFormatTrait;
 import software.amazon.smithy.model.traits.XmlNameTrait;
+import software.amazon.smithy.rulesengine.traits.ContextParamTrait;
+import software.amazon.smithy.rulesengine.traits.EndpointRuleSetTrait;
 
 public final class DirectedLuaCodegen
         implements DirectedCodegen<LuaContext, LuaSettings, LuaIntegration> {
@@ -82,6 +84,9 @@ public final class DirectedLuaCodegen
 
         // Generate .d.tl Teal declaration files
         TealGenerator.generate(directive.context());
+
+        // Generate endpoint_rules.lua from endpointRuleSet trait
+        EndpointRulesetGenerator.generate(directive.context());
     }
 
     @Override
@@ -122,6 +127,16 @@ public final class DirectedLuaCodegen
                 writer.write("config.service_id = $S", service.getId().getName());
                 writer.write("config.signing_name = $S",
                         service.getId().getName().toLowerCase(Locale.US));
+                // Wire default endpoint_provider from generated endpoint_rules
+                if (service.hasTrait(EndpointRuleSetTrait.class)) {
+                    writer.addRequire("endpoint_rules", serviceNs + ".endpoint_rules");
+                    writer.addRequire("endpoint", "endpoint");
+                    writer.block("if not config.endpoint_provider then", () -> {
+                        writer.block("config.endpoint_provider = function(params)", () -> {
+                            writer.write("return endpoint.resolve(endpoint_rules, params)");
+                        });
+                    });
+                }
                 writer.write("local self = setmetatable(base_client.new(config), Client)");
                 writer.write("return self");
             });
@@ -171,6 +186,23 @@ public final class DirectedLuaCodegen
             writer.write("output_schema = types.$L,", outputName);
             writer.write("http_method = $S,", httpMethod);
             writer.write("http_path = $S,", httpPath);
+
+            // Emit context_params from @contextParam traits on input members
+            var contextParams = new TreeMap<String, String>();
+            for (var member : inputShape.members()) {
+                member.getTrait(ContextParamTrait.class).ifPresent(t ->
+                        contextParams.put(t.getName(), member.getMemberName()));
+            }
+            if (!contextParams.isEmpty()) {
+                writer.write("context_params = {");
+                writer.indent();
+                for (var entry : contextParams.entrySet()) {
+                    writer.write("$L = $S,", entry.getKey(), entry.getValue());
+                }
+                writer.dedent();
+                writer.write("},");
+            }
+
             writer.dedent();
             writer.write("}, options)");
         });

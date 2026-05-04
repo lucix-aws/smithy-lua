@@ -82,8 +82,8 @@ local function make_client(transport)
         protocol = protocol_json.new({ version = "1.0", service_id = "AmazonSQS" }),
         http_client = transport,
         endpoint_provider = function(params)
-            print("  [endpoint] resolved for region=" .. params.region)
-            return { url = "https://sqs." .. params.region .. ".amazonaws.com" }, nil
+            print("  [endpoint] resolved for region=" .. params.Region)
+            return { url = "https://sqs." .. params.Region .. ".amazonaws.com" }, nil
         end,
         identity_resolver = function()
             print("  [identity] returning test credentials")

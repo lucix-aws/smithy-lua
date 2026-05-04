@@ -153,5 +153,19 @@
       "implement env credential provider, STS client, convergence test, run it"
     ],
     "outcome": "Phase 3 convergence achieved. Implemented: http/curl_ffi.lua (libcurl via LuaJIT FFI), http/curl_subprocess.lua (curl subprocess fallback), http/client.lua (resolver — probes backends in priority order), credentials/environment.lua (env var credential provider). Hand-wrote minimal DynamoDB + STS clients matching codegen output pattern. Discovered STS uses awsQuery (not awsJson), pivoted to DynamoDB ListTables for convergence. Real AWS call succeeded: DynamoDB ListTables returned table 'fugazitab'. Full pipeline: DynamoDB client → awsJson 1.0 → SigV4 → env creds → libcurl FFI → real AWS endpoint."
+  },
+  {
+    "session": 12,
+    "task": "End-to-end endpoint resolution: codegen emits rulesets, runtime binds params",
+    "start": "2026-05-04T11:49:00-04:00",
+    "end": "2026-05-04T12:00:00-04:00",
+    "duration_minutes": 11,
+    "branch": null,
+    "prompts": [
+      "what is the state of endpoint resolution",
+      "design discussion: parameter binding, endpoint_provider configurability",
+      "implement end-to-end"
+    ],
+    "outcome": "Implemented end-to-end endpoint resolution. Runtime: client.lua binds builtIn params (Region, UseFIPS, UseDualStack, Endpoint) from config + context_params from operation input before calling endpoint_provider. Codegen: EndpointRulesetGenerator.java walks endpointRuleSet trait Node tree and emits Lua table literal. DirectedLuaCodegen wires default endpoint_provider (closure over endpoint_rules + endpoint.resolve) in generated client constructor, emits context_params on operations from @contextParam traits. Added smithy-rules-engine dep. New codegen wire test verifies SQS resolves sqs.us-west-2.amazonaws.com from real rules. All 173+ tests pass."
   }
 ]
