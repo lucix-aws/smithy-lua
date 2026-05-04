@@ -322,5 +322,20 @@
       "fix all issues in worktree"
     ],
     "outcome": "Fixed 8 bugs in endpoint rules engine: template resolution in properties and function args, 0-based index conversion, isSet false handling, parseURL fragment rejection and empty path, isVirtualHostableS3Bucket min length, parseArn empty segment preservation. Rewrote partitions.lua from canonical partitions.json. All 424/424 service endpoint tests pass, all smithy-lua unit tests pass."
+  },
+  {
+    "session": 24,
+    "task": "Refactor protocoltest layout + fix restxml protocol test failures",
+    "start": "2026-05-04T16:54:00-04:00",
+    "end": "2026-05-04T17:27:00-04:00",
+    "duration_minutes": 33,
+    "branch": "refactor-protocoltest, fix-restxml",
+    "prompts": [
+      "regenerate protocol tests and assess pass/fail",
+      "refactor protocoltest project to codegen/protocol-test-codegen",
+      "focus on restxml failures in worktree",
+      "merge and wrap up"
+    ],
+    "outcome": "Refactored protocoltest: moved gradle project to codegen/protocol-test-codegen/, generated output goes to protocoltest/ (gitignored). Fixed Makefile: make generate produces both build/ and protocoltest/, make protocol-test runs tests. Fixed restxml: codegen emits id/xml_name/xml_namespace/xml_flattened on schemas, assert_xml_eq for semantic XML comparison, xml_namespace on map/simple elements in codec, idempotency token auto-fill, prefix headers empty table, timestamp list parsing. Protocol tests: 602/701 → 620/707 passing. Remaining restxml failures (39) due to shape name renaming issue (getName(service) renames Request→Input)."
   }
 ]
