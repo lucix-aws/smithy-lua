@@ -62,12 +62,7 @@ M.timestamp = {
 function M.member(schema, name)
     local members = schema.members
     if not members then return nil end
-    for i = 1, #members do
-        if members[i].name == name then
-            return members[i]
-        end
-    end
-    return nil
+    return members[name]
 end
 
 return M

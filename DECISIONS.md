@@ -65,3 +65,15 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Constitution says JSON can use cjson or dkjson, but we need schema-aware serde anyway.
 **Decision:** Write our own pure Lua JSON encoder and decoder. The codec layer uses them internally. This avoids an external dependency and gives us full control over Smithy-specific formatting (NaN/Infinity as strings, integer vs float distinction, base64 blobs).
 **Affects:** No external JSON dependency needed.
+
+## 2026-05-04 — Schema members are table-keyed, not array
+**Context:** Codegen (session 2) emitted `members = { Name = { type = "string" } }` (table-keyed). Codec (session 3) expected `members = { { name = "Name", target = { type = "string" } } }` (array). Parallel agents didn't coordinate on the format.
+**Decision:** Adopt the codegen format. `Schema.members` is `{string: Schema}` — a table keyed by member name where each value is itself a Schema. No separate `MemberSchema` type, no `name`/`target` wrapper. Traits live directly on the member schema.
+**Rationale:** Table-keyed is more natural in Lua (direct field access, no linear scan). Matches how users think about structures.
+**Changed:** schema.lua, schema.d.tl, codec/json.lua, test_codec_json.lua. All 150 tests pass.
+**Affects:** All codec/protocol implementations, codegen (already correct), any code using `schema.member()`.
+
+## 2026-05-04 — awsJson1.0/1.1 protocol implementation
+**Context:** Need a ClientProtocol for awsJson services (SQS, DynamoDB, etc.).
+**Decision:** `protocol/json.lua` implements `serialize` and `deserialize`. Serialize sets `Content-Type: application/x-amz-json-{version}`, `X-Amz-Target: {service_id}.{operation_name}`, JSON body via codec. Deserialize checks status code, parses errors from `x-amzn-errortype` header or `__type` body field, decodes success via codec. awsJson does NOT use `json_name` — member names go on the wire as-is.
+**Affects:** Generated clients using awsJson protocol, client.lua pipeline.

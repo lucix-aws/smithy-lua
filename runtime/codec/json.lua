@@ -14,7 +14,6 @@ local huge = math.huge
 local M = {}
 M.__index = M
 
-local encode_value -- forward declaration
 local encode_string = encoder._encode_string
 
 --- Create a new JSON codec.
@@ -29,12 +28,12 @@ function M.new(settings)
 end
 
 -- Get the wire name for a member
-local function wire_name(member, use_json_name)
-    if use_json_name then
-        local jn = member.traits and member.traits[strait.JSON_NAME]
+local function wire_name(name, member_schema, use_json_name)
+    if use_json_name and member_schema.traits then
+        local jn = member_schema.traits[strait.JSON_NAME]
         if jn then return jn end
     end
-    return member.name
+    return name
 end
 
 -- Schema-aware encoding into a buffer. Returns new buffer position.
@@ -49,16 +48,22 @@ local function encode_schema_value(v, schema, buf, n, codec)
     if st == stype.STRUCTURE then
         n = n + 1; buf[n] = "{"
         local members = schema.members
-        local first = true
-        for i = 1, #members do
-            local member = members[i]
-            local mv = v[member.name]
-            if mv ~= nil then
-                if not first then n = n + 1; buf[n] = "," end
-                first = false
-                n = encode_string(wire_name(member, codec.use_json_name), buf, n)
-                n = n + 1; buf[n] = ":"
-                n = encode_schema_value(mv, member.target, buf, n, codec)
+        if members then
+            -- Sort keys for deterministic output
+            local keys = {}
+            for k in pairs(members) do keys[#keys + 1] = k end
+            table.sort(keys)
+            local first = true
+            for i = 1, #keys do
+                local name = keys[i]
+                local mv = v[name]
+                if mv ~= nil then
+                    if not first then n = n + 1; buf[n] = "," end
+                    first = false
+                    n = encode_string(wire_name(name, members[name], codec.use_json_name), buf, n)
+                    n = n + 1; buf[n] = ":"
+                    n = encode_schema_value(mv, members[name], buf, n, codec)
+                end
             end
         end
         n = n + 1; buf[n] = "}"
@@ -71,8 +76,10 @@ local function encode_schema_value(v, schema, buf, n, codec)
             if i > 1 then n = n + 1; buf[n] = "," end
             if v[i] == nil then
                 n = n + 1; buf[n] = "null"
-            else
+            elseif elem_schema then
                 n = encode_schema_value(v[i], elem_schema, buf, n, codec)
+            else
+                n = encoder._encode_value(v[i], buf, n)
             end
         end
         n = n + 1; buf[n] = "]"
@@ -92,8 +99,10 @@ local function encode_schema_value(v, schema, buf, n, codec)
             local mv = v[keys[i]]
             if mv == nil then
                 n = n + 1; buf[n] = "null"
-            else
+            elseif val_schema then
                 n = encode_schema_value(mv, val_schema, buf, n, codec)
+            else
+                n = encoder._encode_value(mv, buf, n)
             end
         end
         n = n + 1; buf[n] = "}"
@@ -103,14 +112,15 @@ local function encode_schema_value(v, schema, buf, n, codec)
         -- Union: exactly one member set. Serialize as single-key object.
         n = n + 1; buf[n] = "{"
         local members = schema.members
-        for i = 1, #members do
-            local member = members[i]
-            local mv = v[member.name]
-            if mv ~= nil then
-                n = encode_string(wire_name(member, codec.use_json_name), buf, n)
-                n = n + 1; buf[n] = ":"
-                n = encode_schema_value(mv, member.target, buf, n, codec)
-                break
+        if members then
+            for name, member_schema in pairs(members) do
+                local mv = v[name]
+                if mv ~= nil then
+                    n = encode_string(wire_name(name, member_schema, codec.use_json_name), buf, n)
+                    n = n + 1; buf[n] = ":"
+                    n = encode_schema_value(mv, member_schema, buf, n, codec)
+                    break
+                end
             end
         end
         n = n + 1; buf[n] = "}"
@@ -143,7 +153,6 @@ local function encode_schema_value(v, schema, buf, n, codec)
         return n
 
     elseif st == stype.BLOB then
-        -- Base64 encode
         return encode_string(M._base64_encode(v), buf, n)
 
     elseif st == stype.TIMESTAMP then
@@ -154,26 +163,19 @@ local function encode_schema_value(v, schema, buf, n, codec)
         if ts_format == schema_mod.timestamp.EPOCH_SECONDS then
             n = n + 1; buf[n] = format("%.3f", v)
         else
-            -- date-time and http-date: encode as string
             return encode_string(tostring(v), buf, n)
         end
         return n
 
     elseif st == stype.DOCUMENT then
-        -- Documents are untyped — fall through to raw encoder
         return encoder._encode_value(v, buf, n)
 
     else
-        -- Fallback
         return encoder._encode_value(v, buf, n)
     end
 end
 
 --- Serialize a Lua value to JSON using a schema.
---- @param self table: codec instance
---- @param value any: value to serialize
---- @param schema table: schema describing the value
---- @return string, table|nil: JSON string, error
 function M.serialize(self, value, schema)
     local buf = {}
     local ok, n_or_err = pcall(encode_schema_value, value, schema, buf, 0, self)
@@ -194,22 +196,21 @@ local function decode_schema_value(v, schema, codec)
         if type(v) ~= "table" then
             return nil, "expected object for structure, got " .. type(v)
         end
-        -- Build reverse lookup: wire_name -> member
         local members = schema.members
+        if not members then return {} end
+        -- Build reverse lookup: wire_name -> (member_name, member_schema)
         local by_wire = {}
-        for i = 1, #members do
-            local member = members[i]
-            by_wire[wire_name(member, codec.use_json_name)] = member
+        for name, member_schema in pairs(members) do
+            by_wire[wire_name(name, member_schema, codec.use_json_name)] = { name, member_schema }
         end
         local result = {}
         for k, raw in pairs(v) do
-            local member = by_wire[k]
-            if member then
-                local decoded, err = decode_schema_value(raw, member.target, codec)
+            local entry = by_wire[k]
+            if entry then
+                local decoded, err = decode_schema_value(raw, entry[2], codec)
                 if err then return nil, err end
-                result[member.name] = decoded
+                result[entry[1]] = decoded
             end
-            -- Unknown members are silently dropped
         end
         return result
 
@@ -220,9 +221,13 @@ local function decode_schema_value(v, schema, codec)
         local elem_schema = schema.member
         local result = {}
         for i = 1, #v do
-            local decoded, err = decode_schema_value(v[i], elem_schema, codec)
-            if err then return nil, err end
-            result[i] = decoded
+            if elem_schema then
+                local decoded, err = decode_schema_value(v[i], elem_schema, codec)
+                if err then return nil, err end
+                result[i] = decoded
+            else
+                result[i] = v[i]
+            end
         end
         return result
 
@@ -233,9 +238,13 @@ local function decode_schema_value(v, schema, codec)
         local val_schema = schema.value
         local result = {}
         for k, raw in pairs(v) do
-            local decoded, err = decode_schema_value(raw, val_schema, codec)
-            if err then return nil, err end
-            result[k] = decoded
+            if val_schema then
+                local decoded, err = decode_schema_value(raw, val_schema, codec)
+                if err then return nil, err end
+                result[k] = decoded
+            else
+                result[k] = raw
+            end
         end
         return result
 
@@ -244,19 +253,19 @@ local function decode_schema_value(v, schema, codec)
             return nil, "expected object for union, got " .. type(v)
         end
         local members = schema.members
+        if not members then return {} end
         local by_wire = {}
-        for i = 1, #members do
-            local member = members[i]
-            by_wire[wire_name(member, codec.use_json_name)] = member
+        for name, member_schema in pairs(members) do
+            by_wire[wire_name(name, member_schema, codec.use_json_name)] = { name, member_schema }
         end
         local result = {}
         for k, raw in pairs(v) do
-            local member = by_wire[k]
-            if member then
-                local decoded, err = decode_schema_value(raw, member.target, codec)
+            local entry = by_wire[k]
+            if entry then
+                local decoded, err = decode_schema_value(raw, entry[2], codec)
                 if err then return nil, err end
-                result[member.name] = decoded
-                break -- union has exactly one member
+                result[entry[1]] = decoded
+                break
             end
         end
         return result
@@ -290,7 +299,7 @@ local function decode_schema_value(v, schema, codec)
         return tonumber(v)
 
     elseif st == stype.DOCUMENT then
-        return v -- documents pass through as-is
+        return v
 
     else
         return v
@@ -298,10 +307,6 @@ local function decode_schema_value(v, schema, codec)
 end
 
 --- Deserialize JSON bytes to a Lua value using a schema.
---- @param self table: codec instance
---- @param bytes string: JSON string
---- @param schema table: schema describing the expected value
---- @return any, table|nil: decoded value, error
 function M.deserialize(self, bytes, schema)
     local raw, err = decoder.decode(bytes)
     if err then
@@ -345,7 +350,7 @@ function M._base64_decode(s)
         local d = b64lookup[s:byte(i + 3)] or 0
         local v = a * 262144 + b * 4096 + c * 64 + d
         n = n + 1; out[n] = string.char(math.floor(v / 65536) % 256)
-        if s:byte(i + 2) ~= 61 then -- '='
+        if s:byte(i + 2) ~= 61 then
             n = n + 1; out[n] = string.char(math.floor(v / 256) % 256)
         end
         if s:byte(i + 3) ~= 61 then

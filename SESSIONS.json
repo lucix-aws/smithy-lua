@@ -82,5 +82,19 @@
       "commit and merge"
     ],
     "outcome": "Implemented Smithy endpoint rules engine interpreter. runtime/endpoint.lua (rules engine with all standard library + AWS library functions, template string resolution), runtime/endpoint/partitions.lua (AWS partition data for 7 partitions), runtime/endpoint.d.tl (Teal declarations). 34 endpoint tests passing, all existing tests unaffected."
+  },
+  {
+    "session": 7,
+    "task": "Phase 2B: protocol/json.lua — awsJson1.0/1.1 protocol implementation + schema format fix",
+    "start": "2026-05-04T10:47:00-04:00",
+    "end": "2026-05-04T10:55:00-04:00",
+    "duration_minutes": 8,
+    "branch": "awsjson-protocol",
+    "prompts": [
+      "write a test script to confirm generated client works",
+      "wait, tell me what you found first",
+      "use this session to do the awsJson 1.0 protocol implementation"
+    ],
+    "outcome": "Fixed schema format mismatch (table-keyed members matching codegen output). Implemented awsJson1.0/1.1 protocol (protocol/json.lua + .d.tl). Updated schema.lua, schema.d.tl, codec/json.lua, test_codec_json.lua for new format. 17 new protocol tests, 150 total tests passing. Two decisions appended."
   }
 ]
