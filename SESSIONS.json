@@ -180,5 +180,20 @@
       "perform as full session with worktree"
     ],
     "outcome": "Created runtime/protocol.lua (documentation-only interface module) and runtime/protocol.d.tl (ClientProtocol + Operation records with correct self signatures for colon-call). Updated client.d.tl to import from protocol module instead of defining inline. Updated protocol/awsjson.d.tl to reference protocol.Operation. Also renamed protocol/json -> protocol/awsjson for clarity (pre-session). All runtime tests pass."
+  },
+  {
+    "session": 14,
+    "task": "Phase 4: restJson1 protocol with full HTTP bindings",
+    "start": "2026-05-04T13:27:00-04:00",
+    "end": "2026-05-04T13:35:00-04:00",
+    "duration_minutes": 8,
+    "branch": "restjson-protocol",
+    "prompts": [
+      "new agent task, confirm steps for restJson1",
+      "how are we splitting between http bindings and not",
+      "what about inner structure bound to @httpPayload",
+      "go ahead"
+    ],
+    "outcome": "Implemented restJson1 protocol (protocol/restjson.lua + .d.tl). Full HTTP binding support: URI label expansion (greedy + non-greedy, percent-encoding), query string params (@httpQuery, @httpQueryParams), header bindings (@httpHeader, @httpPrefixHeaders), @httpPayload (structure/blob/string), body-only members via sub-schema with json_name, error parsing (same as awsJson), response deserialization with all HTTP binding types including @httpResponseCode. 29 new tests, all passing. No regressions."
   }
 ]

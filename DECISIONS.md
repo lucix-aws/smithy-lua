@@ -147,3 +147,8 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** `protocol/json.lua` was ambiguous — it could be confused with the JSON codec or a generic JSON protocol.
 **Decision:** Renamed to `protocol/awsjson.lua` (and `.d.tl`). Future protocols will follow the same naming: `protocol/restjson.lua`, `protocol/query.lua`, etc.
 **Affects:** All code that requires the awsJson protocol module.
+
+## 2026-05-04 — restJson1 protocol implementation with full HTTP bindings
+**Context:** Need a ClientProtocol for restJson1 services (Lambda, API Gateway, etc.) which use HTTP bindings unlike awsJson.
+**Decision:** `protocol/restjson.lua` implements serialize/deserialize with full HTTP binding support. Serialization partitions input members by schema traits: `http_label` → URI path expansion, `http_query`/`http_query_params` → query string, `http_header`/`http_prefix_headers` → headers, `http_payload` → body (structure/blob/string), unbound → JSON body via codec. Deserialization is the mirror: `http_response_code` → status code, headers → member values, `http_payload` → body, unbound → JSON decode. The JSON codec is configured with `use_json_name = true` (unlike awsJson). When `@httpPayload` targets a structure, that structure's schema is the root for codec serde — not wrapped in the outer input. When no body members have values, no Content-Type header is set and body is empty.
+**Affects:** Generated clients using restJson1 protocol, codegen (already emits all HTTP traits on schemas).
