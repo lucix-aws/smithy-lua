@@ -54,25 +54,22 @@ local record schema
         EPOCH_SECONDS: string
     end
 
-    -- Schema types
-    record MemberSchema
-        name: string
-        target: Schema
-        traits: {string: any}
-    end
-
+    -- A schema describes a Smithy shape at runtime.
+    -- Structure/union members are keyed by member name.
+    -- Each member is itself a Schema (with type, optional traits, etc.).
     record Schema
         id: string
         type: string
-        members: {MemberSchema}
+        members: {string: Schema}
         member: Schema
         key: Schema
         value: Schema
         traits: {string: any}
+        error: string
     end
 
     -- Look up a member schema by name
-    member: function(schema: Schema, name: string): MemberSchema
+    member: function(schema: Schema, name: string): Schema
 
 end
 

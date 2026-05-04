@@ -27,21 +27,15 @@ local function assert_eq(a, b, msg)
     end
 end
 
-local function assert_match(s, pattern, msg)
-    if not s:find(pattern) then
-        error((msg or "assert_match") .. ": '" .. s .. "' does not match '" .. pattern .. "'", 2)
-    end
-end
-
--- Prelude schemas
-local string_schema  = { id = "smithy.api#String",  type = stype.STRING }
-local integer_schema = { id = "smithy.api#Integer", type = stype.INTEGER }
-local long_schema    = { id = "smithy.api#Long",    type = stype.LONG }
-local float_schema   = { id = "smithy.api#Float",   type = stype.FLOAT }
-local double_schema  = { id = "smithy.api#Double",  type = stype.DOUBLE }
-local boolean_schema = { id = "smithy.api#Boolean", type = stype.BOOLEAN }
-local blob_schema    = { id = "smithy.api#Blob",    type = stype.BLOB }
-local timestamp_schema = { id = "smithy.api#Timestamp", type = stype.TIMESTAMP }
+-- Prelude schemas (used as member schemas directly)
+local string_schema  = { type = stype.STRING }
+local integer_schema = { type = stype.INTEGER }
+local long_schema    = { type = stype.LONG }
+local float_schema   = { type = stype.FLOAT }
+local double_schema  = { type = stype.DOUBLE }
+local boolean_schema = { type = stype.BOOLEAN }
+local blob_schema    = { type = stype.BLOB }
+local timestamp_schema = { type = stype.TIMESTAMP }
 
 -- === Serialize tests ===
 
@@ -49,23 +43,24 @@ local codec = json_codec.new()
 
 test("serialize simple structure", function()
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "Name", target = string_schema, traits = {} },
-            { name = "Age",  target = integer_schema, traits = {} },
+            Age  = integer_schema,
+            Name = string_schema,
         },
     }
     local json, err = codec:serialize({ Name = "Alice", Age = 30 }, schema)
     assert(not err, tostring(err and err.message))
-    assert_eq(json, '{"Name":"Alice","Age":30}')
+    -- keys sorted: Age before Name
+    assert_eq(json, '{"Age":30,"Name":"Alice"}')
 end)
 
 test("serialize skips nil members", function()
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "A", target = string_schema, traits = {} },
-            { name = "B", target = string_schema, traits = {} },
+            A = string_schema,
+            B = string_schema,
         },
     }
     local json, err = codec:serialize({ A = "yes" }, schema)
@@ -76,9 +71,9 @@ end)
 test("serialize with json_name", function()
     local codec_jn = json_codec.new({ use_json_name = true })
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "MyField", target = string_schema, traits = { [strait.JSON_NAME] = "myField" } },
+            MyField = { type = stype.STRING, traits = { [strait.JSON_NAME] = "myField" } },
         },
     }
     local json, err = codec_jn:serialize({ MyField = "val" }, schema)
@@ -88,9 +83,9 @@ end)
 
 test("serialize ignores json_name when use_json_name=false", function()
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "MyField", target = string_schema, traits = { [strait.JSON_NAME] = "myField" } },
+            MyField = { type = stype.STRING, traits = { [strait.JSON_NAME] = "myField" } },
         },
     }
     local json, err = codec:serialize({ MyField = "val" }, schema)
@@ -100,7 +95,7 @@ end)
 
 test("serialize list", function()
     local schema = {
-        id = "test#StringList", type = stype.LIST,
+        type = stype.LIST,
         member = string_schema,
     }
     local json, err = codec:serialize({"a", "b", "c"}, schema)
@@ -110,7 +105,7 @@ end)
 
 test("serialize map", function()
     local schema = {
-        id = "test#StringMap", type = stype.MAP,
+        type = stype.MAP,
         key = string_schema,
         value = integer_schema,
     }
@@ -121,15 +116,15 @@ end)
 
 test("serialize nested structure", function()
     local inner_schema = {
-        id = "test#Inner", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "Value", target = string_schema, traits = {} },
+            Value = string_schema,
         },
     }
     local outer_schema = {
-        id = "test#Outer", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "Inner", target = inner_schema, traits = {} },
+            Inner = inner_schema,
         },
     }
     local json, err = codec:serialize({ Inner = { Value = "hi" } }, outer_schema)
@@ -187,10 +182,10 @@ end)
 
 test("serialize union", function()
     local schema = {
-        id = "test#MyUnion", type = stype.UNION,
+        type = stype.UNION,
         members = {
-            { name = "Str", target = string_schema, traits = {} },
-            { name = "Num", target = integer_schema, traits = {} },
+            Str = string_schema,
+            Num = integer_schema,
         },
     }
     local json, err = codec:serialize({ Str = "hello" }, schema)
@@ -200,7 +195,7 @@ end)
 
 test("serialize empty structure", function()
     local schema = {
-        id = "test#Empty", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {},
     }
     local json, err = codec:serialize({}, schema)
@@ -212,10 +207,10 @@ end)
 
 test("deserialize simple structure", function()
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "Name", target = string_schema, traits = {} },
-            { name = "Age",  target = integer_schema, traits = {} },
+            Name = string_schema,
+            Age  = integer_schema,
         },
     }
     local val, err = codec:deserialize('{"Name":"Bob","Age":25}', schema)
@@ -226,9 +221,9 @@ end)
 
 test("deserialize drops unknown members", function()
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "A", target = string_schema, traits = {} },
+            A = string_schema,
         },
     }
     local val, err = codec:deserialize('{"A":"yes","B":"no"}', schema)
@@ -240,9 +235,9 @@ end)
 test("deserialize with json_name", function()
     local codec_jn = json_codec.new({ use_json_name = true })
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "MyField", target = string_schema, traits = { [strait.JSON_NAME] = "myField" } },
+            MyField = { type = stype.STRING, traits = { [strait.JSON_NAME] = "myField" } },
         },
     }
     local val, err = codec_jn:deserialize('{"myField":"val"}', schema)
@@ -252,7 +247,7 @@ end)
 
 test("deserialize list", function()
     local schema = {
-        id = "test#IntList", type = stype.LIST,
+        type = stype.LIST,
         member = integer_schema,
     }
     local val, err = codec:deserialize('[1,2,3]', schema)
@@ -263,7 +258,7 @@ end)
 
 test("deserialize map", function()
     local schema = {
-        id = "test#StringMap", type = stype.MAP,
+        type = stype.MAP,
         key = string_schema,
         value = string_schema,
     }
@@ -293,10 +288,10 @@ end)
 
 test("deserialize union", function()
     local schema = {
-        id = "test#MyUnion", type = stype.UNION,
+        type = stype.UNION,
         members = {
-            { name = "Str", target = string_schema, traits = {} },
-            { name = "Num", target = integer_schema, traits = {} },
+            Str = string_schema,
+            Num = integer_schema,
         },
     }
     local val, err = codec:deserialize('{"Num":42}', schema)
@@ -315,11 +310,11 @@ end)
 
 test("roundtrip structure", function()
     local schema = {
-        id = "test#Foo", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "Name", target = string_schema, traits = {} },
-            { name = "Count", target = integer_schema, traits = {} },
-            { name = "Active", target = boolean_schema, traits = {} },
+            Active = boolean_schema,
+            Count  = integer_schema,
+            Name   = string_schema,
         },
     }
     local input = { Name = "test", Count = 99, Active = true }
@@ -335,19 +330,19 @@ end)
 
 test("roundtrip nested with list and map", function()
     local list_schema = {
-        id = "test#StringList", type = stype.LIST,
+        type = stype.LIST,
         member = string_schema,
     }
     local map_schema = {
-        id = "test#IntMap", type = stype.MAP,
+        type = stype.MAP,
         key = string_schema,
         value = integer_schema,
     }
     local schema = {
-        id = "test#Complex", type = stype.STRUCTURE,
+        type = stype.STRUCTURE,
         members = {
-            { name = "Tags",   target = list_schema, traits = {} },
-            { name = "Counts", target = map_schema,  traits = {} },
+            Counts = map_schema,
+            Tags   = list_schema,
         },
     }
     local input = { Tags = {"a", "b"}, Counts = { x = 1, y = 2 } }

@@ -95,5 +95,19 @@
       "go for it"
     ],
     "outcome": "Implemented error.lua (3 categories, constructors, retry classification), retry.lua (retryer interface + none()), retry/standard.lua (AWS standard retry with token bucket, exponential jitter backoff). Rewrote client.lua with retry loop (optional, backward compat). 39 new tests (21 error + 18 retry), 172 total passing. Teal .d.tl declarations for all modules. Updated INVOKE_OPERATION.md."
+  },
+  {
+    "session": 8,
+    "task": "Phase 2B: protocol/json.lua — awsJson1.0/1.1 protocol implementation + schema format fix",
+    "start": "2026-05-04T10:47:00-04:00",
+    "end": "2026-05-04T10:55:00-04:00",
+    "duration_minutes": 8,
+    "branch": "awsjson-protocol",
+    "prompts": [
+      "write a test script to confirm generated client works",
+      "wait, tell me what you found first",
+      "use this session to do the awsJson 1.0 protocol implementation"
+    ],
+    "outcome": "Fixed schema format mismatch (table-keyed members matching codegen output). Implemented awsJson1.0/1.1 protocol (protocol/json.lua + .d.tl). Updated schema.lua, schema.d.tl, codec/json.lua, test_codec_json.lua for new format. 17 new protocol tests, 150 total tests passing. Two decisions appended."
   }
 ]
