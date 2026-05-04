@@ -568,7 +568,8 @@ The agent does all work in its worktree directory. When done, it pushes the bran
 Each agent session should:
 1. Receive this constitution doc
 2. Read `DECISIONS.md` for any decisions made since the constitution was last updated
-3. Be scoped to a specific module/task
+3. Read `SESSIONS.json` to understand what work has already been completed
+4. Be scoped to a specific module/task
 4. Follow the conventions defined here
 5. Write tests alongside implementation
 6. Not deviate from interface contracts without flagging it
