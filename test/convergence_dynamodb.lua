@@ -10,7 +10,7 @@ package.path = root .. "../runtime/?.lua;"
     .. package.path
 
 local dynamodb = require("dynamodb.client")
-local protocol_json = require("protocol.json")
+local protocol_json = require("protocol.awsjson")
 local signer = require("signer")
 local env_creds = require("credentials.environment")
 local http_resolver = require("http.client")

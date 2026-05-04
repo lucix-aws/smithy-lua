@@ -10,7 +10,7 @@ package.path = root .. "../runtime/?.lua;"
     .. package.path
 
 local sqs = require("amazonSQS.client")
-local protocol_json = require("protocol.json")
+local protocol_json = require("protocol.awsjson")
 local signer = require("signer")
 local http = require("http")
 

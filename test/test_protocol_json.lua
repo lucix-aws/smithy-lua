@@ -1,9 +1,9 @@
--- Test: runtime/protocol/json.lua — awsJson1.0/1.1 protocol
+-- Test: runtime/protocol/awsjson.lua — awsJson1.0/1.1 protocol
 -- Run: luajit test/test_protocol_json.lua
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local aws_json = require("protocol.json")
+local aws_json = require("protocol.awsjson")
 local http = require("http")
 local stype = require("schema").type
 
