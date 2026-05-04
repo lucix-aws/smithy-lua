@@ -97,21 +97,25 @@ public final class DirectedLuaCodegen
             var operations = topDown.getContainedOperations(service);
             var operationIndex = OperationIndex.of(model);
 
+            // Require base client
+            writer.addRequire("base_client", "client");
+
             // Module table
             writer.write("local M = {}");
             writer.write("");
             writer.write("local Client = {}");
             writer.write("Client.__index = Client");
             writer.write("");
+            // Inherit invokeOperation from base client
+            writer.write("Client.invokeOperation = base_client.invokeOperation");
+            writer.write("");
 
             // Constructor
             writer.block("function M.new(config)", () -> {
-                writer.write("local self = setmetatable({}, Client)");
-                writer.write("self.config = config");
-                writer.write("self.config.service_id = $S", service.getId().getName());
-                // signing_name: use the service name lowercased
-                writer.write("self.config.signing_name = $S",
+                writer.write("config.service_id = $S", service.getId().getName());
+                writer.write("config.signing_name = $S",
                         service.getId().getName().toLowerCase(Locale.US));
+                writer.write("local self = setmetatable(base_client.new(config), Client)");
                 writer.write("return self");
             });
             writer.write("");

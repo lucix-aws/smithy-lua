@@ -40,5 +40,18 @@
       "implement schema, serde, json encoder/decoder, json codec with tests"
     ],
     "outcome": "Implemented schema.lua (type/trait constants, member lookup), serde.lua (codec interface), json/encoder.lua (pure Lua JSON encoder), json/decoder.lua (pure Lua JSON decoder), codec/json.lua (schema-aware JSON codec with base64, timestamp, NaN/Infinity support). 71 tests passing (40 encoder/decoder + 31 codec). Teal .d.tl declarations for all modules."
+  },
+  {
+    "session": 4,
+    "task": "Track A Step 5: Wire generated client to base client.lua runtime (invokeOperation)",
+    "start": "2026-05-04T10:25:00-04:00",
+    "end": "2026-05-04T10:30:00-04:00",
+    "duration_minutes": 5,
+    "branch": "codegen-wire",
+    "prompts": [
+      "assess project state, list track A status",
+      "work on step 5 — wire generated client to runtime"
+    ],
+    "outcome": "Updated DirectedLuaCodegen.generateService() to require base_client, copy invokeOperation onto Client prototype, and wrap base_client.new(config) with generated Client metatable. 5 tests passing: invokeOperation available, service_id/signing_name set, full pipeline flow, error propagation, per-call plugin mutation. TealGenerator unchanged (wiring is internal)."
   }
 ]
