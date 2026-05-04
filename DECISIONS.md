@@ -107,3 +107,19 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** client.lua was calling `config.protocol.serialize(input, operation)` (dot-call), but real protocol implementations (e.g. `protocol/json.lua`) define methods with `self` and expect colon-call. This worked in tests because mocks used plain functions without `self`, but broke when wiring the generated SQS client to the real awsJson protocol.
 **Decision:** client.lua now uses `config.protocol:serialize(input, operation)` and `config.protocol:deserialize(response, operation)`. All protocol mock tables in tests must accept `self` as the first parameter.
 **Affects:** client.lua, all test mocks that provide a protocol table, any future protocol implementations.
+
+## 2026-05-04 — HTTP client: pluggable with runtime resolution
+**Context:** Need a real HTTP client for convergence. No luasocket available, but libcurl loads via LuaJIT FFI and curl CLI is available.
+**Decision:** HTTP client is resolved at client construction time via `http/client.lua:resolve()`. Resolution order: libcurl FFI → curl subprocess. Each backend is a separate module (`http/curl_ffi.lua`, `http/curl_subprocess.lua`) with `available()` and `new()`. User can bypass resolution by passing `config.http_client` explicitly.
+**Rationale:** Multiple backends needed for portability. FFI is preferred (no subprocess overhead, proper streaming). Subprocess is universal fallback. luasocket slot reserved for future.
+**Affects:** Client construction, any code that needs a default HTTP client.
+
+## 2026-05-04 — STS uses awsQuery, not awsJson
+**Context:** Attempted convergence with STS GetCallerIdentity assuming awsJson 1.1. STS returned 302 redirect.
+**Decision:** STS is an awsQuery service. Pivoted convergence to DynamoDB ListTables (awsJson 1.0). Kept hand-written STS client files for future awsQuery protocol work.
+**Affects:** Phase 4 protocol breadth — awsQuery implementation needed for STS, IAM, etc.
+
+## 2026-05-04 — Credential provider lives in runtime/credentials/ (smithy-lua for now)
+**Context:** Constitution places credential providers in aws-sdk-lua, but for convergence we need at least the environment provider.
+**Decision:** Environment credential provider at `runtime/credentials/environment.lua` in smithy-lua for now. Will migrate to aws-sdk-lua when that repo has runtime code. The provider returns a function conforming to the identity_resolver interface.
+**Affects:** Future aws-sdk-lua credential chain work.

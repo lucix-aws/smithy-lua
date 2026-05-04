@@ -138,5 +138,20 @@
       "go for it"
     ],
     "outcome": "Added writeAdditionalFiles(LuaContext) default method to LuaIntegration. Wired into DirectedLuaCodegen.customizeAfterIntegrations — iterates over all registered integrations and calls the hook after standard codegen completes. Full build passes including integration test project. Decision appended."
+  },
+  {
+    "session": 11,
+    "task": "Phase 3: Convergence — real AWS call with full pipeline",
+    "start": "2026-05-04T11:39:00-04:00",
+    "end": "2026-05-04T11:52:00-04:00",
+    "duration_minutes": 13,
+    "branch": "convergence",
+    "prompts": [
+      "new agent task, confirm steps",
+      "evaluate HTTP client options before deciding",
+      "implement curl_ffi and curl_subprocess",
+      "implement env credential provider, STS client, convergence test, run it"
+    ],
+    "outcome": "Phase 3 convergence achieved. Implemented: http/curl_ffi.lua (libcurl via LuaJIT FFI), http/curl_subprocess.lua (curl subprocess fallback), http/client.lua (resolver — probes backends in priority order), credentials/environment.lua (env var credential provider). Hand-wrote minimal DynamoDB + STS clients matching codegen output pattern. Discovered STS uses awsQuery (not awsJson), pivoted to DynamoDB ListTables for convergence. Real AWS call succeeded: DynamoDB ListTables returned table 'fugazitab'. Full pipeline: DynamoDB client → awsJson 1.0 → SigV4 → env creds → libcurl FFI → real AWS endpoint."
   }
 ]
