@@ -1,15 +1,16 @@
 -- AWS partition data for endpoint resolution.
--- Maps regions to partitions and provides partition metadata.
+-- Generated from partitions.json — do not edit manually.
 
 local M = {}
 
 M.partitions = {
     {
         id = "aws",
-        regionRegex = "^(us|eu|ap|sa|ca|me|af|il)%-[a-z]+%-[0-9]+$",
+        regionRegex = "^(us|eu|ap|sa|ca|me|af|il|mx)%-[%w]+%-[0-9]+$",
         regions = {
             ["af-south-1"] = {},
             ["ap-east-1"] = {},
+            ["ap-east-2"] = {},
             ["ap-northeast-1"] = {},
             ["ap-northeast-2"] = {},
             ["ap-northeast-3"] = {},
@@ -20,6 +21,9 @@ M.partitions = {
             ["ap-southeast-3"] = {},
             ["ap-southeast-4"] = {},
             ["ap-southeast-5"] = {},
+            ["ap-southeast-6"] = {},
+            ["ap-southeast-7"] = {},
+            ["aws-global"] = {},
             ["ca-central-1"] = {},
             ["ca-west-1"] = {},
             ["eu-central-1"] = {},
@@ -33,6 +37,7 @@ M.partitions = {
             ["il-central-1"] = {},
             ["me-central-1"] = {},
             ["me-south-1"] = {},
+            ["mx-central-1"] = {},
             ["sa-east-1"] = {},
             ["us-east-1"] = {},
             ["us-east-2"] = {},
@@ -49,25 +54,10 @@ M.partitions = {
         },
     },
     {
-        id = "aws-us-gov",
-        regionRegex = "^us%-gov%-[a-z]+%-[0-9]+$",
-        regions = {
-            ["us-gov-east-1"] = {},
-            ["us-gov-west-1"] = {},
-        },
-        outputs = {
-            name = "aws-us-gov",
-            dnsSuffix = "amazonaws.com",
-            dualStackDnsSuffix = "api.aws",
-            supportsFIPS = true,
-            supportsDualStack = true,
-            implicitGlobalRegion = "us-gov-west-1",
-        },
-    },
-    {
         id = "aws-cn",
-        regionRegex = "^cn%-[a-z]+%-[0-9]+$",
+        regionRegex = "^cn%-[%w]+%-[0-9]+$",
         regions = {
+            ["aws-cn-global"] = {},
             ["cn-north-1"] = {},
             ["cn-northwest-1"] = {},
         },
@@ -81,60 +71,102 @@ M.partitions = {
         },
     },
     {
-        id = "aws-iso",
-        regionRegex = "^us%-iso%-[a-z]+%-[0-9]+$",
+        id = "aws-eusc",
+        regionRegex = "^eusc%-(de)%-[%w]+%-[0-9]+$",
         regions = {
+            ["eusc-de-east-1"] = {},
+        },
+        outputs = {
+            name = "aws-eusc",
+            dnsSuffix = "amazonaws.eu",
+            dualStackDnsSuffix = "api.amazonwebservices.eu",
+            supportsFIPS = true,
+            supportsDualStack = true,
+            implicitGlobalRegion = "eusc-de-east-1",
+        },
+    },
+    {
+        id = "aws-iso",
+        regionRegex = "^us%-iso%-[%w]+%-[0-9]+$",
+        regions = {
+            ["aws-iso-global"] = {},
             ["us-iso-east-1"] = {},
             ["us-iso-west-1"] = {},
         },
         outputs = {
             name = "aws-iso",
             dnsSuffix = "c2s.ic.gov",
-            dualStackDnsSuffix = "c2s.ic.gov",
+            dualStackDnsSuffix = "api.aws.ic.gov",
             supportsFIPS = true,
-            supportsDualStack = false,
+            supportsDualStack = true,
             implicitGlobalRegion = "us-iso-east-1",
         },
     },
     {
         id = "aws-iso-b",
-        regionRegex = "^us%-isob%-[a-z]+%-[0-9]+$",
+        regionRegex = "^us%-isob%-[%w]+%-[0-9]+$",
         regions = {
+            ["aws-iso-b-global"] = {},
             ["us-isob-east-1"] = {},
+            ["us-isob-west-1"] = {},
         },
         outputs = {
             name = "aws-iso-b",
             dnsSuffix = "sc2s.sgov.gov",
-            dualStackDnsSuffix = "sc2s.sgov.gov",
+            dualStackDnsSuffix = "api.aws.scloud",
             supportsFIPS = true,
-            supportsDualStack = false,
+            supportsDualStack = true,
             implicitGlobalRegion = "us-isob-east-1",
         },
     },
     {
         id = "aws-iso-e",
-        regionRegex = "^eu%-isoe%-[a-z]+%-[0-9]+$",
-        regions = {},
+        regionRegex = "^eu%-isoe%-[%w]+%-[0-9]+$",
+        regions = {
+            ["aws-iso-e-global"] = {},
+            ["eu-isoe-west-1"] = {},
+        },
         outputs = {
             name = "aws-iso-e",
             dnsSuffix = "cloud.adc-e.uk",
-            dualStackDnsSuffix = "cloud.adc-e.uk",
+            dualStackDnsSuffix = "api.cloud-aws.adc-e.uk",
             supportsFIPS = true,
-            supportsDualStack = false,
+            supportsDualStack = true,
             implicitGlobalRegion = "eu-isoe-west-1",
         },
     },
     {
         id = "aws-iso-f",
-        regionRegex = "^us%-isof%-[a-z]+%-[0-9]+$",
-        regions = {},
+        regionRegex = "^us%-isof%-[%w]+%-[0-9]+$",
+        regions = {
+            ["aws-iso-f-global"] = {},
+            ["us-isof-east-1"] = {},
+            ["us-isof-south-1"] = {},
+        },
         outputs = {
             name = "aws-iso-f",
             dnsSuffix = "csp.hci.ic.gov",
-            dualStackDnsSuffix = "csp.hci.ic.gov",
+            dualStackDnsSuffix = "api.aws.hci.ic.gov",
             supportsFIPS = true,
-            supportsDualStack = false,
+            supportsDualStack = true,
             implicitGlobalRegion = "us-isof-south-1",
+        },
+    },
+    {
+        id = "aws-us-gov",
+        regionRegex = "^us%-gov%-[%w]+%-[0-9]+$",
+        regions = {
+            ["aws-us-gov-global"] = {},
+            ["us-gov-east-1"] = {},
+            ["us-gov-west-1"] = {},
+        },
+        outputs = {
+            name = "aws-us-gov",
+            dnsSuffix = "amazonaws.com",
+            dualStackDnsSuffix = "api.aws",
+            supportsFIPS = true,
+            supportsDualStack = true,
+            implicitGlobalRegion = "us-gov-west-1",
         },
     },
 }
