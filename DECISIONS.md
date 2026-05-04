@@ -97,3 +97,13 @@ Chronological log of design decisions made during implementation. All agents sho
 **Context:** Need a ClientProtocol for awsJson services (SQS, DynamoDB, etc.).
 **Decision:** `protocol/json.lua` implements `serialize` and `deserialize`. Serialize sets `Content-Type: application/x-amz-json-{version}`, `X-Amz-Target: {service_id}.{operation_name}`, JSON body via codec. Deserialize checks status code, parses errors from `x-amzn-errortype` header or `__type` body field, decodes success via codec. awsJson does NOT use `json_name` — member names go on the wire as-is.
 **Affects:** Generated clients using awsJson protocol, client.lua pipeline.
+
+## 2026-05-04 — LuaIntegration.writeAdditionalFiles hook for codegen extensibility
+**Context:** aws-sdk-lua needs to extend smithy-lua codegen to emit additional generated files (e.g. SDK-specific client wiring, credential chain setup). Need a simple, open-ended extension point.
+**Decision:** Added `writeAdditionalFiles(LuaContext)` default method to `LuaIntegration`. Called in `DirectedLuaCodegen.customizeAfterIntegrations` — runs after all standard codegen (shapes, services, Teal) is complete. Integration authors override it to generate whatever they need using the full context (writer delegator, model, service, symbol provider).
+**Affects:** aws-sdk-lua codegen (will implement this hook), any future codegen extensions.
+
+## 2026-05-04 — client.lua uses colon-call for protocol methods
+**Context:** client.lua was calling `config.protocol.serialize(input, operation)` (dot-call), but real protocol implementations (e.g. `protocol/json.lua`) define methods with `self` and expect colon-call. This worked in tests because mocks used plain functions without `self`, but broke when wiring the generated SQS client to the real awsJson protocol.
+**Decision:** client.lua now uses `config.protocol:serialize(input, operation)` and `config.protocol:deserialize(response, operation)`. All protocol mock tables in tests must accept `self` as the first parameter.
+**Affects:** client.lua, all test mocks that provide a protocol table, any future protocol implementations.

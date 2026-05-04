@@ -32,10 +32,10 @@ local function mock_client(overrides)
     local config = {
         region = "us-east-1",
         protocol = {
-            serialize = function(input, op)
+            serialize = function(self, input, op)
                 return { method = "POST", url = "/", headers = {} }, nil
             end,
-            deserialize = function(resp, op) return {}, nil end,
+            deserialize = function(self, resp, op) return {}, nil end,
         },
         http_client = function(req) return { status_code = 200, headers = {} }, nil end,
         endpoint_provider = function(params)
@@ -67,7 +67,7 @@ test("sendMessage flows through full pipeline", function()
 
     local client = mock_client({
         protocol = {
-            serialize = function(input, operation)
+            serialize = function(self, input, operation)
                 assert_eq(operation.name, "SendMessage")
                 assert_eq(operation.http_method, "POST")
                 assert(operation.input_schema, "missing input_schema")
@@ -79,7 +79,7 @@ test("sendMessage flows through full pipeline", function()
                     headers = { ["Content-Type"] = "application/x-amz-json-1.0" },
                 }, nil
             end,
-            deserialize = function(response, operation)
+            deserialize = function(self, response, operation)
                 assert_eq(response.status_code, 200)
                 return { MessageId = "abc-123", MD5OfMessageBody = "deadbeef" }, nil
             end,
@@ -107,7 +107,7 @@ end)
 test("pipeline returns protocol serialize error", function()
     local client = mock_client({
         protocol = {
-            serialize = function() return nil, { type = "sdk", message = "bad input" } end,
+            serialize = function(self) return nil, { type = "sdk", message = "bad input" } end,
         },
     })
     local output, err = client:sendMessage({})

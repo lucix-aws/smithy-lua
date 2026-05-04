@@ -109,5 +109,34 @@
       "use this session to do the awsJson 1.0 protocol implementation"
     ],
     "outcome": "Fixed schema format mismatch (table-keyed members matching codegen output). Implemented awsJson1.0/1.1 protocol (protocol/json.lua + .d.tl). Updated schema.lua, schema.d.tl, codec/json.lua, test_codec_json.lua for new format. 17 new protocol tests, 150 total tests passing. Two decisions appended."
+  },
+  {
+    "session": 9,
+    "task": "SQS test harness + fix protocol colon-call bug in client.lua",
+    "start": "2026-05-04T11:00:00-04:00",
+    "end": "2026-05-04T11:08:00-04:00",
+    "duration_minutes": 8,
+    "branch": null,
+    "prompts": [
+      "write a test harness for the generated SQS client to exercise the full pipeline",
+      "did we do this in a worktree or inline",
+      "keep inline, but append to SESSIONS.json"
+    ],
+    "outcome": "Created test/harness_sqs.lua: wires generated SQS client to real awsJson 1.0 protocol, real SigV4 signer, mock HTTP transport with per-stage logging. 6 harness tests (sendMessage, getQueueUrl, listQueues, API error, per-call plugin override, body validation). Found and fixed integration bug: client.lua used dot-call for protocol.serialize/deserialize but real protocol implementations use colon-call methods. Fixed client.lua to use colon-call, updated all test mocks (test_client.lua, test_codegen_wire.lua, test_retry.lua). Full test suite passing."
+  },
+  {
+    "session": 10,
+    "task": "Codegen extensibility: LuaIntegration.writeAdditionalFiles hook",
+    "start": "2026-05-04T11:04:00-04:00",
+    "end": "2026-05-04T11:08:00-04:00",
+    "duration_minutes": 4,
+    "branch": null,
+    "prompts": [
+      "what does LuaIntegration look like, need to think about aws-sdk-lua codegen extensions",
+      "can we add a writeCustomSource hook",
+      "treat as full session, confirm constitution workflow",
+      "go for it"
+    ],
+    "outcome": "Added writeAdditionalFiles(LuaContext) default method to LuaIntegration. Wired into DirectedLuaCodegen.customizeAfterIntegrations — iterates over all registered integrations and calls the hook after standard codegen completes. Full build passes including integration test project. Decision appended."
   }
 ]

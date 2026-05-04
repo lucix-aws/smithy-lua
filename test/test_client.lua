@@ -25,9 +25,9 @@ end
 local calls = {}
 local function record(name) calls[#calls + 1] = name end
 
--- Mock protocol
+-- Mock protocol (methods accept self for colon-call from client.lua)
 local mock_protocol = {
-    serialize = function(input, operation)
+    serialize = function(self, input, operation)
         record("serialize")
         return {
             method = operation.http_method,
@@ -36,7 +36,7 @@ local mock_protocol = {
             body = nil,
         }, nil
     end,
-    deserialize = function(response, operation)
+    deserialize = function(self, response, operation)
         record("deserialize")
         return { Result = "ok" }, nil
     end,
@@ -198,8 +198,8 @@ test("serialize error short-circuits pipeline", function()
     local c = client_mod.new({
         service_id = "sts",
         protocol = {
-            serialize = function() return nil, { type = "sdk", message = "bad input" } end,
-            deserialize = function() error("should not be called") end,
+            serialize = function(self) return nil, { type = "sdk", message = "bad input" } end,
+            deserialize = function(self) error("should not be called") end,
         },
         http_client = mock_http_client,
         endpoint_provider = mock_endpoint_provider,

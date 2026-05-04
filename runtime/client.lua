@@ -51,7 +51,7 @@ local function do_attempt(config, request, operation)
     if err then return nil, err end
 
     -- Deserialize
-    return config.protocol.deserialize(response, operation)
+    return config.protocol:deserialize(response, operation)
 end
 
 --- The SDK operation pipeline.
@@ -70,7 +70,7 @@ function M.invokeOperation(self, input, operation, options)
     end
 
     -- 5. Serialize
-    local request, err = config.protocol.serialize(input, operation)
+    local request, err = config.protocol:serialize(input, operation)
     if err then return nil, err end
 
     -- Stash the original path so we can rebuild the URL on each attempt

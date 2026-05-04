@@ -152,10 +152,10 @@ test("client: no retry_strategy = single attempt (backward compat)", function()
     local attempt_count = 0
     local c = client_mod.new({
         protocol = {
-            serialize = function(_, op)
+            serialize = function(self, _, op)
                 return { method = "POST", url = op.http_path, headers = {} }
             end,
-            deserialize = function()
+            deserialize = function(self)
                 attempt_count = attempt_count + 1
                 return nil, error_mod.new_api_error("InternalError", "fail", 500)
             end,
@@ -177,10 +177,10 @@ test("client: retry loop retries transient errors", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 3 }),
         protocol = {
-            serialize = function(_, op)
+            serialize = function(self, _, op)
                 return { method = "POST", url = op.http_path, headers = {} }
             end,
-            deserialize = function()
+            deserialize = function(self)
                 attempt_count = attempt_count + 1
                 if attempt_count < 3 then
                     return nil, error_mod.new_api_error("InternalError", "fail", 500)
@@ -206,10 +206,10 @@ test("client: retry loop stops on non-retryable error", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 3 }),
         protocol = {
-            serialize = function(_, op)
+            serialize = function(self, _, op)
                 return { method = "POST", url = op.http_path, headers = {} }
             end,
-            deserialize = function()
+            deserialize = function(self)
                 attempt_count = attempt_count + 1
                 return nil, error_mod.new_api_error("ValidationError", "bad", 400)
             end,
@@ -231,10 +231,10 @@ test("client: retry loop stops at max attempts", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 2 }),
         protocol = {
-            serialize = function(_, op)
+            serialize = function(self, _, op)
                 return { method = "POST", url = op.http_path, headers = {} }
             end,
-            deserialize = function()
+            deserialize = function(self)
                 attempt_count = attempt_count + 1
                 return nil, error_mod.new_api_error("InternalError", "fail", 500)
             end,
@@ -257,10 +257,10 @@ test("client: URL rebuilt on each retry attempt", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 3 }),
         protocol = {
-            serialize = function(_, op)
+            serialize = function(self, _, op)
                 return { method = "POST", url = op.http_path, headers = {} }
             end,
-            deserialize = function()
+            deserialize = function(self)
                 attempt_count = attempt_count + 1
                 if attempt_count < 2 then
                     return nil, error_mod.new_api_error("InternalError", "fail", 500)
