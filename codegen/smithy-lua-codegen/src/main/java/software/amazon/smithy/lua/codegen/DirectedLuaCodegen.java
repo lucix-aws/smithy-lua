@@ -138,8 +138,17 @@ public final class DirectedLuaCodegen
             writer.block("function M.new(cfg)", () -> {
                 writer.write("cfg = cfg or {}");
                 writer.write("cfg.service_id = $S", service.getId().getName());
-                writer.write("cfg.signing_name = $S",
-                        service.getId().getName().toLowerCase(Locale.US));
+
+                // Resolve signing name from aws.auth#sigv4 trait if present
+                String signingName = service.getId().getName().toLowerCase(Locale.US);
+                var sigv4Trait = service.findTrait("aws.auth#sigv4");
+                if (sigv4Trait.isPresent()) {
+                    var nameNode = sigv4Trait.get().toNode().expectObjectNode().getMember("name");
+                    if (nameNode.isPresent()) {
+                        signingName = nameNode.get().expectStringNode().getValue();
+                    }
+                }
+                writer.write("cfg.signing_name = $S", signingName);
 
                 // Service-specific: protocol resolver
                 writeProtocolResolver(writer, service);
@@ -191,10 +200,10 @@ public final class DirectedLuaCodegen
             var name = traitId.toString();
             if (name.equals("aws.protocols#awsJson1_0")) {
                 protocolRequire = "protocol.awsjson";
-                protocolExpr = "awsjson_protocol.new(\"1.0\")";
+                protocolExpr = "awsjson_protocol.new({ version = \"1.0\", service_id = cfg.service_id })";
             } else if (name.equals("aws.protocols#awsJson1_1")) {
                 protocolRequire = "protocol.awsjson";
-                protocolExpr = "awsjson_protocol.new(\"1.1\")";
+                protocolExpr = "awsjson_protocol.new({ version = \"1.1\", service_id = cfg.service_id })";
             } else if (name.equals("aws.protocols#restJson1")) {
                 protocolRequire = "protocol.restjson";
                 protocolExpr = "restjson_protocol.new()";
