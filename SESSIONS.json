@@ -11,5 +11,20 @@
       "structured format preferred"
     ],
     "outcome": null
+  },
+  {
+    "session": 2,
+    "task": "Phase 2B: schema, serde, JSON codec — foundational serde runtime modules",
+    "start": "2026-05-04T09:52:00-04:00",
+    "end": "2026-05-04T10:10:00-04:00",
+    "duration_minutes": 18,
+    "branch": "serde-runtime",
+    "prompts": [
+      "read schema-serde SEP, discuss Lua mapping",
+      "design discussion: ShapeSerializer/ShapeDeserializer vs collapsed codec",
+      "interface proposal review",
+      "implement schema, serde, json encoder/decoder, json codec with tests"
+    ],
+    "outcome": "Implemented schema.lua (type/trait constants, member lookup), serde.lua (codec interface), json/encoder.lua (pure Lua JSON encoder), json/decoder.lua (pure Lua JSON decoder), codec/json.lua (schema-aware JSON codec with base64, timestamp, NaN/Infinity support). 71 tests passing (40 encoder/decoder + 31 codec). Teal .d.tl declarations for all modules."
   }
 ]
