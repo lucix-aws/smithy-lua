@@ -2,8 +2,8 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local cbor = require("codec.cbor")
-local schema_mod = require("schema")
+local cbor = require("smithy.codec.cbor")
+local schema_mod = require("smithy.schema")
 local stype = schema_mod.type
 
 local passed, failed = 0, 0

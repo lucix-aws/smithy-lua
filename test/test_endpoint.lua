@@ -3,7 +3,7 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local endpoint = require("endpoint")
+local endpoint = require("smithy.endpoint")
 
 local pass, fail = 0, 0
 local function test(name, fn)

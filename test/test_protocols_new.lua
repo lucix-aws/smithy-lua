@@ -2,8 +2,8 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local http = require("http")
-local schema_mod = require("schema")
+local http = require("smithy.http")
+local schema_mod = require("smithy.schema")
 local stype = schema_mod.type
 local strait = schema_mod.trait
 
@@ -50,7 +50,7 @@ end
 
 print("\n--- restXml protocol ---")
 
-local restxml = require("protocol.restxml")
+local restxml = require("smithy.protocol.restxml")
 local restxml_proto = restxml.new()
 
 test("restxml serialize: basic structure body", function()
@@ -192,7 +192,7 @@ end)
 
 print("\n--- awsQuery protocol ---")
 
-local awsquery = require("protocol.awsquery")
+local awsquery = require("smithy.protocol.awsquery")
 local query_proto = awsquery.new({ version = "2011-06-15" })
 
 test("awsquery serialize: basic", function()
@@ -385,7 +385,7 @@ end)
 
 print("\n--- ec2Query protocol ---")
 
-local ec2query = require("protocol.ec2query")
+local ec2query = require("smithy.protocol.ec2query")
 local ec2_proto = ec2query.new({ version = "2016-11-15" })
 
 test("ec2query serialize: basic", function()
@@ -512,7 +512,7 @@ end)
 
 print("\n--- rpcv2Cbor protocol ---")
 
-local rpcv2cbor = require("protocol.rpcv2cbor")
+local rpcv2cbor = require("smithy.protocol.rpcv2cbor")
 local cbor_proto = rpcv2cbor.new({ service_name = "TestService" })
 
 test("rpcv2cbor serialize: basic", function()
@@ -563,7 +563,7 @@ end)
 
 test("rpcv2cbor deserialize: success", function()
     -- First serialize a known value, then deserialize it
-    local cbor_codec = require("codec.cbor")
+    local cbor_codec = require("smithy.codec.cbor")
     local codec = cbor_codec.new()
     local output_schema = {
         type = stype.STRUCTURE,
@@ -595,7 +595,7 @@ test("rpcv2cbor deserialize: empty body", function()
 end)
 
 test("rpcv2cbor deserialize: error", function()
-    local cbor_codec = require("codec.cbor")
+    local cbor_codec = require("smithy.codec.cbor")
     local codec = cbor_codec.new()
     local error_schema = { type = stype.STRUCTURE, members = {
         ["__type"] = { type = stype.STRING },

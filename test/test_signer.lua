@@ -4,8 +4,8 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local signer = require("signer")
-local http = require("http")
+local signer = require("smithy.signer")
+local http = require("smithy.http")
 
 local pass, fail = 0, 0
 

@@ -2,8 +2,8 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local xml = require("codec.xml")
-local schema_mod = require("schema")
+local xml = require("smithy.codec.xml")
+local schema_mod = require("smithy.schema")
 local stype = schema_mod.type
 local strait = schema_mod.trait
 

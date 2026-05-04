@@ -3,9 +3,9 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local aws_json = require("protocol.awsjson")
-local http = require("http")
-local stype = require("schema").type
+local aws_json = require("smithy.protocol.awsjson")
+local http = require("smithy.http")
+local stype = require("smithy.schema").type
 
 local pass_count = 0
 

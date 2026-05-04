@@ -3,7 +3,7 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local error_mod = require("error")
+local error_mod = require("smithy.error")
 
 local function test(name, fn)
     local ok, err = pcall(fn)

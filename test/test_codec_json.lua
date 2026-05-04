@@ -3,8 +3,8 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local json_codec = require("codec.json")
-local schema_mod = require("schema")
+local json_codec = require("smithy.codec.json")
+local schema_mod = require("smithy.schema")
 local stype = schema_mod.type
 local strait = schema_mod.trait
 

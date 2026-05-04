@@ -2,7 +2,7 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local paginator = require("paginator")
+local paginator = require("smithy.paginator")
 
 local pass, fail = 0, 0
 local function assert_eq(a, b, msg)

@@ -3,8 +3,8 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local encoder = require("json.encoder")
-local decoder = require("json.decoder")
+local encoder = require("smithy.json.encoder")
+local decoder = require("smithy.json.decoder")
 
 local function test(name, fn)
     local ok, err = pcall(fn)

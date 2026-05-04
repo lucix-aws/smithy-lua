@@ -7,7 +7,7 @@ package.path = root .. "../runtime/?.lua;"
     .. root .. "../codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test/sqs/lua-client-codegen/?.lua;"
     .. package.path
 
-local sqs = require("sqs.client")
+local sqs = require("smithy.sqs.client")
 
 local passed, failed = 0, 0
 local function test(name, fn)
@@ -27,7 +27,7 @@ local function assert_eq(a, b, msg)
     end
 end
 
-local auth = require("auth")
+local auth = require("smithy.auth")
 
 -- helper: build a client with mock config
 local function mock_client(overrides)

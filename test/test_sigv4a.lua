@@ -3,12 +3,12 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local bigint = require("crypto.bigint")
-local field = require("crypto.field")
-local p256 = require("crypto.p256")
-local ecdsa = require("crypto.ecdsa")
-local sigv4a = require("sigv4a")
-local sha256 = require("crypto.sha256")
+local bigint = require("smithy.crypto.bigint")
+local field = require("smithy.crypto.field")
+local p256 = require("smithy.crypto.p256")
+local ecdsa = require("smithy.crypto.ecdsa")
+local sigv4a = require("smithy.sigv4a")
+local sha256 = require("smithy.crypto.sha256")
 
 local pass, fail = 0, 0
 

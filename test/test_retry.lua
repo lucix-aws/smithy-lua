@@ -3,10 +3,10 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local retry = require("retry")
-local standard = require("retry.standard")
-local error_mod = require("error")
-local client_mod = require("client")
+local retry = require("smithy.retry")
+local standard = require("smithy.retry.standard")
+local error_mod = require("smithy.error")
+local client_mod = require("smithy.client")
 
 local function test(name, fn)
     local ok, err = pcall(fn)

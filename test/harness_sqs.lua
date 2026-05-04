@@ -9,11 +9,11 @@ package.path = root .. "../runtime/?.lua;"
     .. root .. "../codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test/sqs/lua-client-codegen/?.lua;"
     .. package.path
 
-local sqs = require("sqs.client")
-local protocol_json = require("protocol.awsjson")
-local signer = require("signer")
-local auth = require("auth")
-local http = require("http")
+local sqs = require("smithy.sqs.client")
+local protocol_json = require("smithy.protocol.awsjson")
+local signer = require("smithy.signer")
+local auth = require("smithy.auth")
+local http = require("smithy.http")
 
 local passed, failed = 0, 0
 local function test(name, fn)
@@ -179,7 +179,7 @@ test("serialized body is valid JSON with correct members", function()
     })
 
     -- decode the captured body
-    local json_decoder = require("json.decoder")
+    local json_decoder = require("smithy.json.decoder")
     local body = json_decoder.decode(captured.body)
     assert_eq(body.QueueUrl, "https://sqs.us-east-1.amazonaws.com/123456789012/q")
     assert_eq(body.MessageBody, "test body")

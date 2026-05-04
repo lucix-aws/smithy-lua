@@ -9,12 +9,12 @@ package.path = root .. "../runtime/?.lua;"
     .. root .. "../runtime/?/init.lua;"
     .. package.path
 
-local dynamodb = require("dynamodb.client")
-local protocol_json = require("protocol.awsjson")
-local signer = require("signer")
-local auth = require("auth")
-local env_creds = require("credentials.environment")
-local http_resolver = require("http.client")
+local dynamodb = require("smithy.dynamodb.client")
+local protocol_json = require("smithy.protocol.awsjson")
+local signer = require("smithy.signer")
+local auth = require("smithy.auth")
+local env_creds = require("smithy.credentials.environment")
+local http_resolver = require("smithy.http.client")
 
 -- Resolve HTTP client
 local http_client, err = http_resolver.resolve()

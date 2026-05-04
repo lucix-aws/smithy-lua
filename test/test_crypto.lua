@@ -3,8 +3,8 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local sha256 = require("crypto.sha256")
-local hmac = require("crypto.hmac")
+local sha256 = require("smithy.crypto.sha256")
+local hmac = require("smithy.crypto.hmac")
 
 local pass, fail = 0, 0
 

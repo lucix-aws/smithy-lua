@@ -3,10 +3,10 @@
 
 package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
-local restjson = require("protocol.restjson")
-local http = require("http")
-local stype = require("schema").type
-local strait = require("schema").trait
+local restjson = require("smithy.protocol.restjson")
+local http = require("smithy.http")
+local stype = require("smithy.schema").type
+local strait = require("smithy.schema").trait
 
 local pass_count = 0
 

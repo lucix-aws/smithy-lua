@@ -3,7 +3,7 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local waiter = require("waiter")
+local waiter = require("smithy.waiter")
 local eval_path = waiter._eval_path
 local eval_acceptor = waiter._eval_acceptor
 

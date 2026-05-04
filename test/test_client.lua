@@ -3,8 +3,8 @@
 
 package.path = "runtime/?.lua;" .. package.path
 
-local client_mod = require("client")
-local auth = require("auth")
+local client_mod = require("smithy.client")
+local auth = require("smithy.auth")
 
 local function test(name, fn)
     local ok, err = pcall(fn)
