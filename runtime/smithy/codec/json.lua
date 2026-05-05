@@ -4,9 +4,9 @@
 local encoder = require("smithy.json.encoder")
 local decoder = require("smithy.json.decoder")
 local schema_mod = require("smithy.schema")
+local t = require("smithy.traits")
 
 local stype = schema_mod.type
-local strait = schema_mod.trait
 local concat = table.concat
 local format = string.format
 local huge = math.huge
@@ -29,9 +29,9 @@ end
 
 -- Get the wire name for a member
 local function wire_name(name, member_schema, use_json_name)
-    if use_json_name and member_schema.traits then
-        local jn = member_schema.traits[strait.JSON_NAME]
-        if jn then return jn end
+    if use_json_name then
+        local jn = member_schema:trait(t.JSON_NAME)
+        if jn then return jn.name end
     end
     return name
 end
@@ -47,7 +47,7 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
 
     if st == stype.STRUCTURE then
         n = n + 1; buf[n] = "{"
-        local members = schema.members
+        local members = schema:members()
         if members then
             local keys = {}
             for k in pairs(members) do keys[#keys + 1] = k end
@@ -57,11 +57,14 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
                 local name = keys[i]
                 local ms = members[name]
                 local mv = v[name]
-                if mv == nil and apply_defaults and ms.traits then
-                    mv = ms.traits[strait.DEFAULT]
-                    -- Blob defaults are base64-encoded in the model; decode so codec re-encodes
-                    if mv ~= nil and ms.type == stype.BLOB then
-                        mv = M._base64_decode(mv)
+                if mv == nil and apply_defaults then
+                    local def = ms:trait(t.DEFAULT)
+                    if def then
+                        mv = def.value
+                        -- Blob defaults are base64-encoded in the model; decode so codec re-encodes
+                        if mv ~= nil and ms.type == stype.BLOB then
+                            mv = M._base64_decode(mv)
+                        end
                     end
                 end
                 if mv ~= nil then
@@ -78,7 +81,7 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
 
     elseif st == stype.LIST then
         n = n + 1; buf[n] = "["
-        local elem_schema = schema.member
+        local elem_schema = schema.list_member
         for i = 1, #v do
             if i > 1 then n = n + 1; buf[n] = "," end
             if v[i] == nil then
@@ -94,7 +97,7 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
 
     elseif st == stype.MAP then
         n = n + 1; buf[n] = "{"
-        local val_schema = schema.value
+        local val_schema = schema.map_value
         -- Sort keys for deterministic output
         local keys = {}
         for k in pairs(v) do keys[#keys + 1] = k end
@@ -118,7 +121,7 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
     elseif st == stype.UNION then
         -- Union: exactly one member set. Serialize as single-key object.
         n = n + 1; buf[n] = "{"
-        local members = schema.members
+        local members = schema:members()
         if members then
             for name, member_schema in pairs(members) do
                 local mv = v[name]
@@ -167,8 +170,9 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
 
     elseif st == stype.TIMESTAMP then
         local ts_format = codec.default_timestamp_format
-        if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
-            ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+        local tf = schema:trait(t.TIMESTAMP_FORMAT)
+        if tf then
+            ts_format = tf.format
         end
         if ts_format == schema_mod.timestamp.DATE_TIME then
             return encode_string(M._format_iso8601(v), buf, n)
@@ -213,7 +217,7 @@ local function decode_schema_value(v, schema, codec)
         if type(v) ~= "table" then
             return nil, "expected object for structure, got " .. type(v)
         end
-        local members = schema.members
+        local members = schema:members()
         if not members then return {} end
         -- Build reverse lookup: wire_name -> (member_name, member_schema)
         local by_wire = {}
@@ -231,22 +235,23 @@ local function decode_schema_value(v, schema, codec)
         end
         -- Apply defaults and zero-values for required members
         for name, ms in pairs(members) do
-            if result[name] == nil and ms.traits then
-                local def = ms.traits[strait.DEFAULT]
-                if def ~= nil then
+            if result[name] == nil then
+                local def = ms:trait(t.DEFAULT)
+                if def then
+                    local dv = def.value
                     -- Blob defaults are base64-encoded in the model; decode for deserialization
-                    if ms.type == stype.BLOB then def = M._base64_decode(def) end
-                    result[name] = def
-                elseif ms.traits[strait.REQUIRED] then
+                    if ms.type == stype.BLOB then dv = M._base64_decode(dv) end
+                    result[name] = dv
+                elseif ms:trait(t.REQUIRED) then
                     -- Error correction: fill zero-value for required members
-                    local t = ms.type
-                    if t == stype.STRING or t == stype.ENUM then result[name] = ""
-                    elseif t == stype.BOOLEAN then result[name] = false
-                    elseif t == stype.BYTE or t == stype.SHORT or t == stype.INTEGER
-                        or t == stype.LONG or t == stype.FLOAT or t == stype.DOUBLE
-                        or t == stype.INT_ENUM or t == stype.TIMESTAMP then result[name] = 0
-                    elseif t == stype.BLOB then result[name] = ""
-                    elseif t == stype.LIST or t == stype.MAP then result[name] = {}
+                    local mt = ms.type
+                    if mt == stype.STRING or mt == stype.ENUM then result[name] = ""
+                    elseif mt == stype.BOOLEAN then result[name] = false
+                    elseif mt == stype.BYTE or mt == stype.SHORT or mt == stype.INTEGER
+                        or mt == stype.LONG or mt == stype.FLOAT or mt == stype.DOUBLE
+                        or mt == stype.INT_ENUM or mt == stype.TIMESTAMP then result[name] = 0
+                    elseif mt == stype.BLOB then result[name] = ""
+                    elseif mt == stype.LIST or mt == stype.MAP then result[name] = {}
                     end
                 end
             end
@@ -257,7 +262,7 @@ local function decode_schema_value(v, schema, codec)
         if type(v) ~= "table" then
             return nil, "expected array for list, got " .. type(v)
         end
-        local elem_schema = schema.member
+        local elem_schema = schema.list_member
         local result = {}
         for i = 1, #v do
             if elem_schema then
@@ -274,7 +279,7 @@ local function decode_schema_value(v, schema, codec)
         if type(v) ~= "table" then
             return nil, "expected object for map, got " .. type(v)
         end
-        local val_schema = schema.value
+        local val_schema = schema.map_value
         local result = {}
         for k, raw in pairs(v) do
             if val_schema then
@@ -291,7 +296,7 @@ local function decode_schema_value(v, schema, codec)
         if type(v) ~= "table" then
             return nil, "expected object for union, got " .. type(v)
         end
-        local members = schema.members
+        local members = schema:members()
         if not members then return {} end
         local by_wire = {}
         for name, member_schema in pairs(members) do
@@ -337,8 +342,9 @@ local function decode_schema_value(v, schema, codec)
     elseif st == stype.TIMESTAMP then
         if type(v) == "string" then
             local ts_format = codec.default_timestamp_format
-            if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
-                ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+            local tf = schema:trait(t.TIMESTAMP_FORMAT)
+            if tf then
+                ts_format = tf.format
             end
             if ts_format == "http-date" then
                 return M._parse_http_date(v)
@@ -375,8 +381,8 @@ local floor = math.floor
 --- Format epoch seconds as ISO 8601 date-time string (UTC).
 function M._format_iso8601(epoch)
     local frac = epoch - floor(epoch)
-    local t = os.date("!*t", floor(epoch))
-    local s = format("%04d-%02d-%02dT%02d:%02d:%02d", t.year, t.month, t.day, t.hour, t.min, t.sec)
+    local dt = os.date("!*t", floor(epoch))
+    local s = format("%04d-%02d-%02dT%02d:%02d:%02d", dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec)
     if frac > 0 then
         -- up to 3 decimal places, strip trailing zeros
         local ms = format("%.3f", frac):sub(2):gsub("0+$", "")
@@ -397,20 +403,20 @@ function M._parse_iso8601(s)
     if not y then return tonumber(s) end
     frac = tonumber(frac or "") or 0
     -- Compute epoch via os.time in UTC
-    local t = os.time({year=tonumber(y), month=tonumber(mo), day=tonumber(d),
+    local tt = os.time({year=tonumber(y), month=tonumber(mo), day=tonumber(d),
                         hour=tonumber(h), min=tonumber(mi), sec=tonumber(sec), isdst=false})
     -- os.time returns local time, adjust to UTC
     local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
-    t = t - utc_offset
+    tt = tt - utc_offset
     -- Apply timezone offset from the string
     if tz and tz ~= "" and tz ~= "Z" then
         local sign, oh, om = tz:match("^([%+%-])(%d%d):?(%d%d)$")
         if sign then
             local off = tonumber(oh) * 3600 + tonumber(om) * 60
-            if sign == "+" then t = t - off else t = t + off end
+            if sign == "+" then tt = tt - off else tt = tt + off end
         end
     end
-    return t + frac
+    return tt + frac
 end
 
 --- Parse HTTP-date (RFC 7231) string to epoch seconds.
@@ -418,9 +424,9 @@ function M._parse_http_date(s)
     local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
     local day, mon, year, h, mi, sec = s:match("%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
     if not day then return tonumber(s) end
-    local t = {year=tonumber(year), month=months[mon] or 1, day=tonumber(day),
+    local tt = {year=tonumber(year), month=months[mon] or 1, day=tonumber(day),
                hour=tonumber(h), min=tonumber(mi), sec=tonumber(sec), isdst=false}
-    local epoch = os.time(t)
+    local epoch = os.time(tt)
     local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
     return epoch - utc_offset
 end

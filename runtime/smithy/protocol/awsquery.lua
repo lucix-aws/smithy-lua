@@ -4,8 +4,8 @@
 local xml_codec = require("smithy.codec.xml")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")
+local t = require("smithy.traits")
 local stype = schema_mod.type
-local strait = schema_mod.trait
 
 local M = {}
 M.__index = M
@@ -37,13 +37,14 @@ end
 -- Get the query key name for a member
 local function query_key(name, ms, ec2)
     if ec2 then
-        local t = ms and ms.traits
-        if t and t[strait.EC2_QUERY_NAME] then return t[strait.EC2_QUERY_NAME] end
-        if t and t[strait.XML_NAME] then return capitalize(t[strait.XML_NAME]) end
+        local ec2qn = ms:trait(t.EC2_QUERY_NAME)
+        if ec2qn then return ec2qn.name end
+        local xn = ms:trait(t.XML_NAME)
+        if xn then return capitalize(xn.name) end
         return capitalize(name)
     else
-        local t = ms and ms.traits
-        if t and t[strait.XML_NAME] then return t[strait.XML_NAME] end
+        local xn = ms:trait(t.XML_NAME)
+        if xn then return xn.name end
         return name
     end
 end
@@ -54,7 +55,7 @@ local function serialize_query(v, prefix, schema, params, ec2)
     local st = schema.type
 
     if st == stype.STRUCTURE then
-        local members = schema.members or {}
+        local members = schema:members()
         for mname, ms in pairs(members) do
             if v[mname] ~= nil then
                 local key = query_key(mname, ms, ec2)
@@ -63,16 +64,17 @@ local function serialize_query(v, prefix, schema, params, ec2)
         end
 
     elseif st == stype.LIST then
-        local elem_schema = schema.member or { type = stype.STRING }
-        local flattened = ec2 or (schema.traits and schema.traits[strait.XML_FLATTENED])
+        local elem_schema = schema.list_member or { type = stype.STRING }
+        local flattened = ec2 or schema:trait(t.XML_FLATTENED)
         if flattened then
             for i = 1, #v do
                 serialize_query(v[i], prefix .. "." .. i, elem_schema, params, ec2)
             end
         else
             local member_label = "member"
-            if elem_schema.traits and elem_schema.traits[strait.XML_NAME] then
-                member_label = elem_schema.traits[strait.XML_NAME]
+            local xn = elem_schema.trait and elem_schema:trait(t.XML_NAME)
+            if xn then
+                member_label = xn.name
             end
             for i = 1, #v do
                 serialize_query(v[i], prefix .. "." .. member_label .. "." .. i, elem_schema, params, ec2)
@@ -80,11 +82,13 @@ local function serialize_query(v, prefix, schema, params, ec2)
         end
 
     elseif st == stype.MAP then
-        local key_schema = schema.key or { type = stype.STRING }
-        local val_schema = schema.value or { type = stype.STRING }
-        local flattened = schema.traits and schema.traits[strait.XML_FLATTENED]
-        local key_label = key_schema.traits and key_schema.traits[strait.XML_NAME] or "key"
-        local val_label = val_schema.traits and val_schema.traits[strait.XML_NAME] or "value"
+        local key_schema = schema.map_key or { type = stype.STRING }
+        local val_schema = schema.map_value or { type = stype.STRING }
+        local flattened = schema:trait(t.XML_FLATTENED)
+        local key_xn = key_schema.trait and key_schema:trait(t.XML_NAME)
+        local val_xn = val_schema.trait and val_schema:trait(t.XML_NAME)
+        local key_label = key_xn and key_xn.name or "key"
+        local val_label = val_xn and val_xn.name or "value"
         -- Sort for deterministic output
         local keys = {}
         for k in pairs(v) do keys[#keys + 1] = k end
@@ -112,8 +116,9 @@ local function serialize_query(v, prefix, schema, params, ec2)
 
     elseif st == stype.TIMESTAMP then
         local ts_format = schema_mod.timestamp.DATE_TIME
-        if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
-            ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+        local ts_trait = schema:trait(t.TIMESTAMP_FORMAT)
+        if ts_trait then
+            ts_format = ts_trait.format
         end
         local formatted
         if ts_format == schema_mod.timestamp.EPOCH_SECONDS then
@@ -159,7 +164,7 @@ function M.serialize(self, input, operation)
 
     local params = {}
     local schema = operation.input_schema
-    if schema and schema.members then
+    if schema and schema:members() then
         serialize_query(input, "", schema, params, self.ec2)
     end
 
@@ -274,7 +279,7 @@ function M.deserialize(self, response, operation)
     end
 
     local output_schema = operation.output_schema
-    if not output_schema or not output_schema.members then return {}, nil end
+    if not output_schema or not output_schema:members() then return {}, nil end
 
     return xml_codec.decode_node(result_node, output_schema, self.xml), nil
 end

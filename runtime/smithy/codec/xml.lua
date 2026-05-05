@@ -3,7 +3,7 @@
 
 local schema_mod = require("smithy.schema")
 local stype = schema_mod.type
-local strait = schema_mod.trait
+local t = require("smithy.traits")
 local concat = table.concat
 local format = string.format
 local huge = math.huge
@@ -31,18 +31,25 @@ end
 
 -- Get the XML element name for a member
 local function xml_name(name, member_schema)
-    if member_schema and member_schema.traits then
-        local xn = member_schema.traits[strait.XML_NAME]
-        if xn then return xn end
+    if member_schema then
+        local xn = member_schema:trait(t.XML_NAME)
+        if xn then return xn.name end
     end
     return name
+end
+
+-- Build namespace attribute string from a namespace trait value
+local function ns_attr_str(ns)
+    local attr = ns.prefix and ("xmlns:" .. ns.prefix) or "xmlns"
+    return " " .. attr .. '="' .. xml_escape(ns.uri) .. '"'
 end
 
 -- Format a timestamp value
 local function format_timestamp(v, schema, codec)
     local ts_format = codec.default_timestamp_format
-    if schema and schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
-        ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+    if schema then
+        local tf = schema:trait(t.TIMESTAMP_FORMAT)
+        if tf then ts_format = tf.format end
     end
     if ts_format == schema_mod.timestamp.EPOCH_SECONDS then
         if v % 1 == 0 then return format("%.0f", v) end
@@ -80,19 +87,14 @@ local function encode_value(v, name, schema, buf, n, codec)
     if st == stype.STRUCTURE then
         n = n + 1; buf[n] = "<" .. name
         -- XML namespace
-        if schema.traits and schema.traits[strait.XML_NAMESPACE] then
-            local ns = schema.traits[strait.XML_NAMESPACE]
-            if type(ns) == "table" then
-                local attr = ns.prefix and ("xmlns:" .. ns.prefix) or "xmlns"
-                n = n + 1; buf[n] = " " .. attr .. '="' .. xml_escape(ns.uri) .. '"'
-            else
-                n = n + 1; buf[n] = ' xmlns="' .. xml_escape(ns) .. '"'
-            end
+        local xns = schema:trait(t.XML_NAMESPACE)
+        if xns then
+            n = n + 1; buf[n] = ns_attr_str(xns)
         end
         -- Attributes first
-        local members = schema.members or {}
+        local members = schema:members() or {}
         for mname, ms in pairs(members) do
-            if ms.traits and ms.traits[strait.XML_ATTRIBUTE] and v[mname] ~= nil then
+            if ms:trait(t.XML_ATTRIBUTE) and v[mname] ~= nil then
                 local aname = xml_name(mname, ms)
                 n = n + 1; buf[n] = " " .. aname .. '="' .. xml_escape(simple_value(v[mname], ms, codec)) .. '"'
             end
@@ -104,7 +106,7 @@ local function encode_value(v, name, schema, buf, n, codec)
         table.sort(keys)
         for _, mname in ipairs(keys) do
             local ms = members[mname]
-            if not (ms.traits and ms.traits[strait.XML_ATTRIBUTE]) and v[mname] ~= nil then
+            if not ms:trait(t.XML_ATTRIBUTE) and v[mname] ~= nil then
                 local ename = xml_name(mname, ms)
                 n = encode_value(v[mname], ename, ms, buf, n, codec)
             end
@@ -113,8 +115,8 @@ local function encode_value(v, name, schema, buf, n, codec)
         return n
 
     elseif st == stype.LIST then
-        local elem_schema = schema.member or { type = stype.STRING }
-        local flattened = schema.traits and schema.traits[strait.XML_FLATTENED]
+        local elem_schema = schema.list_member or { type = stype.STRING }
+        local flattened = schema:trait(t.XML_FLATTENED)
         if flattened then
             -- Flattened: each item uses the parent element name
             for i = 1, #v do
@@ -132,24 +134,19 @@ local function encode_value(v, name, schema, buf, n, codec)
         return n
 
     elseif st == stype.MAP then
-        local key_schema = schema.key or { type = stype.STRING }
-        local val_schema = schema.value or { type = stype.STRING }
+        local key_schema = schema.map_key or { type = stype.STRING }
+        local val_schema = schema.map_value or { type = stype.STRING }
         local key_name = xml_name("key", key_schema)
         local val_name = xml_name("value", val_schema)
-        local flattened = schema.traits and schema.traits[strait.XML_FLATTENED]
+        local flattened = schema:trait(t.XML_FLATTENED)
         local entry_name = flattened and name or "entry"
         if not flattened then
-            local ns_attr = ""
-            if schema.traits and schema.traits[strait.XML_NAMESPACE] then
-                local ns = schema.traits[strait.XML_NAMESPACE]
-                if type(ns) == "table" then
-                    local attr = ns.prefix and ("xmlns:" .. ns.prefix) or "xmlns"
-                    ns_attr = " " .. attr .. '="' .. xml_escape(ns.uri) .. '"'
-                else
-                    ns_attr = ' xmlns="' .. xml_escape(ns) .. '"'
-                end
+            local ns_extra = ""
+            local xns = schema:trait(t.XML_NAMESPACE)
+            if xns then
+                ns_extra = ns_attr_str(xns)
             end
-            n = n + 1; buf[n] = "<" .. name .. ns_attr .. ">"
+            n = n + 1; buf[n] = "<" .. name .. ns_extra .. ">"
         end
         -- Sort keys for deterministic output
         local keys = {}
@@ -168,7 +165,7 @@ local function encode_value(v, name, schema, buf, n, codec)
 
     elseif st == stype.UNION then
         n = n + 1; buf[n] = "<" .. name .. ">"
-        local members = schema.members or {}
+        local members = schema:members() or {}
         for mname, ms in pairs(members) do
             if v[mname] ~= nil then
                 local ename = xml_name(mname, ms)
@@ -181,17 +178,12 @@ local function encode_value(v, name, schema, buf, n, codec)
 
     else
         -- Simple type
-        local ns_attr = ""
-        if schema.traits and schema.traits[strait.XML_NAMESPACE] then
-            local ns = schema.traits[strait.XML_NAMESPACE]
-            if type(ns) == "table" then
-                local attr = ns.prefix and ("xmlns:" .. ns.prefix) or "xmlns"
-                ns_attr = " " .. attr .. '="' .. xml_escape(ns.uri) .. '"'
-            else
-                ns_attr = ' xmlns="' .. xml_escape(ns) .. '"'
-            end
+        local ns_extra = ""
+        local xns = schema:trait(t.XML_NAMESPACE)
+        if xns then
+            ns_extra = ns_attr_str(xns)
         end
-        n = n + 1; buf[n] = "<" .. name .. ns_attr .. ">" .. xml_escape(simple_value(v, schema, codec)) .. "</" .. name .. ">"
+        n = n + 1; buf[n] = "<" .. name .. ns_extra .. ">" .. xml_escape(simple_value(v, schema, codec)) .. "</" .. name .. ">"
         return n
     end
 end
@@ -231,13 +223,13 @@ local function parse_xml(s)
         if s:byte(pos) ~= 0x3C then -- '<'
             local text_end = s:find("<", pos, true)
             if not text_end then
-                local t = s:sub(pos)
+                local txt = s:sub(pos)
                 pos = len + 1
-                return t
+                return txt
             end
-            local t = s:sub(pos, text_end - 1)
+            local txt = s:sub(pos, text_end - 1)
             pos = text_end
-            return t
+            return txt
         end
 
         -- Closing tag check
@@ -325,8 +317,9 @@ local function decode_simple(text, schema, codec)
         local n = tonumber(text)
         if n then return n end
         local ts_format = codec.default_timestamp_format
-        if schema.traits and schema.traits[strait.TIMESTAMP_FORMAT] then
-            ts_format = schema.traits[strait.TIMESTAMP_FORMAT]
+        if schema.trait then
+            local tf = schema:trait(t.TIMESTAMP_FORMAT)
+            if tf then ts_format = tf.format end
         end
         if ts_format == schema_mod.timestamp.HTTP_DATE then
             return json_codec._parse_http_date(text)
@@ -354,7 +347,7 @@ local function decode_node(node, schema, codec)
 
     if st == stype.STRUCTURE then
         local result = {}
-        local members = schema.members or {}
+        local members = schema:members() or {}
         -- Build lookup: xml_name -> (member_name, member_schema)
         local by_xml = {}
         for mname, ms in pairs(members) do
@@ -365,7 +358,7 @@ local function decode_node(node, schema, codec)
             for aname, aval in pairs(node.attrs) do
                 if not aname:match("^xmlns") then
                     local entry = by_xml[aname]
-                    if entry and entry[2].traits and entry[2].traits[strait.XML_ATTRIBUTE] then
+                    if entry and entry[2]:trait(t.XML_ATTRIBUTE) then
                         result[entry[1]] = decode_simple(aval, entry[2], codec)
                     end
                 end
@@ -378,26 +371,26 @@ local function decode_node(node, schema, codec)
             if not children_by_tag[child.tag] then
                 children_by_tag[child.tag] = {}
             end
-            local t = children_by_tag[child.tag]
-            t[#t + 1] = child
+            local tbl = children_by_tag[child.tag]
+            tbl[#tbl + 1] = child
         end
         for ename, children in pairs(children_by_tag) do
             local entry = by_xml[ename]
             if entry then
                 local ms = entry[2]
-                if ms.type == stype.LIST and ms.traits and ms.traits[strait.XML_FLATTENED] then
+                if ms.type == stype.LIST and ms:trait(t.XML_FLATTENED) then
                     -- Flattened list: multiple elements with same tag
                     local list = {}
-                    local elem_schema = ms.member or { type = stype.STRING }
+                    local elem_schema = ms.list_member or { type = stype.STRING }
                     for _, child in ipairs(children) do
                         list[#list + 1] = decode_node(child, elem_schema, codec)
                     end
                     result[entry[1]] = list
-                elseif ms.type == stype.MAP and ms.traits and ms.traits[strait.XML_FLATTENED] then
+                elseif ms.type == stype.MAP and ms:trait(t.XML_FLATTENED) then
                     -- Flattened map: multiple <entry> elements
                     local map = result[entry[1]] or {}
-                    local key_schema = ms.key or { type = stype.STRING }
-                    local val_schema = ms.value or { type = stype.STRING }
+                    local key_schema = ms.map_key or { type = stype.STRING }
+                    local val_schema = ms.map_value or { type = stype.STRING }
                     local kn = xml_name("key", key_schema)
                     local vn = xml_name("value", val_schema)
                     for _, child in ipairs(children) do
@@ -417,7 +410,7 @@ local function decode_node(node, schema, codec)
         return result
 
     elseif st == stype.LIST then
-        local elem_schema = schema.member or { type = stype.STRING }
+        local elem_schema = schema.list_member or { type = stype.STRING }
         local item_name = xml_name("member", elem_schema)
         local result = {}
         for _, child in ipairs(node.children or {}) do
@@ -428,8 +421,8 @@ local function decode_node(node, schema, codec)
         return result
 
     elseif st == stype.MAP then
-        local key_schema = schema.key or { type = stype.STRING }
-        local val_schema = schema.value or { type = stype.STRING }
+        local key_schema = schema.map_key or { type = stype.STRING }
+        local val_schema = schema.map_value or { type = stype.STRING }
         local kn = xml_name("key", key_schema)
         local vn = xml_name("value", val_schema)
         local result = {}
@@ -446,7 +439,7 @@ local function decode_node(node, schema, codec)
         return result
 
     elseif st == stype.UNION then
-        local members = schema.members or {}
+        local members = schema:members() or {}
         local by_xml = {}
         for mname, ms in pairs(members) do
             by_xml[xml_name(mname, ms)] = { mname, ms }

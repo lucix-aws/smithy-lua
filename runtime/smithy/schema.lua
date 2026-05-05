@@ -1,74 +1,103 @@
--- smithy-lua runtime: schema types and helpers
--- A schema is a runtime description of a Smithy shape used for generic serde.
+-- smithy-lua runtime: Schema type
+-- A Schema is a runtime description of a Smithy shape used for generic serde.
 
 local M = {}
 
 -- Shape type constants
 M.type = {
+    BLOB      = "blob",
     BOOLEAN   = "boolean",
+    STRING    = "string",
+    TIMESTAMP = "timestamp",
     BYTE      = "byte",
     SHORT     = "short",
     INTEGER   = "integer",
     LONG      = "long",
     FLOAT     = "float",
     DOUBLE    = "double",
-    STRING    = "string",
+    DOCUMENT  = "document",
     ENUM      = "enum",
     INT_ENUM  = "int_enum",
-    BLOB      = "blob",
-    TIMESTAMP = "timestamp",
-    DOCUMENT  = "document",
     LIST      = "list",
     MAP       = "map",
     STRUCTURE = "structure",
     UNION     = "union",
 }
 
--- Trait key constants (used in member/shape traits tables)
-M.trait = {
-    JSON_NAME        = "json_name",
-    XML_NAME         = "xml_name",
-    XML_ATTRIBUTE    = "xml_attribute",
-    XML_FLATTENED    = "xml_flattened",
-    XML_NAMESPACE    = "xml_namespace",
-    TIMESTAMP_FORMAT = "timestamp_format",
-    HTTP_HEADER      = "http_header",
-    HTTP_LABEL       = "http_label",
-    HTTP_QUERY       = "http_query",
-    HTTP_QUERY_PARAMS = "http_query_params",
-    HTTP_PAYLOAD     = "http_payload",
-    HTTP_PREFIX_HEADERS = "http_prefix_headers",
-    HTTP_RESPONSE_CODE  = "http_response_code",
-    SPARSE           = "sparse",
-    REQUIRED         = "required",
-    SENSITIVE        = "sensitive",
-    STREAMING        = "streaming",
-    IDEMPOTENCY_TOKEN = "idempotency_token",
-    HOST_LABEL       = "host_label",
-    CONTEXT_PARAM    = "context_param",
-    EC2_QUERY_NAME   = "ec2_query_name",
-    AWS_QUERY_ERROR  = "aws_query_error",
-    DEFAULT          = "default",
-    MEDIA_TYPE       = "media_type",
-    EVENT_HEADER     = "event_header",
-    EVENT_PAYLOAD    = "event_payload",
-}
-
 -- Timestamp format constants
 M.timestamp = {
-    DATE_TIME      = "date-time",
-    HTTP_DATE      = "http-date",
-    EPOCH_SECONDS  = "epoch-seconds",
+    DATE_TIME     = "date-time",
+    HTTP_DATE     = "http-date",
+    EPOCH_SECONDS = "epoch-seconds",
 }
 
---- Look up a member schema by name.
---- @param schema table: a structure or union schema
+-- Schema metatable
+local Schema = {}
+Schema.__index = Schema
+
+--- Get the effective (merged) trait value for a trait key.
+--- For member schemas this includes traits inherited from the target.
+--- @param key table: a trait key from smithy.traits
+--- @return table|nil: the trait record, or nil if not present
+function Schema:trait(key)
+    local t = self._traits
+    if t then return t[key] end
+    return nil
+end
+
+--- Get the direct trait value for a trait key.
+--- For member schemas this returns only traits declared on the member itself.
+--- For non-member schemas this is equivalent to trait().
+--- @param key table: a trait key from smithy.traits
+--- @return table|nil: the trait record, or nil if not present
+function Schema:direct_trait(key)
+    local dt = self._direct_traits
+    if dt then return dt[key] end
+    -- For non-member schemas, fall back to _traits
+    local t = self._traits
+    if t then return t[key] end
+    return nil
+end
+
+--- Get a member schema by name.
 --- @param name string: member name
 --- @return table|nil: the member schema, or nil
-function M.member(schema, name)
-    local members = schema.members
-    if not members then return nil end
-    return members[name]
+function Schema:member(name)
+    local m = self._members
+    if m then return m[name] end
+    local tgt = self._target
+    if tgt then return tgt:member(name) end
+    return nil
+end
+
+--- Get all members (name-indexed table).
+--- @return table|nil
+function Schema:members()
+    local m = self._members
+    if m then return m end
+    local tgt = self._target
+    if tgt then return tgt:members() end
+    return nil
+end
+
+--- Create a new Schema.
+--- @param args table: { id, type, members, traits, direct_traits, target_id, name, list_member, map_key, map_value }
+--- @return table: Schema instance
+function M.new(args)
+    local s = setmetatable({
+        id          = args.id,
+        type        = args.type,
+        target_id   = args.target_id,   -- member schemas: target shape id
+        name        = args.name,         -- member schemas: member name string
+        _target     = args.target,       -- member schemas: reference to target schema
+        _traits     = args.traits,
+        _direct_traits = args.direct_traits,
+        _members    = args.members,
+        list_member = args.list_member,  -- list schemas: element schema
+        map_key     = args.map_key,      -- map schemas: key schema
+        map_value   = args.map_value,    -- map schemas: value schema
+    }, Schema)
+    return s
 end
 
 return M
