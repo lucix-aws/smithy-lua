@@ -2,6 +2,7 @@
 -- Implements the ClientProtocol interface with full HTTP binding support.
 
 local json_codec = require("smithy.codec.json")
+local base64 = require("smithy.base64")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")
 local t = require("smithy.traits")
@@ -114,7 +115,7 @@ local function format_header_value(v, member_schema)
     end
     if member_schema and member_schema:trait(t.MEDIA_TYPE) then
         -- @mediaType: base64-encode the value for header transport
-        return json_codec._base64_encode(tostring(v))
+        return base64.encode(tostring(v))
     end
     if type(v) == "table" then
         -- list header: comma-separated, quote items containing commas or quotes
@@ -180,7 +181,7 @@ local function parse_header_value(v, member_schema)
             return tonumber(v)
         end
     elseif member_schema:trait(t.MEDIA_TYPE) then
-        return json_codec._base64_decode(v)
+        return base64.decode(v)
     elseif member_schema.type == "number" or member_schema.type == "integer"
         or member_schema.type == "long" or member_schema.type == "float"
         or member_schema.type == "double" or member_schema.type == "short"

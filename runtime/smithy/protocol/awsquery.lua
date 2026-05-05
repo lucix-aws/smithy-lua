@@ -2,6 +2,7 @@
 -- RPC-style protocol with form-urlencoded request, XML response (STS, IAM, etc.).
 
 local xml_codec = require("smithy.codec.xml")
+local base64 = require("smithy.base64")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")
 local t = require("smithy.traits")
@@ -113,7 +114,7 @@ local function serialize_query(v, prefix, schema, params, ec2)
         return
 
     elseif st == stype.BLOB then
-        local b64 = require("smithy.codec.json")._base64_encode(v)
+        local b64 = base64.encode(v)
         params[#params + 1] = pct_encode(prefix) .. "=" .. pct_encode(b64)
         return
 

@@ -4,6 +4,7 @@
 local cbor_codec = require("smithy.codec.cbor")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")
+local prelude = require("smithy.prelude")
 local stype = schema_mod.type
 
 local M = {}
@@ -24,29 +25,20 @@ function M.serialize(self, input, operation)
     local path = "/service/" .. self.service_name .. "/operation/" .. operation.name
 
     local headers = {
-        ["Smithy-Protocol"] = "rpc-v2-cbor",
+        ["smithy-protocol"] = "rpc-v2-cbor",
         ["Accept"] = "application/cbor",
     }
 
-    -- Check if input has any members with values
-    local has_body = false
+    -- Unit input (no defined input shape) = no body
     local schema = operation.input_schema
-    local members = schema and schema:members()
-    if members then
-        for k in pairs(members) do
-            if input[k] ~= nil then has_body = true; break end
-        end
+    if schema == prelude.Unit then
+        return http.new_request("POST", path, headers, http.string_reader("")), nil
     end
 
-    local body_str
-    if has_body then
-        headers["Content-Type"] = "application/cbor"
-        local err
-        body_str, err = self.codec:serialize(input, schema)
-        if err then return nil, err end
-    else
-        body_str = ""
-    end
+    -- Non-Unit input: always serialize (even if empty)
+    headers["Content-Type"] = "application/cbor"
+    local body_str, err = self.codec:serialize(input, schema)
+    if err then return nil, err end
 
     return http.new_request(
         "POST",

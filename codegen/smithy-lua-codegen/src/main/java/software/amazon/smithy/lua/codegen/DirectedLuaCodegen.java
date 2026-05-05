@@ -103,12 +103,36 @@ public final class DirectedLuaCodegen
             writer.write("");
             writer.write("local M = {}");
             writer.write("");
+
+            // Generate list and map schemas before structures (they may be referenced as map_value/list_member)
+            var model = directive.model();
+            var walker = new software.amazon.smithy.model.neighbor.Walker(model);
+            var shapes = walker.walkShapes(service);
+            for (var shape : shapes) {
+                if (shape.getType() == ShapeType.LIST) {
+                    var listShape = shape.asListShape().get();
+                    var name = listShape.getId().getName(service);
+                    var memberTarget = model.expectShape(listShape.getMember().getTarget());
+                    writer.write("M.$L = schema.new({ type = \"list\", list_member = $L })",
+                            name, targetSchemaRef(memberTarget, service));
+                    writer.write("");
+                } else if (shape.getType() == ShapeType.MAP) {
+                    var mapShape = shape.asMapShape().get();
+                    var name = mapShape.getId().getName(service);
+                    var keyTarget = model.expectShape(mapShape.getKey().getTarget());
+                    var valueTarget = model.expectShape(mapShape.getValue().getTarget());
+                    writer.write("M.$L = schema.new({ type = \"map\", map_key = $L, map_value = $L })",
+                            name, targetSchemaRef(keyTarget, service), targetSchemaRef(valueTarget, service));
+                    writer.write("");
+                }
+            }
         });
     }
 
     @Override
     public void customizeBeforeIntegrations(CustomizeDirective<LuaContext, LuaSettings> directive) {
         var serviceNs = LuaSymbolProvider.getServiceNamespace(directive.context().service());
+        var service = directive.context().service();
 
         // Write module footer to types.lua
         var typesFile = serviceNs + "/types.lua";
@@ -494,6 +518,12 @@ public final class DirectedLuaCodegen
         var name = shape.getId().getName(context.service());
         var model = context.model();
 
+        // Unit shapes (backfilled no-input/no-output) reference the shared prelude instance
+        if ("Unit".equals(schemaIdName(shape)) && shape.members().isEmpty()) {
+            writer.write("M.$L = prelude.Unit", name);
+            return;
+        }
+
         writer.write("M.$L = schema.new({", name);
         writer.indent();
         writer.write("id = id.from(_N, $S),", schemaIdName(shape));
@@ -716,7 +746,8 @@ public final class DirectedLuaCodegen
 
     private String targetSchemaRef(Shape target, ServiceShape service) {
         var targetType = target.getType();
-        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
+        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION
+                || targetType == ShapeType.LIST || targetType == ShapeType.MAP) {
             return "M." + target.getId().getName(service);
         }
         return preludeSchemaRef(target);

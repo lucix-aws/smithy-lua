@@ -153,7 +153,7 @@ local function encode_value(v, schema, buf, pos)
     local st = schema.type
 
     if st == stype.STRUCTURE then
-        local members = schema:members()
+        local members = schema:members() or {}
         local keys = {}
         for k in pairs(members) do
             if v[k] ~= nil then keys[#keys + 1] = k end
@@ -346,10 +346,32 @@ function decode_item(data, pos)
         return -1 - n, npos
 
     elseif mt == MT_BYTES then
+        if info == 31 then
+            -- indefinite-length byte string
+            local chunks = {}
+            local npos = pos
+            while byte(data, npos + 1) ~= 0xFF do
+                local chunk
+                chunk, npos = decode_item(data, npos + 1)
+                chunks[#chunks + 1] = chunk
+            end
+            return concat(chunks), npos + 1
+        end
         local len, npos = read_uint(data, pos, info)
         return data:sub(npos + 1, npos + len), npos + len
 
     elseif mt == MT_TEXT then
+        if info == 31 then
+            -- indefinite-length text string
+            local chunks = {}
+            local npos = pos
+            while byte(data, npos + 1) ~= 0xFF do
+                local chunk
+                chunk, npos = decode_item(data, npos + 1)
+                chunks[#chunks + 1] = chunk
+            end
+            return concat(chunks), npos + 1
+        end
         local len, npos = read_uint(data, pos, info)
         return data:sub(npos + 1, npos + len), npos + len
 

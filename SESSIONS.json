@@ -455,7 +455,7 @@
   },
   {
     "session": 31,
-    "task": "Fix restxml protocol tests — 107/150 to 178/178 passing",
+    "task": "Fix restxml protocol tests \u2014 107/150 to 178/178 passing",
     "start": "2026-05-05T13:04:00-04:00",
     "end": "2026-05-05T13:54:00-04:00",
     "duration_minutes": 50,
@@ -470,7 +470,7 @@
   },
   {
     "session": 32,
-    "task": "Dynamic client — load Smithy JSON AST model at runtime, call operations without codegen",
+    "task": "Dynamic client \u2014 load Smithy JSON AST model at runtime, call operations without codegen",
     "start": "2026-05-05T13:52:00-04:00",
     "end": "2026-05-05T14:15:00-04:00",
     "duration_minutes": 23,
@@ -491,6 +491,24 @@
     "prompts": [
       "fix failing query protocol tests, both EC2query and AWSquery, serially starting with aws query"
     ],
-    "outcome": "Fixed all awsQuery (76/76) and ec2Query (59/59) protocol tests. Was 51/59 and 35/41. Runtime fixes: use operation.http_path, auto-fill idempotency tokens, serialize empty lists as key= (awsQuery only), handle document-typed map values that are tables, use output_schema shape name as error code for error shapes. Codegen fixes: emit list schema for map values targeting LIST shapes, emit EC2_QUERY_NAME trait. Test codegen: added assert_form_eq for order-independent form-urlencoded body comparison. Overall protocol tests: 740/767 passing (94% → 96%)."
+    "outcome": "Fixed all awsQuery (76/76) and ec2Query (59/59) protocol tests. Was 51/59 and 35/41. Runtime fixes: use operation.http_path, auto-fill idempotency tokens, serialize empty lists as key= (awsQuery only), handle document-typed map values that are tables, use output_schema shape name as error code for error shapes. Codegen fixes: emit list schema for map values targeting LIST shapes, emit EC2_QUERY_NAME trait. Test codegen: added assert_form_eq for order-independent form-urlencoded body comparison. Overall protocol tests: 740/767 passing (94% \u2192 96%)."
+  },
+  {
+    "session": 34,
+    "task": "Fix failing rpcv2Cbor protocol tests",
+    "start": "2026-05-05T14:20:00-04:00",
+    "end": "2026-05-05T15:17:00-04:00",
+    "duration_minutes": 57,
+    "branch": "cbor-fixes",
+    "prompts": [
+      "fix failing rpcv2Cbor tests - create worktree, run tests, fix",
+      "check how Go handles no-input (Unit) operations",
+      "show me what the schema looks like in Go",
+      "just point to prelude.Unit",
+      "decode both sides and deep compare for CBOR body assertions",
+      "extract base64 into its own module",
+      "lists should get their own package-level schemas"
+    ],
+    "outcome": "rpcv2Cbor: 72/72 passing (was 7/27). Overall: 757/774 (was 691/732). Key fixes: prelude.Unit for no-input ops, base64 module extraction, CBOR DOM comparison in tests, top-level list/map schema generation, indefinite-length string decoding, NaN handling in deep_eq, header casing fix."
   }
 ]
