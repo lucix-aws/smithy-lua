@@ -480,5 +480,17 @@
       "implement it, make a worktree"
     ],
     "outcome": "Implemented smithy.dynamic module (~300 lines). Loads Smithy JSON AST models at runtime, converts shapes to runtime schemas, auto-detects protocol/auth from service traits, and exposes client:call(name, input). Tested with unit tests (11 pass) and real AWS models (DynamoDB 57 ops loaded, STS awsQuery serialization correct). Also fixed pre-existing bug in http/client.lua require paths."
+  },
+  {
+    "session": 33,
+    "task": "Fix awsQuery and ec2Query protocol tests to 100%",
+    "start": "2026-05-05T14:22:00-04:00",
+    "end": "2026-05-05T14:39:00-04:00",
+    "duration_minutes": 17,
+    "branch": "fix-query-tests",
+    "prompts": [
+      "fix failing query protocol tests, both EC2query and AWSquery, serially starting with aws query"
+    ],
+    "outcome": "Fixed all awsQuery (76/76) and ec2Query (59/59) protocol tests. Was 51/59 and 35/41. Runtime fixes: use operation.http_path, auto-fill idempotency tokens, serialize empty lists as key= (awsQuery only), handle document-typed map values that are tables, use output_schema shape name as error code for error shapes. Codegen fixes: emit list schema for map values targeting LIST shapes, emit EC2_QUERY_NAME trait. Test codegen: added assert_form_eq for order-independent form-urlencoded body comparison. Overall protocol tests: 740/767 passing (94% → 96%)."
   }
 ]

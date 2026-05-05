@@ -348,3 +348,20 @@ local result, err = client:call("ListTables", { Limit = 10 })
 **Also fixed:** `http/client.lua` had incorrect require paths for backends (`http.curl_ffi` → `smithy.http.curl_ffi`).
 
 **Affects:** New module only. No changes to existing pipeline or protocols.
+
+---
+
+## Decision: Form-urlencoded body comparison in protocol tests (Session 33)
+
+Protocol test body assertions for `application/x-www-form-urlencoded` now use order-independent comparison (`assert_form_eq`). Lua's `pairs()` iteration is non-deterministic, so query parameter order in serialized bodies varies between runs. The Smithy protocol test spec treats form-urlencoded as a set of key=value pairs, not an ordered string.
+
+## Decision: Empty list serialization differs between awsQuery and ec2Query (Session 33)
+
+- **awsQuery**: empty lists serialize as `Key=` (key with empty value)
+- **ec2Query**: empty lists are omitted entirely
+
+This matches the behavior specified in the Smithy protocol test cases.
+
+## Decision: Error code resolution for @awsQueryError (Session 33)
+
+When the output_schema passed to the query protocol deserializer is an error shape (has ERROR trait), the protocol uses the schema's shape name (`id.name`) as the error code rather than the wire `<Code>` value. This handles the `@awsQueryError` trait where the wire code differs from the shape name.
