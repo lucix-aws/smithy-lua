@@ -467,5 +467,18 @@
       "fix remaining 2 failures (CDATA, timestamp headers)"
     ],
     "outcome": "Fixed all 178 restxml protocol tests (was 107/150). Two worktrees. Commit 1: removed createDedicatedInputsAndOutputs (broke XML root names), added XML_ATTRIBUTE trait, fixed nested list/map schemas, forward reference fixup for recursive schemas, payload root name resolution, XML namespace on lists/maps/payloads, KEY_ONLY query param bug, stable sort in test comparison. Commit 2: XML parser CDATA/comment handling, whitespace preservation (skip only between sibling elements), HTTP-date timestamp list header splitting. Also wrote S3 example in aws-sdk-lua (ListBuckets works but returns empty list due to XML deserialization bug that is now fixed). Overall protocol tests: 607 -> 675 passing."
+  },
+  {
+    "session": 32,
+    "task": "Dynamic client — load Smithy JSON AST model at runtime, call operations without codegen",
+    "start": "2026-05-05T13:52:00-04:00",
+    "end": "2026-05-05T14:15:00-04:00",
+    "duration_minutes": 23,
+    "branch": "dynamic-client",
+    "prompts": [
+      "research smithy-java dynamic client, propose approach",
+      "implement it, make a worktree"
+    ],
+    "outcome": "Implemented smithy.dynamic module (~300 lines). Loads Smithy JSON AST models at runtime, converts shapes to runtime schemas, auto-detects protocol/auth from service traits, and exposes client:call(name, input). Tested with unit tests (11 pass) and real AWS models (DynamoDB 57 ops loaded, STS awsQuery serialization correct). Also fixed pre-existing bug in http/client.lua require paths."
   }
 ]

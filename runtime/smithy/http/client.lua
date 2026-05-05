@@ -5,8 +5,8 @@ local M = {}
 
 local backends = {
     { name = "crt",             mod = "aws_crt.http" },
-    { name = "curl_ffi",        mod = "http.curl_ffi" },
-    { name = "curl_subprocess", mod = "http.curl_subprocess" },
+    { name = "curl_ffi",        mod = "smithy.http.curl_ffi" },
+    { name = "curl_subprocess", mod = "smithy.http.curl_subprocess" },
 }
 
 --- Resolve the best available HTTP client.
