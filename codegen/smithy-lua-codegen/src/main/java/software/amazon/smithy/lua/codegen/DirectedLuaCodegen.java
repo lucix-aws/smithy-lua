@@ -800,6 +800,8 @@ public final class DirectedLuaCodegen
         }
         target.getTrait(MediaTypeTrait.class).ifPresent(t ->
                 entries.add("[traits.MEDIA_TYPE] = { value = \"" + t.getValue() + "\" }"));
+        target.getTrait(StreamingTrait.class).ifPresent(t ->
+                entries.add("[traits.STREAMING] = {}"));
 
         return entries;
     }

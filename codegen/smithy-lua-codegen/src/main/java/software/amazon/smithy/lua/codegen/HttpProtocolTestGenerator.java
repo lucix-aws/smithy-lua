@@ -15,8 +15,11 @@ import software.amazon.smithy.model.node.ObjectNode;
 import software.amazon.smithy.model.node.StringNode;
 import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.traits.HttpPayloadTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
+import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.protocoltests.traits.AppliesTo;
 import software.amazon.smithy.protocoltests.traits.HttpMessageTestCase;
 import software.amazon.smithy.protocoltests.traits.HttpRequestTestCase;
@@ -88,7 +91,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                 var outputShape = operationIndex.expectOutputShape(operation);
                 context.writerDelegator().useFileWriter(
                         serviceNs + "/test_" + toSnake(opName) + "_response.lua", serviceNs, writer ->
-                        writeResponseTests(writer, serviceNs, service, opName, outputShape, cases, protocol));
+                        writeResponseTests(writer, serviceNs, service, opName, outputShape, cases, protocol, model));
             });
 
             for (var errorId : operation.getErrors(service)) {
@@ -178,9 +181,22 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
     }
 
     private void writeResponseTests(LuaWriter w, String ns, ServiceShape svc,
-            String opName, StructureShape outputShape, List<HttpResponseTestCase> cases, String proto) {
+            String opName, StructureShape outputShape, List<HttpResponseTestCase> cases, String proto,
+            software.amazon.smithy.model.Model model) {
         writePreamble(w, ns, proto, svc);
         w.write("");
+
+        // Find streaming blob payload member name if any
+        String streamingMember = null;
+        for (var member : outputShape.members()) {
+            if (member.hasTrait(HttpPayloadTrait.class)) {
+                var target = model.expectShape(member.getTarget());
+                if (target.getType() == ShapeType.BLOB && target.hasTrait(StreamingTrait.class)) {
+                    streamingMember = member.getMemberName();
+                }
+            }
+        }
+
         for (var tc : cases) {
             if (SKIP_TESTS.contains(tc.getId())) {
                 w.write("test($S, function() end) -- SKIP: not implemented", tc.getId());
@@ -201,6 +217,10 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("}");
             w.write("local output, err = protocol:deserialize(response, operation)");
             w.write("assert(not err, \"deserialize error: \" .. tostring(err and err.message or err))");
+            if (streamingMember != null) {
+                w.write("if output.$L then output.$L = read_body(output.$L) end",
+                        streamingMember, streamingMember, streamingMember);
+            }
             writeParamAssertions(w, "output", tc.getParams());
             w.dedent();
             w.write("end)");

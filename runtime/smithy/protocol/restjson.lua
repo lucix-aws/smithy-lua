@@ -492,9 +492,26 @@ local function parse_error_code(response, body_table)
 end
 
 function M.deserialize(self, response, operation)
-    local body_str, read_err = http.read_all(response.body)
-    if read_err then
-        return nil, { type = "http", code = "ResponseReadError", message = read_err }
+    -- Determine if there's a streaming blob payload before reading the body
+    local schema = operation.output_schema
+    local members = schema and schema:members() or {}
+    local has_streaming_payload = false
+    for _, ms in pairs(members) do
+        if ms:trait(t.HTTP_PAYLOAD) and ms:trait(t.STREAMING) then
+            has_streaming_payload = true
+            break
+        end
+    end
+
+    -- For streaming payloads on success, don't buffer the body
+    local body_str, read_err
+    if has_streaming_payload and response.status_code >= 200 and response.status_code < 300 then
+        body_str = nil
+    else
+        body_str, read_err = http.read_all(response.body)
+        if read_err then
+            return nil, { type = "http", code = "ResponseReadError", message = read_err }
+        end
     end
 
     -- Error response
@@ -519,8 +536,6 @@ function M.deserialize(self, response, operation)
     end
 
     -- Success: deserialize output
-    local schema = operation.output_schema
-    local members = schema and schema:members() or {}
     local output = {}
 
     local payload_name, payload_schema
@@ -561,7 +576,10 @@ function M.deserialize(self, response, operation)
 
     -- Deserialize body
     if payload_name then
-        if body_str and #body_str > 0 then
+        if payload_schema:trait(t.STREAMING) then
+            -- Streaming blob: pass the reader through directly
+            output[payload_name] = response.body
+        elseif body_str and #body_str > 0 then
             if payload_schema.type == "structure" or payload_schema.type == "union" then
                 local v, err = self.codec:deserialize(body_str, payload_schema)
                 if err then return nil, err end

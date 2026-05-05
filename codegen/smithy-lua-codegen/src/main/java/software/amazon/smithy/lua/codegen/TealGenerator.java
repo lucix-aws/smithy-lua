@@ -16,9 +16,9 @@ import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
 import software.amazon.smithy.model.shapes.UnionShape;
-import software.amazon.smithy.model.traits.ErrorTrait;
-import software.amazon.smithy.model.traits.HttpTrait;
+import software.amazon.smithy.model.traits.HttpPayloadTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
+import software.amazon.smithy.model.traits.StreamingTrait;
 
 /**
  * Generates Teal .d.tl declaration files alongside .lua files.
@@ -149,7 +149,12 @@ final class TealGenerator {
         writer.indent();
         for (var member : shape.members()) {
             var target = model.expectShape(member.getTarget());
-            var tealType = toTealType(target, service, model);
+            String tealType;
+            if (member.hasTrait(HttpPayloadTrait.class) && target.hasTrait(StreamingTrait.class)) {
+                tealType = "function(): string, string";
+            } else {
+                tealType = toTealType(target, service, model);
+            }
             writer.write("$L: $L", member.getMemberName(), tealType);
         }
         writer.dedent();
