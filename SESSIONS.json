@@ -382,5 +382,17 @@
       "regenerate aws-sdk-lua and e2e test with Bedrock ConverseStream"
     ],
     "outcome": "Full output-only event stream support. Runtime: binary frame decoder (CRC-32, header parsing), event deserialization with @eventHeader/@eventPayload bindings, Stream object with :events() iterator and :close(), initial-response for RPC protocols. HTTP client rewritten with curl_multi for true streaming. Pipeline: invokeOperation detects event_stream operations, returns stream instead of deserialized output. Codegen: skips input/duplex stream operations, emits event_stream field referencing streaming union schema, emits event_header/event_payload traits. E2E verified: Bedrock ConverseStream with Nova Lite, real-time token streaming."
+  },
+  {
+    "session": 28,
+    "task": "Operation interceptors: SRA-aligned hook system in invokeOperation",
+    "start": "2026-05-05T11:44:00-04:00",
+    "end": "2026-05-05T12:00:00-04:00",
+    "duration_minutes": 16,
+    "branch": "interceptors",
+    "prompts": [
+      "new agent task: operation interceptors, create worktree"
+    ],
+    "outcome": "Implemented operation interceptors matching SRA hook model. 19 hooks (read_before_execution through read_after_execution). interceptor.lua provides run_read, run_modify, run_modify_completion, run_read_with_error helpers. client.lua integrated with all hooks at correct pipeline positions. Zero overhead when no interceptors configured. Teal .d.tl declarations. 17 new tests all passing, no regressions in existing tests (client, retry)."
   }
 ]

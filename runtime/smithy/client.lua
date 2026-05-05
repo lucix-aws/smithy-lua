@@ -3,6 +3,7 @@
 
 local auth = require("smithy.auth")
 local eventstream = require("smithy.eventstream")
+local interceptor = require("smithy.interceptor")
 
 local M = {}
 
@@ -20,8 +21,27 @@ function M.new(config)
 end
 
 --- Execute a single attempt.
---- Auth resolution → endpoint → apply endpoint auth overrides → sign → send → deserialize.
-local function do_attempt(config, input, request, operation)
+local function do_attempt(config, input, request, operation, interceptors, ctx)
+    -- read_before_attempt
+    ctx.request = request
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_before_attempt", ctx)
+        if hook_err then return nil, hook_err end
+    end
+
+    -- modify_before_signing
+    if interceptors then
+        local new_req, err = interceptor.run_modify(interceptors, "modify_before_signing", ctx, "request")
+        if err then return nil, err end
+        request = new_req
+    end
+
+    -- read_before_signing
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_before_signing", ctx)
+        if hook_err then return nil, hook_err end
+    end
+
     -- 1. Resolve auth scheme
     local resolver = config.auth_scheme_resolver or auth.default_auth_scheme_resolver
     local options = resolver(operation)
@@ -66,25 +86,73 @@ local function do_attempt(config, input, request, operation)
     -- 7. Sign
     request, err = selected.scheme.signer(request, identity, signer_props)
     if err then return nil, err end
+    ctx.request = request
+
+    -- read_after_signing
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_after_signing", ctx)
+        if hook_err then return nil, hook_err end
+    end
+
+    -- modify_before_transmit
+    if interceptors then
+        local new_req
+        new_req, err = interceptor.run_modify(interceptors, "modify_before_transmit", ctx, "request")
+        if err then return nil, err end
+        request = new_req
+    end
+
+    -- read_before_transmit
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_before_transmit", ctx)
+        if hook_err then return nil, hook_err end
+    end
 
     -- 8. Transmit
     local response
     response, err = config.http_client(request)
     if err then return nil, err end
+    ctx.response = response
+
+    -- read_after_transmit
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_after_transmit", ctx)
+        if hook_err then return nil, hook_err end
+    end
+
+    -- modify_before_deserialization
+    if interceptors then
+        local new_resp
+        new_resp, err = interceptor.run_modify(interceptors, "modify_before_deserialization", ctx, "response")
+        if err then return nil, err end
+        response = new_resp
+    end
+
+    -- read_before_deserialization
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_before_deserialization", ctx)
+        if hook_err then return nil, hook_err end
+    end
 
     -- 9. Deserialize
-    -- For event stream operations, check for HTTP-level errors but don't
-    -- consume the body — it will be read as a stream.
     if operation.event_stream then
         if response.status_code < 200 or response.status_code >= 300 then
-            -- Operation-level error: deserialize normally
             return config.protocol:deserialize(response, operation)
         end
-        -- Success: return the raw response for stream wrapping
         return response, nil
     end
 
-    return config.protocol:deserialize(response, operation)
+    local output
+    output, err = config.protocol:deserialize(response, operation)
+    ctx.output = output
+
+    -- read_after_deserialization
+    if interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_after_deserialization", ctx)
+        if hook_err and not err then err = hook_err end
+    end
+
+    return output, err
 end
 
 --- The SDK operation pipeline.
@@ -97,58 +165,164 @@ function M.invokeOperation(self, input, operation, options)
         end
     end
 
+    local interceptors = config.interceptors
+    local has_interceptors = interceptors and #interceptors > 0
+
+    -- Build the interceptor context table
+    local ctx = { input = input, operation = operation }
+
+    -- read_before_execution
+    if has_interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_before_execution", ctx)
+        if hook_err then
+            -- Jump to modify_before_completion
+            ctx.output = nil
+            local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
+            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+            if err then return nil, err end
+            return output, nil
+        end
+    end
+
+    -- modify_before_serialization
+    if has_interceptors then
+        local new_input, err = interceptor.run_modify(interceptors, "modify_before_serialization", ctx, "input")
+        if err then
+            ctx.output = nil
+            local output
+            output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, err)
+            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+            if err then return nil, err end
+            return output, nil
+        end
+        input = new_input
+    end
+
+    -- read_before_serialization
+    if has_interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_before_serialization", ctx)
+        if hook_err then
+            ctx.output = nil
+            local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
+            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+            if err then return nil, err end
+            return output, nil
+        end
+    end
+
     -- 5. Serialize
-    local request, err = config.protocol:serialize(input, operation)
-    if err then return nil, err end
+    local request, serialize_err = config.protocol:serialize(input, operation)
+    if serialize_err then
+        if not has_interceptors then return nil, serialize_err end
+        ctx.output = nil
+        local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, serialize_err)
+        err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+        if err then return nil, err end
+        return output, nil
+    end
+    ctx.request = request
+
+    -- read_after_serialization
+    if has_interceptors then
+        local hook_err = interceptor.run_read(interceptors, "read_after_serialization", ctx)
+        if hook_err then
+            ctx.output = nil
+            local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
+            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+            if err then return nil, err end
+            return output, nil
+        end
+    end
+
+    -- modify_before_retry_loop
+    if has_interceptors then
+        local new_req, err = interceptor.run_modify(interceptors, "modify_before_retry_loop", ctx, "request")
+        if err then
+            ctx.output = nil
+            local output
+            output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, err)
+            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+            if err then return nil, err end
+            return output, nil
+        end
+        request = new_req
+    end
 
     -- Stash the original path so we can rebuild the URL on each attempt
     request._path = request.url
 
     -- 8. Retry loop
     local retryer = config.retry_strategy
-    local result
+    local result, attempt_err
 
     if not retryer then
-        result, err = do_attempt(config, input, request, operation)
+        result, attempt_err = do_attempt(config, input, request, operation,
+            has_interceptors and interceptors or nil, ctx)
+
+        -- modify_before_attempt_completion + read_after_attempt
+        if has_interceptors then
+            ctx.output = result
+            result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_attempt_completion", ctx, attempt_err)
+            attempt_err = interceptor.run_read_with_error(interceptors, "read_after_attempt", ctx, attempt_err)
+        end
     else
         local token
-        token, err = retryer:acquire_token()
-        if err then return nil, err end
+        token, attempt_err = retryer:acquire_token()
+        if not attempt_err then
+            while true do
+                result, attempt_err = do_attempt(config, input, request, operation,
+                    has_interceptors and interceptors or nil, ctx)
 
-        while true do
-            result, err = do_attempt(config, input, request, operation)
+                -- modify_before_attempt_completion + read_after_attempt
+                if has_interceptors then
+                    ctx.output = result
+                    result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_attempt_completion", ctx, attempt_err)
+                    attempt_err = interceptor.run_read_with_error(interceptors, "read_after_attempt", ctx, attempt_err)
+                end
 
-            if not err then
-                retryer:record_success(token)
-                break
-            end
+                if not attempt_err then
+                    retryer:record_success(token)
+                    break
+                end
 
-            local delay
-            delay, err = retryer:retry_token(token, err)
-            if not delay then
-                return nil, err
-            end
+                local delay
+                delay, attempt_err = retryer:retry_token(token, attempt_err)
+                if not delay then
+                    break
+                end
 
-            if delay > 0 then
-                local socket_ok, socket = pcall(require, "socket")
-                if socket_ok and socket.sleep then
-                    socket.sleep(delay)
-                else
-                    local target = os.clock() + delay
-                    while os.clock() < target do end
+                if delay > 0 then
+                    local socket_ok, socket = pcall(require, "socket")
+                    if socket_ok and socket.sleep then
+                        socket.sleep(delay)
+                    else
+                        local target = os.clock() + delay
+                        while os.clock() < target do end
+                    end
                 end
             end
         end
     end
 
-    if err then return nil, err end
+    -- modify_before_completion
+    if has_interceptors then
+        ctx.output = result
+        result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, attempt_err)
+    end
+
+    -- read_after_execution
+    if has_interceptors then
+        attempt_err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, attempt_err)
+    end
+
+    if attempt_err then return nil, attempt_err end
 
     -- For event stream operations, wrap the response in a stream object
     if operation.event_stream then
         local protocol = config.protocol
         local stream = eventstream.new_stream(
-            result.body,  -- response body reader
-            operation.event_stream,  -- the streaming union schema
+            result.body,
+            operation.event_stream,
             protocol.codec,
             {
                 has_initial_message = protocol.has_event_stream_initial_message,
@@ -156,9 +330,6 @@ function M.invokeOperation(self, input, operation, options)
                 on_close = result.close,
             }
         )
-        -- For REST protocols, the initial response is in HTTP headers/body
-        -- which was already deserialized. For RPC protocols, it's in the stream.
-        -- Either way, return the stream as the result.
         return stream, nil
     end
 

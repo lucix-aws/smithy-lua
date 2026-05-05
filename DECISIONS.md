@@ -305,3 +305,16 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 **Context:** Pure-Lua ECDSA P-256 signing works but is slow (scalar multiplication over bigints). OpenSSL is available on most systems and handles this in native code.
 **Decision:** `crypto/ecdsa.lua` is now a lazy resolver. On first call to `sign()`, it probes for OpenSSL libcrypto via LuaJIT FFI. If available, locks in `ecdsa_openssl.lua` for the process lifetime. Otherwise falls back to `ecdsa_lua.lua` (the original pure-Lua implementation, unchanged). The public interface (`ecdsa.sign(d, hash_bytes) -> DER`) is unchanged — callers don't know which backend is active. `ecdsa.backend()` returns `"openssl"` or `"lua"` for diagnostics.
 **Affects:** Any code that previously required `smithy.crypto.ecdsa` — no API change, but the module is now a resolver rather than the implementation itself. `der_encode` is only on the Lua backend directly; the resolver delegates to `ecdsa_lua` for it.
+
+## 2026-05-05 — Operation interceptors: SRA-aligned hook system in invokeOperation
+
+**Context:** The interceptors field was stubbed in session 4 but never implemented. The SRA defines a comprehensive set of hooks for observing/modifying requests and responses at defined pipeline points.
+**Decision:** Implemented operation interceptors matching the SRA hook model:
+1. **Interface:** An interceptor is a table with optional hook methods. 19 hooks total: `read_before_execution`, `modify_before_serialization`, `read_before_serialization`, `read_after_serialization`, `modify_before_retry_loop`, `read_before_attempt`, `modify_before_signing`, `read_before_signing`, `read_after_signing`, `modify_before_transmit`, `read_before_transmit`, `read_after_transmit`, `modify_before_deserialization`, `read_before_deserialization`, `read_after_deserialization`, `modify_before_attempt_completion`, `read_after_attempt`, `modify_before_completion`, `read_after_execution`.
+2. **Semantics:** `read_*` hooks observe only (return value ignored). `modify_*` hooks return a new value for the field they modify. Completion hooks (`modify_before_attempt_completion`, `modify_before_completion`) receive `(ctx, err)` and return `(output, err)` — they can swallow or replace errors.
+3. **Error behavior:** Errors in pre-serialization hooks jump to `modify_before_completion`. Errors in per-attempt hooks jump to `modify_before_attempt_completion`. Matches SRA spec.
+4. **Context:** A single context table carries `input`, `operation`, `request`, `response`, `output` — fields populated progressively as the pipeline advances.
+5. **Configuration:** `config.interceptors` is a list of interceptor tables. Can be set at client construction or added per-call via plugins.
+6. **Performance:** When `interceptors` is nil or empty, no hook overhead — all hook calls are guarded by `if has_interceptors`.
+7. **Module:** `runtime/smithy/interceptor.lua` exports `run_read`, `run_modify`, `run_modify_completion`, `run_read_with_error` helpers used by `client.lua`.
+**Affects:** client.lua (pipeline now has interceptor hooks), any code that sets `config.interceptors`.
