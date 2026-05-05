@@ -32,7 +32,7 @@ public final class PaginatorGenerator implements LuaIntegration {
 
         context.writerDelegator().useFileWriter(
                 serviceNs + "/paginators.lua", serviceNs, writer -> {
-                    writer.addRequire("paginator", "paginator");
+                    writer.addRequire("paginator", "smithy.paginator");
                     writer.write("local M = {}");
                     writer.write("");
 

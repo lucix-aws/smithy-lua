@@ -172,8 +172,8 @@ public final class DirectedLuaCodegen
             var operationIndex = OperationIndex.of(model);
 
             // Require base client
-            writer.addRequire("base_client", "client");
-            writer.addRequire("defaults", "defaults");
+            writer.addRequire("base_client", "smithy.client");
+            writer.addRequire("defaults", "smithy.defaults");
 
             // Module table
             writer.write("local M = {}");
@@ -204,7 +204,7 @@ public final class DirectedLuaCodegen
                 // Service-specific: endpoint resolver
                 if (service.hasTrait(EndpointRuleSetTrait.class)) {
                     writer.addRequire("endpoint_rules", serviceNs + ".endpoint_rules");
-                    writer.addRequire("endpoint", "endpoint");
+                    writer.addRequire("endpoint", "smithy.endpoint");
                     writer.block("if not cfg.endpoint_provider then", () -> {
                         writer.block("cfg.endpoint_provider = function(params)", () -> {
                             writer.write("return endpoint.resolve(endpoint_rules, params)");
@@ -270,31 +270,31 @@ public final class DirectedLuaCodegen
         for (var traitId : traits.keySet()) {
             var name = traitId.toString();
             if (name.equals("aws.protocols#awsJson1_0")) {
-                protocolRequire = "protocol.awsjson";
+                protocolRequire = "smithy.protocol.awsjson";
                 protocolExpr = "awsjson_protocol.new({ version = \"1.0\", service_id = cfg.service_id })";
             } else if (name.equals("aws.protocols#awsJson1_1")) {
-                protocolRequire = "protocol.awsjson";
+                protocolRequire = "smithy.protocol.awsjson";
                 protocolExpr = "awsjson_protocol.new({ version = \"1.1\", service_id = cfg.service_id })";
             } else if (name.equals("aws.protocols#restJson1")) {
-                protocolRequire = "protocol.restjson";
+                protocolRequire = "smithy.protocol.restjson";
                 protocolExpr = "restjson_protocol.new()";
             } else if (name.equals("aws.protocols#restXml")) {
-                protocolRequire = "protocol.restxml";
+                protocolRequire = "smithy.protocol.restxml";
                 protocolExpr = "restxml_protocol.new()";
             } else if (name.equals("aws.protocols#awsQuery")) {
-                protocolRequire = "protocol.query";
+                protocolRequire = "smithy.protocol.query";
                 protocolExpr = "query_protocol.new(\"awsQuery\")";
             } else if (name.equals("aws.protocols#ec2Query")) {
-                protocolRequire = "protocol.query";
+                protocolRequire = "smithy.protocol.query";
                 protocolExpr = "query_protocol.new(\"ec2Query\")";
             } else if (name.equals("smithy.protocols#rpcv2Cbor")) {
-                protocolRequire = "protocol.rpcv2cbor";
+                protocolRequire = "smithy.protocol.rpcv2cbor";
                 protocolExpr = "rpcv2cbor_protocol.new()";
             }
         }
 
         if (protocolRequire != null) {
-            var alias = protocolRequire.replace("protocol.", "") + "_protocol";
+            var alias = protocolRequire.replace("smithy.protocol.", "") + "_protocol";
             writer.addRequire(alias, protocolRequire);
             final var expr = protocolExpr;
             writer.block("if not cfg.protocol then", () -> {

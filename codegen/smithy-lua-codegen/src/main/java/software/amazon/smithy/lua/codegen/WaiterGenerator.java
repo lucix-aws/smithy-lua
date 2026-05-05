@@ -38,7 +38,7 @@ public final class WaiterGenerator implements LuaIntegration {
 
         context.writerDelegator().useFileWriter(
                 serviceNs + "/waiters.lua", serviceNs, writer -> {
-                    writer.addRequire("waiter", "waiter");
+                    writer.addRequire("waiter", "smithy.waiter");
                     writer.write("local M = {}");
                     writer.write("");
 

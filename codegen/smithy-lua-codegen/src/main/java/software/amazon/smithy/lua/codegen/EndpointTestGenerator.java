@@ -46,7 +46,7 @@ public final class EndpointTestGenerator implements LuaIntegration {
         w.write("");
         w.write("package.path = \"runtime/?.lua;runtime/?/init.lua;\" .. package.path");
         w.write("");
-        w.write("local endpoint = require(\"endpoint\")");
+        w.write("local endpoint = require(\"smithy.endpoint\")");
         w.write("local ruleset = require($S)", ns + ".endpoint_rules");
         w.write("");
         w.write("local pass_count = 0");

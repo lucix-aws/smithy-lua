@@ -249,28 +249,28 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("package.path = \"runtime/?.lua;runtime/?/init.lua;\" .. package.path");
         w.write("");
         w.write("local types = require($S)", ns + ".schemas");
-        w.write("local http = require(\"http\")");
-        w.write("local json_decoder = require(\"json.decoder\")");
+        w.write("local http = require(\"smithy.http\")");
+        w.write("local json_decoder = require(\"smithy.json.decoder\")");
 
         var serviceName = svc.getId().getName();
         if (proto.contains("awsJson1_0") || proto.contains("awsJson1_1")) {
-            w.write("local protocol_mod = require(\"protocol.awsjson\")");
+            w.write("local protocol_mod = require(\"smithy.protocol.awsjson\")");
             w.write("local protocol = protocol_mod.new({ version = $S, service_id = $S })",
                     proto.contains("1_0") ? "1.0" : "1.1", serviceName);
         } else if (proto.contains("restJson")) {
-            w.write("local protocol_mod = require(\"protocol.restjson\")");
+            w.write("local protocol_mod = require(\"smithy.protocol.restjson\")");
             w.write("local protocol = protocol_mod.new()");
         } else if (proto.contains("restXml")) {
-            w.write("local protocol_mod = require(\"protocol.restxml\")");
+            w.write("local protocol_mod = require(\"smithy.protocol.restxml\")");
             w.write("local protocol = protocol_mod.new()");
         } else if (proto.contains("awsQuery")) {
-            w.write("local protocol_mod = require(\"protocol.awsquery\")");
+            w.write("local protocol_mod = require(\"smithy.protocol.awsquery\")");
             w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());
         } else if (proto.contains("ec2Query")) {
-            w.write("local protocol_mod = require(\"protocol.ec2query\")");
+            w.write("local protocol_mod = require(\"smithy.protocol.ec2query\")");
             w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());
         } else if (proto.contains("rpcv2Cbor")) {
-            w.write("local protocol_mod = require(\"protocol.rpcv2cbor\")");
+            w.write("local protocol_mod = require(\"smithy.protocol.rpcv2cbor\")");
             w.write("local protocol = protocol_mod.new({ service_name = $S })", serviceName);
         } else {
             w.write("-- TODO: protocol module for $L", proto);
