@@ -1,9 +1,10 @@
 -- HTTP client resolver: probes available backends and returns the best one.
--- Resolution order: luasocket+luasec > libcurl FFI > curl subprocess
+-- Resolution order: CRT > libcurl FFI > curl subprocess
 
 local M = {}
 
 local backends = {
+    { name = "crt",             mod = "aws_crt.http" },
     { name = "curl_ffi",        mod = "http.curl_ffi" },
     { name = "curl_subprocess", mod = "http.curl_subprocess" },
 }
