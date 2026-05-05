@@ -50,6 +50,7 @@ import software.amazon.smithy.model.traits.XmlAttributeTrait;
 import software.amazon.smithy.model.traits.XmlFlattenedTrait;
 import software.amazon.smithy.model.traits.XmlNameTrait;
 import software.amazon.smithy.model.traits.XmlNamespaceTrait;
+import software.amazon.smithy.model.traits.synthetic.OriginalShapeIdTrait;
 import software.amazon.smithy.rulesengine.traits.ContextParamTrait;
 import software.amazon.smithy.rulesengine.traits.EndpointRuleSetTrait;
 
@@ -424,7 +425,7 @@ public final class DirectedLuaCodegen
             var namespace = shape.getId().getNamespace();
             writer.write("M.$L = schema.new({", name);
             writer.indent();
-            writer.write("id = id.from(_N, $S),", shape.getId().getName());
+            writer.write("id = id.from(_N, $S),", schemaIdName(shape));
             writer.write("type = \"union\",");
             if (!shape.members().isEmpty()) {
                 writer.write("members = {");
@@ -494,7 +495,7 @@ public final class DirectedLuaCodegen
 
         writer.write("M.$L = schema.new({", name);
         writer.indent();
-        writer.write("id = id.from(_N, $S),", shape.getId().getName());
+        writer.write("id = id.from(_N, $S),", schemaIdName(shape));
         writer.write("type = \"structure\",");
 
         // Collect structure-level traits
@@ -712,6 +713,12 @@ public final class DirectedLuaCodegen
             return "M." + target.getId().getName(service);
         }
         return preludeSchemaRef(target);
+    }
+
+    private String schemaIdName(Shape shape) {
+        return shape.getTrait(OriginalShapeIdTrait.class)
+                .map(t -> t.getOriginalId().getName())
+                .orElse(shape.getId().getName());
     }
 
     private String preludeIdExpr(Shape target) {
