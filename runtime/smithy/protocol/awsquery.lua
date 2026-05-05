@@ -66,7 +66,10 @@ local function serialize_query(v, prefix, schema, params, ec2)
     elseif st == stype.LIST then
         local elem_schema = schema.list_member or { type = stype.STRING }
         local flattened = ec2 or schema:trait(t.XML_FLATTENED)
-        if flattened then
+        if #v == 0 and not ec2 then
+            -- Empty list: emit key with empty value (awsQuery only)
+            params[#params + 1] = pct_encode(prefix) .. "="
+        elseif flattened then
             for i = 1, #v do
                 serialize_query(v[i], prefix .. "." .. i, elem_schema, params, ec2)
             end
@@ -149,6 +152,26 @@ local function serialize_query(v, prefix, schema, params, ec2)
         params[#params + 1] = pct_encode(prefix) .. "=" .. pct_encode(string.format("%.0f", v))
         return
 
+    elseif st == "document" and type(v) == "table" then
+        -- Infer list vs map from the value
+        if #v > 0 then
+            -- Treat as list
+            for i = 1, #v do
+                serialize_query(v[i], prefix .. ".member." .. i, { type = stype.STRING }, params, ec2)
+            end
+        else
+            -- Treat as map
+            local keys = {}
+            for k in pairs(v) do keys[#keys + 1] = k end
+            table.sort(keys)
+            for i, k in ipairs(keys) do
+                local entry_prefix = prefix .. ".entry." .. i
+                params[#params + 1] = pct_encode(entry_prefix .. ".key") .. "=" .. pct_encode(k)
+                serialize_query(v[k], entry_prefix .. ".value", { type = stype.STRING }, params, ec2)
+            end
+        end
+        return
+
     else
         params[#params + 1] = pct_encode(prefix) .. "=" .. pct_encode(tostring(v))
         return
@@ -157,13 +180,23 @@ end
 
 function M.serialize(self, input, operation)
     input = input or {}
+
+    -- Auto-fill idempotency tokens
+    local schema = operation.input_schema
+    if schema and schema:members() then
+        for mname, ms in pairs(schema:members()) do
+            if input[mname] == nil and ms:trait(t.IDEMPOTENCY_TOKEN) then
+                input[mname] = "00000000-0000-4000-8000-000000000000"
+            end
+        end
+    end
+
     local prefix_parts = {
         "Action=" .. pct_encode(operation.name),
         "Version=" .. pct_encode(self.version),
     }
 
     local params = {}
-    local schema = operation.input_schema
     if schema and schema:members() then
         serialize_query(input, "", schema, params, self.ec2)
     end
@@ -179,7 +212,7 @@ function M.serialize(self, input, operation)
 
     return http.new_request(
         "POST",
-        "/",
+        operation.http_path or "/",
         {
             ["Content-Type"] = "application/x-www-form-urlencoded",
         },
@@ -249,6 +282,12 @@ function M.deserialize(self, response, operation)
             code, message = parse_ec2query_error(body_str)
         else
             code, message = parse_awsquery_error(body_str)
+        end
+        -- If the output_schema is an error shape, use its shape name as the code
+        -- (handles @awsQueryError where wire code differs from shape name)
+        local output_schema = operation.output_schema
+        if output_schema and output_schema.id and output_schema:trait(t.ERROR) then
+            code = output_schema.id.name
         end
         return nil, {
             type = "api",

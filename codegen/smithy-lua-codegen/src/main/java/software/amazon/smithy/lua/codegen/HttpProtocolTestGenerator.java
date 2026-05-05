@@ -156,6 +156,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                         w.write("assert_json_eq(body_str, $L)", luaLongString(body));
                     } else if (mediaType.contains("xml") || proto.contains("restXml")) {
                         w.write("assert_xml_eq(body_str, $L)", luaLongString(body));
+                    } else if (mediaType.contains("x-www-form-urlencoded") || proto.contains("Query")) {
+                        w.write("assert_form_eq(body_str, $L)", luaLongString(body));
                     } else {
                         w.write("assert_eq(body_str, $L, \"body\")", luaLongString(body));
                     }
@@ -401,6 +403,27 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("    local expected = json_decoder.decode(expected_str)");
         w.write("    if not deep_eq(actual, expected) then");
         w.write("        error(\"JSON mismatch:\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
+        w.write("    end");
+        w.write("end");
+        w.write("");
+
+        // assert_form_eq — order-independent form-urlencoded comparison
+        w.write("local function assert_form_eq(actual_str, expected_str)");
+        w.write("    local function parse_params(s)");
+        w.write("        local t = {}");
+        w.write("        for p in s:gmatch(\"[^&]+\") do t[#t+1] = p end");
+        w.write("        table.sort(t)");
+        w.write("        return t");
+        w.write("    end");
+        w.write("    local actual_params = parse_params(actual_str)");
+        w.write("    local expected_params = parse_params(expected_str)");
+        w.write("    if #actual_params ~= #expected_params then");
+        w.write("        error(\"form body param count mismatch: expected \" .. #expected_params .. \", got \" .. #actual_params .. \"\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
+        w.write("    end");
+        w.write("    for i = 1, #expected_params do");
+        w.write("        if actual_params[i] ~= expected_params[i] then");
+        w.write("            error(\"form body mismatch at param \" .. i .. \": expected \" .. expected_params[i] .. \", got \" .. actual_params[i] .. \"\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
+        w.write("        end");
         w.write("    end");
         w.write("end");
         w.write("");

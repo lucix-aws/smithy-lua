@@ -30,6 +30,7 @@ import software.amazon.smithy.model.shapes.StructureShape;
 import software.amazon.smithy.model.traits.ClientOptionalTrait;
 import software.amazon.smithy.model.traits.DefaultTrait;
 import software.amazon.smithy.model.traits.ErrorTrait;
+import software.amazon.smithy.aws.traits.protocols.Ec2QueryNameTrait;
 import software.amazon.smithy.model.traits.EventHeaderTrait;
 import software.amazon.smithy.model.traits.EventPayloadTrait;
 import software.amazon.smithy.model.traits.HttpHeaderTrait;
@@ -661,6 +662,12 @@ public final class DirectedLuaCodegen
                     writer.write("map_value = schema.new({ type = \"map\", map_key = $L, map_value = $L }),",
                             innerKeyRef, innerValueRef);
                 }
+            } else if (valueTarget.getType() == ShapeType.LIST) {
+                // Nested list as map value: emit inline list schema
+                var innerListMember = valueTarget.asListShape().get().getMember();
+                var innerListTarget = model.expectShape(innerListMember.getTarget());
+                writer.write("map_value = schema.new({ type = \"list\", list_member = $L }),",
+                        targetSchemaRef(innerListTarget, service));
             } else if (!valueTraits.isEmpty()) {
                 writer.write("map_value = schema.new({ type = $S, target = $L, traits = { $L } }),",
                         toLuaSchemaType(valueTarget), targetSchemaRef(valueTarget, service), String.join(", ", valueTraits));
@@ -819,6 +826,8 @@ public final class DirectedLuaCodegen
             entries.add("[traits.EVENT_HEADER] = {}");
         if (member.hasTrait(EventPayloadTrait.class))
             entries.add("[traits.EVENT_PAYLOAD] = {}");
+        member.getTrait(Ec2QueryNameTrait.class).ifPresent(t ->
+                entries.add("[traits.EC2_QUERY_NAME] = { name = \"" + t.getValue() + "\" }"));
     }
 
     private static String nodeToLua(Node node) {
