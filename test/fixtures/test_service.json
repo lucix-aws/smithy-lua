@@ -1,0 +1,107 @@
+{
+    "smithy": "2.0",
+    "shapes": {
+        "test.example#TestService": {
+            "type": "service",
+            "version": "2023-01-01",
+            "operations": [
+                { "target": "test.example#GetItem" },
+                { "target": "test.example#PutItem" }
+            ],
+            "traits": {
+                "aws.protocols#awsJson1_0": {},
+                "aws.auth#sigv4": { "name": "testservice" },
+                "smithy.api#auth": ["aws.auth#sigv4"]
+            }
+        },
+        "test.example#GetItem": {
+            "type": "operation",
+            "input": { "target": "test.example#GetItemInput" },
+            "output": { "target": "test.example#GetItemOutput" },
+            "traits": {
+                "smithy.api#http": { "method": "POST", "uri": "/" }
+            }
+        },
+        "test.example#GetItemInput": {
+            "type": "structure",
+            "members": {
+                "TableName": {
+                    "target": "smithy.api#String",
+                    "traits": {
+                        "smithy.api#required": {}
+                    }
+                },
+                "Key": {
+                    "target": "test.example#KeyMap"
+                }
+            }
+        },
+        "test.example#GetItemOutput": {
+            "type": "structure",
+            "members": {
+                "Item": {
+                    "target": "test.example#AttributeMap"
+                }
+            }
+        },
+        "test.example#PutItem": {
+            "type": "operation",
+            "input": { "target": "test.example#PutItemInput" },
+            "output": { "target": "test.example#PutItemOutput" },
+            "traits": {
+                "smithy.api#http": { "method": "POST", "uri": "/" }
+            }
+        },
+        "test.example#PutItemInput": {
+            "type": "structure",
+            "members": {
+                "TableName": {
+                    "target": "smithy.api#String",
+                    "traits": {
+                        "smithy.api#required": {}
+                    }
+                },
+                "Item": {
+                    "target": "test.example#AttributeMap",
+                    "traits": {
+                        "smithy.api#required": {}
+                    }
+                }
+            }
+        },
+        "test.example#PutItemOutput": {
+            "type": "structure",
+            "members": {}
+        },
+        "test.example#KeyMap": {
+            "type": "map",
+            "key": { "target": "smithy.api#String" },
+            "value": { "target": "test.example#AttributeValue" }
+        },
+        "test.example#AttributeMap": {
+            "type": "map",
+            "key": { "target": "smithy.api#String" },
+            "value": { "target": "test.example#AttributeValue" }
+        },
+        "test.example#AttributeValue": {
+            "type": "structure",
+            "members": {
+                "S": {
+                    "target": "smithy.api#String"
+                },
+                "N": {
+                    "target": "smithy.api#String"
+                }
+            }
+        },
+        "smithy.api#String": {
+            "type": "string"
+        },
+        "smithy.api#Integer": {
+            "type": "integer"
+        },
+        "smithy.api#Boolean": {
+            "type": "boolean"
+        }
+    }
+}

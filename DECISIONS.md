@@ -318,3 +318,33 @@ Blob defaults are base64-decoded before use (model stores them as base64).
 6. **Performance:** When `interceptors` is nil or empty, no hook overhead — all hook calls are guarded by `if has_interceptors`.
 7. **Module:** `runtime/smithy/interceptor.lua` exports `run_read`, `run_modify`, `run_modify_completion`, `run_read_with_error` helpers used by `client.lua`.
 **Affects:** client.lua (pipeline now has interceptor hooks), any code that sets `config.interceptors`.
+
+## 2026-05-05 — Dynamic client: runtime model loading without codegen
+
+**Context:** Want to call AWS services without running codegen — just give it a Smithy JSON AST model file.
+**Decision:** Single module `runtime/smithy/dynamic.lua` that:
+1. Loads a Smithy JSON AST model (file path or pre-parsed table)
+2. Converts shapes to runtime schemas using the same `schema.new()` format codegen produces
+3. Auto-detects protocol from service traits (awsJson, restJson, restXml, awsQuery, ec2Query, rpcv2Cbor)
+4. Auto-detects auth schemes and signing name from `aws.auth#sigv4` trait
+5. Supports endpoint rules from model or static `endpoint_url`
+6. Exposes `client:call(operationName, input)` and `client:operations()`
+7. Lazily builds operation tables on first call (caches them)
+
+**API:**
+```lua
+local dynamic = require("smithy.dynamic")
+local client = dynamic.new({
+    model = "path/to/model.json",  -- or a table
+    service = "com.example#MyService",  -- optional if single service
+    region = "us-east-1",
+    endpoint_url = "https://...",  -- or let endpoint rules resolve
+})
+local result, err = client:call("ListTables", { Limit = 10 })
+```
+
+**Key design:** The dynamic client produces the exact same operation tables that codegen produces. It feeds into the same `invokeOperation` pipeline. No new runtime machinery needed.
+
+**Also fixed:** `http/client.lua` had incorrect require paths for backends (`http.curl_ffi` → `smithy.http.curl_ffi`).
+
+**Affects:** New module only. No changes to existing pipeline or protocols.
