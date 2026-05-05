@@ -67,14 +67,14 @@ to support a model-loader etc.
 | jsonProtocol (awsJson 1.1) | **117/117** | **100%** |
 | jsonRpc10 (awsJson 1.0) | **66/66** | **100%** |
 | queryProtocol | **76/76** | **100%** |
+| restJsonProtocol | **241/241** | **100%** |
 | restXmlProtocol | **178/178** | **100%** |
+| restXmlProtocolNamespace | **2/2** | **100%** |
 | rpcV2Protocol (CBOR) | **68/68** | **100%** |
 | queryCompatibleJsonRpc10 | **3/3** | **100%** |
 | queryCompatibleRpcV2Protocol | **3/3** | **100%** |
 | nonQueryCompatibleRpcV2Protocol | **1/1** | **100%** |
-| restJsonProtocol | 232/235 | 99% |
-| restXmlProtocolNamespace | 1/2 | 50% |
-| **Total** | **804/808** | **99.5%** |
+| **Total** | **814/814** | **100%** |
 
 ## Hackathon Progress
 
