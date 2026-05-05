@@ -524,5 +524,24 @@
       "commit and merge, record session"
     ],
     "outcome": "All protocol tests now 814/814 (100%). Fixed 4 remaining failures: (1) restjson build_query KEY_ONLY sentinel caught by type(v)==table before identity check — moved sentinel check first. (2) restjson missing idempotency token auto-fill — added same logic restxml already had. (3) restjson timestamp list header parsing — HTTP-date contains commas, added split-on-every-other-comma logic. (4) restxml service-level @xmlNamespace not applied to root element — added xml_namespace option to protocol constructor + codegen emits it from XmlNamespaceTrait."
+  },
+  {
+    "session": 36,
+    "task": "Automated model updates — sync from api-models-aws + GitHub Actions workflow",
+    "start": "2026-05-05T15:59:00-04:00",
+    "end": "2026-05-05T16:22:00-04:00",
+    "duration_minutes": 23,
+    "branch": null,
+    "prompts": [
+      "investigate automatic updates from github.com/aws/api-models-aws",
+      "commit straight to main instead of PR",
+      "put the sync script in the Makefile for local use",
+      "fix cron to 06:00 UTC (12h after internal 2PM ET release)",
+      "fix JSON formatting issues (2-space vs 4-space, unicode escaping, trailing newline)",
+      "just copy as-is, take the one-time format diff",
+      "fix workflow to checkout smithy-lua for codegen",
+      "rename workflow to 'Update Clients'"
+    ],
+    "outcome": "Added automated model update pipeline to aws-sdk-lua. Makefile: sync-models target clones/pulls api-models-aws to /tmp, flattens models into codegen/sdk-codegen/aws-models/. GitHub Actions: .github/workflows/update-clients.yml runs daily at 06:00 UTC, checks out both repos, runs sync-models + generate, commits to main if changed. No PR gate — direct commit by github-actions[bot]."
   }
 ]
