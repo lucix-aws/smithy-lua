@@ -72,14 +72,14 @@ local function build_query(params)
     table.sort(keys)
     for _, k in ipairs(keys) do
         local v = params[k]
-        if type(v) == "table" then
+        if v == KEY_ONLY then
+            parts[#parts + 1] = uri_encode(k)
+        elseif type(v) == "table" then
             for _, item in ipairs(v) do
                 parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(item))
             end
         elseif v == "" then
             parts[#parts + 1] = uri_encode(k) .. "="
-        elseif v == KEY_ONLY then
-            parts[#parts + 1] = uri_encode(k)
         else
             parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(v))
         end
@@ -190,6 +190,30 @@ local function parse_header_value(v, member_schema)
     elseif member_schema.type == "list" then
         -- Parse comma-separated header list, respecting quoted strings
         local items = {}
+        local elem = member_schema.list_member
+        -- HTTP-date timestamps contain commas; split on every other comma
+        local is_httpdate_list = false
+        if elem and elem.type == "timestamp" then
+            local tf_trait = elem:trait(t.TIMESTAMP_FORMAT)
+            local tf = tf_trait and tf_trait.format or "http-date"
+            is_httpdate_list = (tf == "http-date")
+        end
+        if is_httpdate_list then
+            local skip = true
+            local j = 1
+            for i = 1, #v do
+                if v:sub(i, i) == "," then
+                    if skip then
+                        skip = false
+                    else
+                        skip = true
+                        items[#items + 1] = v:sub(j, i - 1):match("^%s*(.-)%s*$")
+                        j = i + 1
+                    end
+                end
+            end
+            items[#items + 1] = v:sub(j):match("^%s*(.-)%s*$")
+        else
         local i = 1
         while i <= #v do
             -- skip whitespace
@@ -219,8 +243,8 @@ local function parse_header_value(v, member_schema)
             -- skip comma
             while i <= #v and (v:sub(i,i) == "," or v:sub(i,i) == " ") do i = i + 1 end
         end
+        end -- end if/else is_httpdate_list
         -- Convert items based on member element type
-        local elem = member_schema.list_member
         if elem then
             for idx, item in ipairs(items) do
                 if elem.type == "integer" or elem.type == "long" or elem.type == "short"
@@ -235,8 +259,23 @@ local function parse_header_value(v, member_schema)
                         tf = tf_trait.format
                     end
                     if tf == "http-date" then
-                        -- individual items in a list header are not full http-date
-                        items[idx] = tonumber(item) or item
+                        local dt = {}
+                        dt.day, dt.month, dt.year, dt.hour, dt.min, dt.sec = item:match(
+                            "%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
+                        if dt.day then
+                            local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
+                            dt.month = months[dt.month] or 1
+                            dt.year = tonumber(dt.year); dt.day = tonumber(dt.day)
+                            dt.hour = tonumber(dt.hour); dt.min = tonumber(dt.min); dt.sec = tonumber(dt.sec)
+                            dt.isdst = false
+                            local epoch = os.time(dt)
+                            local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
+                            items[idx] = epoch - utc_offset
+                        else
+                            items[idx] = tonumber(item) or item
+                        end
+                    elseif tf == "date-time" then
+                        items[idx] = json_codec._parse_iso8601(item)
                     else
                         items[idx] = tonumber(item) or item
                     end
@@ -253,6 +292,13 @@ function M.serialize(self, input, operation)
     input = input or {}
     local schema = operation.input_schema
     local members = schema and schema:members() or {}
+
+    -- Auto-fill idempotency tokens
+    for name, ms in pairs(members) do
+        if ms:trait(t.IDEMPOTENCY_TOKEN) and input[name] == nil then
+            input[name] = "00000000-0000-4000-8000-000000000000"
+        end
+    end
 
     local labels = {}
     local query = {}

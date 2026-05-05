@@ -269,7 +269,13 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("local protocol = protocol_mod.new()");
         } else if (proto.contains("restXml")) {
             w.write("local protocol_mod = require(\"smithy.protocol.restxml\")");
-            w.write("local protocol = protocol_mod.new()");
+            var xmlNs = svc.getTrait(software.amazon.smithy.model.traits.XmlNamespaceTrait.class);
+            if (xmlNs.isPresent()) {
+                w.write("local protocol = protocol_mod.new({ xml_namespace = { uri = $S } })",
+                        xmlNs.get().getUri());
+            } else {
+                w.write("local protocol = protocol_mod.new()");
+            }
         } else if (proto.contains("awsQuery")) {
             w.write("local protocol_mod = require(\"smithy.protocol.awsquery\")");
             w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());

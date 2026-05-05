@@ -22,6 +22,7 @@ function M.new(settings)
             default_timestamp_format = schema_mod.timestamp.DATE_TIME,
         }),
         no_error_wrapping = settings.no_error_wrapping or false,
+        xml_namespace = settings.xml_namespace,
     }, M)
 end
 
@@ -423,6 +424,11 @@ function M.serialize(self, input, operation)
             local err
             body_str, err = self.codec:serialize(v, payload_schema, root)
             if err then return nil, err end
+            -- Apply service-level XML namespace to root element
+            if self.xml_namespace and body_str and #body_str > 0 then
+                local ns_attr = ' xmlns="' .. self.xml_namespace.uri .. '"'
+                body_str = body_str:gsub("^(<" .. root .. ")", "%1" .. ns_attr, 1)
+            end
         elseif payload_schema.type == stype.DOCUMENT then
             body_str = require("smithy.json.encoder").encode(v)
         elseif payload_schema.type == stype.BLOB then
@@ -452,6 +458,11 @@ function M.serialize(self, input, operation)
             local err
             body_str, err = self.codec:serialize(input, body_schema, root)
             if err then return nil, err end
+            -- Apply service-level XML namespace to root element
+            if self.xml_namespace and body_str and #body_str > 0 then
+                local ns_attr = ' xmlns="' .. self.xml_namespace.uri .. '"'
+                body_str = body_str:gsub("^(<" .. root .. ")", "%1" .. ns_attr, 1)
+            end
         elseif next(body_members) then
             -- Body members exist but all nil — send Content-Type + empty body
             headers["Content-Type"] = "application/xml"

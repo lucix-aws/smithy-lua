@@ -510,5 +510,19 @@
       "lists should get their own package-level schemas"
     ],
     "outcome": "rpcv2Cbor: 72/72 passing (was 7/27). Overall: 757/774 (was 691/732). Key fixes: prelude.Unit for no-input ops, base64 module extraction, CBOR DOM comparison in tests, top-level list/map schema generation, indefinite-length string decoding, NaN handling in deep_eq, header casing fix."
+  },
+  {
+    "session": 35,
+    "task": "Fix remaining 4 protocol test failures — 100% pass rate",
+    "start": "2026-05-05T15:25:00-04:00",
+    "end": "2026-05-05T15:37:00-04:00",
+    "duration_minutes": 12,
+    "branch": "fix-protocol-tests",
+    "prompts": [
+      "re-check the state of all protocol tests and update readme",
+      "spawn a new worktree to fix the remaining test failures",
+      "commit and merge, record session"
+    ],
+    "outcome": "All protocol tests now 814/814 (100%). Fixed 4 remaining failures: (1) restjson build_query KEY_ONLY sentinel caught by type(v)==table before identity check — moved sentinel check first. (2) restjson missing idempotency token auto-fill — added same logic restxml already had. (3) restjson timestamp list header parsing — HTTP-date contains commas, added split-on-every-other-comma logic. (4) restxml service-level @xmlNamespace not applied to root element — added xml_namespace option to protocol constructor + codegen emits it from XmlNamespaceTrait."
   }
 ]
