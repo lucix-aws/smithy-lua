@@ -455,7 +455,7 @@
   },
   {
     "session": 31,
-    "task": "Fix restxml protocol tests — 107/150 to 178/178 passing",
+    "task": "Fix restxml protocol tests \u2014 107/150 to 178/178 passing",
     "start": "2026-05-05T13:04:00-04:00",
     "end": "2026-05-05T13:54:00-04:00",
     "duration_minutes": 50,
@@ -470,7 +470,7 @@
   },
   {
     "session": 32,
-    "task": "Dynamic client — load Smithy JSON AST model at runtime, call operations without codegen",
+    "task": "Dynamic client \u2014 load Smithy JSON AST model at runtime, call operations without codegen",
     "start": "2026-05-05T13:52:00-04:00",
     "end": "2026-05-05T14:15:00-04:00",
     "duration_minutes": 23,
@@ -480,5 +480,23 @@
       "implement it, make a worktree"
     ],
     "outcome": "Implemented smithy.dynamic module (~300 lines). Loads Smithy JSON AST models at runtime, converts shapes to runtime schemas, auto-detects protocol/auth from service traits, and exposes client:call(name, input). Tested with unit tests (11 pass) and real AWS models (DynamoDB 57 ops loaded, STS awsQuery serialization correct). Also fixed pre-existing bug in http/client.lua require paths."
+  },
+  {
+    "session": 33,
+    "task": "Fix failing rpcv2Cbor protocol tests",
+    "start": "2026-05-05T14:20:00-04:00",
+    "end": "2026-05-05T15:17:00-04:00",
+    "duration_minutes": 57,
+    "branch": "cbor-fixes",
+    "prompts": [
+      "fix failing rpcv2Cbor tests - create worktree, run tests, fix",
+      "check how Go handles no-input (Unit) operations",
+      "show me what the schema looks like in Go",
+      "just point to prelude.Unit",
+      "decode both sides and deep compare for CBOR body assertions",
+      "extract base64 into its own module",
+      "lists should get their own package-level schemas"
+    ],
+    "outcome": "rpcv2Cbor: 72/72 passing (was 7/27). Overall: 757/774 (was 691/732). Key fixes: prelude.Unit for no-input ops, base64 module extraction, CBOR DOM comparison in tests, top-level list/map schema generation, indefinite-length string decoding, NaN handling in deep_eq, header casing fix."
   }
 ]

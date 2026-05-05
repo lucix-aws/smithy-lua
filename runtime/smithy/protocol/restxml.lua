@@ -3,6 +3,7 @@
 
 local json_codec = require("smithy.codec.json")
 local xml_codec = require("smithy.codec.xml")
+local base64 = require("smithy.base64")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")
 local t = require("smithy.traits")
@@ -111,7 +112,7 @@ local function format_header_value(v, member_schema)
         end
     end
     if member_schema and member_schema:trait(t.MEDIA_TYPE) then
-        return json_codec._base64_encode(tostring(v))
+        return base64.encode(tostring(v))
     end
     if type(v) == "table" then
         local items = {}
@@ -174,7 +175,7 @@ local function parse_header_value(v, member_schema)
             return tonumber(v)
         end
     elseif member_schema:trait(t.MEDIA_TYPE) then
-        return json_codec._base64_decode(v)
+        return base64.decode(v)
     elseif member_schema.type == stype.INTEGER or member_schema.type == stype.LONG
         or member_schema.type == stype.FLOAT or member_schema.type == stype.DOUBLE
         or member_schema.type == stype.SHORT or member_schema.type == stype.BYTE then

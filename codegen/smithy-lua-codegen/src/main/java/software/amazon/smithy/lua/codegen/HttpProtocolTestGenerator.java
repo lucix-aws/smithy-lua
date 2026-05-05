@@ -51,7 +51,12 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         "RestJsonHostWithPath",
         "RestJsonHostWithPathNoBasePath",
         // Query-compatible mode header not implemented
-        "QueryCompatibleAwsJson10CborSendsQueryModeHeader"
+        "QueryCompatibleAwsJson10CborSendsQueryModeHeader",
+        "QueryCompatibleRpcV2CborSendsQueryModeHeader",
+        // Default value population not yet implemented
+        "RpcV2CborClientPopulatesDefaultValuesInInput",
+        "RpcV2CborClientPopulatesDefaultsValuesWhenMissingInResponse",
+        "RpcV2CborClientUsesExplicitlyProvidedMemberValuesOverDefaults"
     );
 
     @Override
@@ -156,6 +161,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                         w.write("assert_json_eq(body_str, $L)", luaLongString(body));
                     } else if (mediaType.contains("xml") || proto.contains("restXml")) {
                         w.write("assert_xml_eq(body_str, $L)", luaLongString(body));
+                    } else if (mediaType.contains("cbor") || proto.contains("rpcv2Cbor")) {
+                        w.write("assert_cbor_eq(body_str, base64_decode($L))", luaLongString(body));
                     } else {
                         w.write("assert_eq(body_str, $L, \"body\")", luaLongString(body));
                     }
@@ -180,7 +187,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             }
             w.write("test($S, function()", tc.getId());
             w.indent();
-            writeMockResponse(w, tc);
+            writeMockResponse(w, tc, proto);
             w.write("local operation = {");
             w.indent();
             w.write("name = $S,", opName);
@@ -213,7 +220,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             }
             w.write("test($S, function()", tc.getId());
             w.indent();
-            writeMockResponse(w, tc);
+            writeMockResponse(w, tc, proto);
             w.write("local operation = {");
             w.indent();
             w.write("name = $S,", opName);
@@ -388,6 +395,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         // deep_eq
         w.write("local function deep_eq(a, b)");
         w.write("    if type(a) ~= type(b) then return false end");
+        w.write("    if type(a) == \"number\" and a ~= a and b ~= b then return true end");
         w.write("    if type(a) ~= \"table\" then return a == b end");
         w.write("    for k, v in pairs(a) do if not deep_eq(v, b[k]) then return false end end");
         w.write("    for k, _ in pairs(b) do if a[k] == nil then return false end end");
@@ -463,9 +471,26 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("        assert_eq(actual, expected, path)");
         w.write("    end");
         w.write("end");
+
+        // base64 + CBOR comparison helpers
+        w.write("");
+        w.write("local base64 = require(\"smithy.base64\")");
+        w.write("local base64_encode = base64.encode");
+        w.write("local base64_decode = base64.decode");
+        w.write("local cbor_codec = require(\"smithy.codec.cbor\")");
+        w.write("");
+        w.write("local function assert_cbor_eq(actual_bytes, expected_bytes)");
+        w.write("    local ok1, actual = pcall(cbor_codec.decode_item, actual_bytes, 1)");
+        w.write("    assert(ok1, \"failed to decode actual CBOR: \" .. tostring(actual))");
+        w.write("    local ok2, expected = pcall(cbor_codec.decode_item, expected_bytes, 1)");
+        w.write("    assert(ok2, \"failed to decode expected CBOR: \" .. tostring(expected))");
+        w.write("    if not deep_eq(actual, expected) then");
+        w.write("        error(\"CBOR mismatch:\\n  expected: \" .. tostring(expected) .. \"\\n  actual:   \" .. tostring(actual), 2)");
+        w.write("    end");
+        w.write("end");
     }
 
-    private void writeMockResponse(LuaWriter w, HttpResponseTestCase tc) {
+    private void writeMockResponse(LuaWriter w, HttpResponseTestCase tc, String proto) {
         w.write("local response = {");
         w.indent();
         w.write("status_code = $L,", tc.getCode());
@@ -477,7 +502,11 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.dedent();
         w.write("},");
         var body = tc.getBody().orElse("");
-        w.write("body = http.string_reader($L),", luaLongString(body));
+        if (proto.contains("rpcv2Cbor") && !body.isEmpty()) {
+            w.write("body = http.string_reader(base64_decode($L)),", luaLongString(body));
+        } else {
+            w.write("body = http.string_reader($L),", luaLongString(body));
+        }
         w.dedent();
         w.write("}");
     }

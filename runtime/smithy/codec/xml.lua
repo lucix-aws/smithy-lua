@@ -11,10 +11,11 @@ local huge = math.huge
 local M = {}
 M.__index = M
 
--- Reuse base64 from JSON codec
+-- Base64 support
+local base64 = require("smithy.base64")
+local base64_encode = base64.encode
+local base64_decode = base64.decode
 local json_codec = require("smithy.codec.json")
-local base64_encode = json_codec._base64_encode
-local base64_decode = json_codec._base64_decode
 
 function M.new(settings)
     settings = settings or {}
