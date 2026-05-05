@@ -232,10 +232,10 @@ public final class DirectedLuaCodegen
             var name = traitId.toString();
             if (name.equals("aws.protocols#awsJson1_0")) {
                 protocolRequire = "protocol.awsjson";
-                protocolExpr = "awsjson_protocol.new(\"1.0\")";
+                protocolExpr = "awsjson_protocol.new({ version = \"1.0\", service_id = cfg.service_id })";
             } else if (name.equals("aws.protocols#awsJson1_1")) {
                 protocolRequire = "protocol.awsjson";
-                protocolExpr = "awsjson_protocol.new(\"1.1\")";
+                protocolExpr = "awsjson_protocol.new({ version = \"1.1\", service_id = cfg.service_id })";
             } else if (name.equals("aws.protocols#restJson1")) {
                 protocolRequire = "protocol.restjson";
                 protocolExpr = "restjson_protocol.new()";

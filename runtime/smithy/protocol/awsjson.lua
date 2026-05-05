@@ -11,6 +11,7 @@ M.__index = M
 --- @param settings table: { version = "1.0"|"1.1", service_id = string }
 --- @return table: protocol with serialize/deserialize
 function M.new(settings)
+    if type(settings) == "string" then settings = { version = settings } end
     local version = settings and settings.version or "1.0"
     return setmetatable({
         content_type = "application/x-amz-json-" .. version,
