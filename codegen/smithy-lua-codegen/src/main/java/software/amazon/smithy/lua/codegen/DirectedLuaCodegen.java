@@ -46,6 +46,7 @@ import software.amazon.smithy.model.traits.MediaTypeTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
 import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.model.traits.TimestampFormatTrait;
+import software.amazon.smithy.model.traits.XmlAttributeTrait;
 import software.amazon.smithy.model.traits.XmlFlattenedTrait;
 import software.amazon.smithy.model.traits.XmlNameTrait;
 import software.amazon.smithy.model.traits.XmlNamespaceTrait;
@@ -114,9 +115,23 @@ public final class DirectedLuaCodegen
             writer.write("return M");
         });
 
-        // Write module footer to schemas.lua
+        // Write module footer to schemas.lua (with forward reference fixup)
         var schemasFile = serviceNs + "/schemas.lua";
         directive.context().writerDelegator().useFileWriter(schemasFile, serviceNs, writer -> {
+            writer.write("");
+            writer.write("-- Fix forward references for recursive schemas");
+            writer.write("for _, s in pairs(M) do");
+            writer.write("    if type(s) == \"table\" and (s.type == \"structure\" or s.type == \"union\") then");
+            writer.write("        local members = rawget(s, \"_members\")");
+            writer.write("        if members then");
+            writer.write("            for _, ms in pairs(members) do");
+            writer.write("                if (ms.type == \"structure\" or ms.type == \"union\") and not rawget(ms, \"_target\") and ms.target_id then");
+            writer.write("                    rawset(ms, \"_target\", M[ms.target_id.name])");
+            writer.write("                end");
+            writer.write("            end");
+            writer.write("        end");
+            writer.write("    end");
+            writer.write("end");
             writer.write("");
             writer.write("return M");
         });
@@ -556,16 +571,101 @@ public final class DirectedLuaCodegen
         if (target.getType() == ShapeType.LIST) {
             var listMember = target.asListShape().get().getMember();
             var listTarget = model.expectShape(listMember.getTarget());
-            writer.write("list_member = $L,", targetSchemaRef(listTarget, service));
+            var listMemberRef = targetSchemaRef(listTarget, service);
+            // Check if the list member has traits that need a wrapper schema
+            var listMemberTraits = new ArrayList<String>();
+            listMember.getTrait(XmlNameTrait.class).ifPresent(t ->
+                    listMemberTraits.add("[traits.XML_NAME] = { name = \"" + t.getValue() + "\" }"));
+            listMember.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+                var p = ns.getPrefix().orElse(null);
+                if (p != null) {
+                    listMemberTraits.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\", prefix = \"" + p + "\" }");
+                } else {
+                    listMemberTraits.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\" }");
+                }
+            });
+            if (listTarget.getType() == ShapeType.LIST) {
+                // Nested list: emit inline schema
+                var innerMember = listTarget.asListShape().get().getMember();
+                var innerTarget = model.expectShape(innerMember.getTarget());
+                writer.write("list_member = schema.new({ type = \"list\", list_member = $L }),", targetSchemaRef(innerTarget, service));
+            } else if (!listMemberTraits.isEmpty()) {
+                // List member with traits: wrap in schema.new
+                writer.write("list_member = schema.new({ type = $S, target = $L, traits = { $L } }),",
+                        toLuaSchemaType(listTarget), listMemberRef, String.join(", ", listMemberTraits));
+            } else {
+                writer.write("list_member = $L,", listMemberRef);
+            }
         }
 
         // Map key/value schemas
         if (target.getType() == ShapeType.MAP) {
             var mapShape = target.asMapShape().get();
-            var keyTarget = model.expectShape(mapShape.getKey().getTarget());
-            var valueTarget = model.expectShape(mapShape.getValue().getTarget());
-            writer.write("map_key = $L,", targetSchemaRef(keyTarget, service));
-            writer.write("map_value = $L,", targetSchemaRef(valueTarget, service));
+            var keyMember = mapShape.getKey();
+            var valueMember = mapShape.getValue();
+            var keyTarget = model.expectShape(keyMember.getTarget());
+            var valueTarget = model.expectShape(valueMember.getTarget());
+            // Key
+            var keyTraits = new ArrayList<String>();
+            keyMember.getTrait(XmlNameTrait.class).ifPresent(t ->
+                    keyTraits.add("[traits.XML_NAME] = { name = \"" + t.getValue() + "\" }"));
+            keyMember.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+                var p = ns.getPrefix().orElse(null);
+                if (p != null) {
+                    keyTraits.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\", prefix = \"" + p + "\" }");
+                } else {
+                    keyTraits.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\" }");
+                }
+            });
+            if (!keyTraits.isEmpty()) {
+                writer.write("map_key = schema.new({ type = $S, traits = { $L } }),",
+                        toLuaSchemaType(keyTarget), String.join(", ", keyTraits));
+            } else {
+                writer.write("map_key = $L,", targetSchemaRef(keyTarget, service));
+            }
+            // Value
+            var valueTraits = new ArrayList<String>();
+            valueMember.getTrait(XmlNameTrait.class).ifPresent(t ->
+                    valueTraits.add("[traits.XML_NAME] = { name = \"" + t.getValue() + "\" }"));
+            valueMember.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+                var p = ns.getPrefix().orElse(null);
+                if (p != null) {
+                    valueTraits.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\", prefix = \"" + p + "\" }");
+                } else {
+                    valueTraits.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\" }");
+                }
+            });
+            if (valueTarget.getType() == ShapeType.MAP) {
+                // Nested map: emit inline schema with inner key/value traits
+                var innerMap = valueTarget.asMapShape().get();
+                var innerKeyMember = innerMap.getKey();
+                var innerValueMember = innerMap.getValue();
+                var innerKeyTarget = model.expectShape(innerKeyMember.getTarget());
+                var innerValueTarget = model.expectShape(innerValueMember.getTarget());
+                var innerKeyRef = targetSchemaRef(innerKeyTarget, service);
+                var innerValueRef = targetSchemaRef(innerValueTarget, service);
+                // Check for xmlName on inner key/value
+                var innerKeyXmlName = innerKeyMember.getTrait(XmlNameTrait.class);
+                var innerValueXmlName = innerValueMember.getTrait(XmlNameTrait.class);
+                if (innerKeyXmlName.isPresent() || innerValueXmlName.isPresent()) {
+                    var innerKeyStr = innerKeyXmlName.isPresent()
+                            ? "schema.new({ type = \"" + toLuaSchemaType(innerKeyTarget) + "\", traits = { [traits.XML_NAME] = { name = \"" + innerKeyXmlName.get().getValue() + "\" } } })"
+                            : innerKeyRef;
+                    var innerValueStr = innerValueXmlName.isPresent()
+                            ? "schema.new({ type = \"" + toLuaSchemaType(innerValueTarget) + "\", traits = { [traits.XML_NAME] = { name = \"" + innerValueXmlName.get().getValue() + "\" } } })"
+                            : innerValueRef;
+                    writer.write("map_value = schema.new({ type = \"map\", map_key = $L, map_value = $L }),",
+                            innerKeyStr, innerValueStr);
+                } else {
+                    writer.write("map_value = schema.new({ type = \"map\", map_key = $L, map_value = $L }),",
+                            innerKeyRef, innerValueRef);
+                }
+            } else if (!valueTraits.isEmpty()) {
+                writer.write("map_value = schema.new({ type = $S, target = $L, traits = { $L } }),",
+                        toLuaSchemaType(valueTarget), targetSchemaRef(valueTarget, service), String.join(", ", valueTraits));
+            } else {
+                writer.write("map_value = $L,", targetSchemaRef(valueTarget, service));
+            }
         }
 
         // Collect effective traits (merged: target + member)
@@ -692,6 +792,8 @@ public final class DirectedLuaCodegen
                 entries.add("[traits.JSON_NAME] = { name = \"" + t.getValue() + "\" }"));
         member.getTrait(XmlNameTrait.class).ifPresent(t ->
                 entries.add("[traits.XML_NAME] = { name = \"" + t.getValue() + "\" }"));
+        if (member.hasTrait(XmlAttributeTrait.class))
+            entries.add("[traits.XML_ATTRIBUTE] = {}");
         if (member.hasTrait(XmlFlattenedTrait.class))
             entries.add("[traits.XML_FLATTENED] = {}");
         member.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {

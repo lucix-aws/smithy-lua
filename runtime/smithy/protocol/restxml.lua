@@ -71,14 +71,14 @@ local function build_query(params)
     table.sort(keys)
     for _, k in ipairs(keys) do
         local v = params[k]
-        if type(v) == "table" then
+        if v == KEY_ONLY then
+            parts[#parts + 1] = uri_encode(k)
+        elseif type(v) == "table" then
             for _, item in ipairs(v) do
                 parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(item))
             end
         elseif v == "" then
             parts[#parts + 1] = uri_encode(k) .. "="
-        elseif v == KEY_ONLY then
-            parts[#parts + 1] = uri_encode(k)
         else
             parts[#parts + 1] = uri_encode(k) .. "=" .. uri_encode(format_query_value(v))
         end
@@ -387,8 +387,12 @@ function M.serialize(self, input, operation)
             end
         elseif payload_schema.type == stype.STRUCTURE or payload_schema.type == stype.UNION then
             headers["Content-Type"] = "application/xml"
-            local xml_name = payload_schema:trait(t.XML_NAME)
-            local root = xml_name and xml_name.name or (payload_schema.id and payload_schema.id.name) or payload_name
+            -- Root element: member XML_NAME > target XML_NAME > target id name > member name
+            local target_schema = payload_schema._target or payload_schema
+            local xml_name_trait = payload_schema:trait(t.XML_NAME) or target_schema:trait(t.XML_NAME)
+            local root = (xml_name_trait and xml_name_trait.name)
+                or (target_schema.id and target_schema.id.name)
+                or payload_name
             local err
             body_str, err = self.codec:serialize(v, payload_schema, root)
             if err then return nil, err end

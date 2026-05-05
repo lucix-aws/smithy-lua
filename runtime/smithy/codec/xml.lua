@@ -86,7 +86,7 @@ local function encode_value(v, name, schema, buf, n, codec)
 
     if st == stype.STRUCTURE then
         n = n + 1; buf[n] = "<" .. name
-        -- XML namespace
+        -- XML namespace (only from the schema itself, not inherited from target)
         local xns = schema:trait(t.XML_NAMESPACE)
         if xns then
             n = n + 1; buf[n] = ns_attr_str(xns)
@@ -125,7 +125,12 @@ local function encode_value(v, name, schema, buf, n, codec)
         else
             -- Wrapped: container element, each item in <member> (or xmlName of member)
             local item_name = xml_name("member", elem_schema)
-            n = n + 1; buf[n] = "<" .. name .. ">"
+            local xns = schema:trait(t.XML_NAMESPACE)
+            if xns then
+                n = n + 1; buf[n] = "<" .. name .. ns_attr_str(xns) .. ">"
+            else
+                n = n + 1; buf[n] = "<" .. name .. ">"
+            end
             for i = 1, #v do
                 n = encode_value(v[i], item_name, elem_schema, buf, n, codec)
             end
@@ -152,9 +157,11 @@ local function encode_value(v, name, schema, buf, n, codec)
         local keys = {}
         for k in pairs(v) do keys[#keys + 1] = k end
         table.sort(keys)
+        local key_ns = key_schema.trait and key_schema:trait(t.XML_NAMESPACE)
+        local key_ns_str = key_ns and ns_attr_str(key_ns) or ""
         for _, k in ipairs(keys) do
             n = n + 1; buf[n] = "<" .. entry_name .. ">"
-            n = n + 1; buf[n] = "<" .. key_name .. ">" .. xml_escape(k) .. "</" .. key_name .. ">"
+            n = n + 1; buf[n] = "<" .. key_name .. key_ns_str .. ">" .. xml_escape(k) .. "</" .. key_name .. ">"
             n = encode_value(v[k], val_name, val_schema, buf, n, codec)
             n = n + 1; buf[n] = "</" .. entry_name .. ">"
         end
@@ -194,6 +201,14 @@ function M.serialize(self, value, schema, root_name)
     local ok, n_or_err = pcall(encode_value, value, root_name, schema, buf, 0, self)
     if not ok then
         return nil, { type = "sdk", message = "xml serialize: " .. tostring(n_or_err) }
+    end
+    -- Apply target namespace to root element if schema is a member reference
+    if schema._target and n_or_err > 0 then
+        local root_ns = schema._target:trait(t.XML_NAMESPACE)
+        if root_ns then
+            local ns_str = ns_attr_str(root_ns)
+            buf[1] = buf[1]:gsub("^(<" .. root_name .. ")", "%1" .. ns_str, 1)
+        end
     end
     return concat(buf, "", 1, n_or_err), nil
 end
