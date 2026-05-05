@@ -452,5 +452,20 @@
       "integrate into smithy-lua http client resolver"
     ],
     "outcome": "Created aws-crt-lua repo: C shim (src/crt_http.c) wrapping CRT async HTTP into synchronous blocking API, LuaJIT FFI binding (lua/aws_crt/http.lua) conforming to smithy.http transport interface, CMakeLists.txt with CRT submodules. Builds on macOS, all 3 tests pass (GET, POST, POST with reader body) against httpbin.org. Integrated as highest-priority backend in smithy-lua http/client.lua resolver \u2014 falls through to curl if CRT lib not present."
+  },
+  {
+    "session": 31,
+    "task": "Fix restxml protocol tests — 107/150 to 178/178 passing",
+    "start": "2026-05-05T13:04:00-04:00",
+    "end": "2026-05-05T13:54:00-04:00",
+    "duration_minutes": 50,
+    "branch": "fix-restxml, fix-restxml-final",
+    "prompts": [
+      "investigate S3 client state, write example",
+      "look at restxml protocol test failures instead",
+      "create worktree and fix",
+      "fix remaining 2 failures (CDATA, timestamp headers)"
+    ],
+    "outcome": "Fixed all 178 restxml protocol tests (was 107/150). Two worktrees. Commit 1: removed createDedicatedInputsAndOutputs (broke XML root names), added XML_ATTRIBUTE trait, fixed nested list/map schemas, forward reference fixup for recursive schemas, payload root name resolution, XML namespace on lists/maps/payloads, KEY_ONLY query param bug, stable sort in test comparison. Commit 2: XML parser CDATA/comment handling, whitespace preservation (skip only between sibling elements), HTTP-date timestamp list header splitting. Also wrote S3 example in aws-sdk-lua (ListBuckets works but returns empty list due to XML deserialization bug that is now fixed). Overall protocol tests: 607 -> 675 passing."
   }
 ]
