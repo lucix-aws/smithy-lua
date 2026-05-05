@@ -397,7 +397,7 @@
   },
   {
     "session": 29,
-    "task": "Refactor schema system — introduce formal ShapeId, Trait, and Schema types",
+    "task": "Refactor schema system \u2014 introduce formal ShapeId, Trait, and Schema types",
     "start": "2026-05-05T10:24:00-04:00",
     "end": "2026-05-05T12:44:00-04:00",
     "duration_minutes": 140,
@@ -421,7 +421,7 @@
       "no this is good enough",
       "yes and write a session record ofc"
     ],
-    "outcome": "Full schema system refactor. New modules: shape_id.lua (ShapeId with __eq/__tostring), traits.lua (trait key singletons with ShapeId identity), prelude.lua (canonical prelude schemas), schema.lua (proper container with trait()/direct_trait()/member()/members()). Codegen now emits schemas.lua separate from types.lua. All codecs (json, xml, cbor) and protocols (restjson, restxml, awsquery, rpcv2cbor) migrated to new API. Protocol tests: 607 passed, 94 failed (baseline 605/97 — net improvement of +2)."
+    "outcome": "Full schema system refactor. New modules: shape_id.lua (ShapeId with __eq/__tostring), traits.lua (trait key singletons with ShapeId identity), prelude.lua (canonical prelude schemas), schema.lua (proper container with trait()/direct_trait()/member()/members()). Codegen now emits schemas.lua separate from types.lua. All codecs (json, xml, cbor) and protocols (restjson, restxml, awsquery, rpcv2cbor) migrated to new API. Protocol tests: 607 passed, 94 failed (baseline 605/97 \u2014 net improvement of +2)."
   },
   {
     "session": 30,
@@ -435,6 +435,22 @@
       "can you make a worktree for this",
       "do the investigation yourself, get something complete, do not merge"
     ],
-    "outcome": "Proof-of-concept: runtime source in Teal (.tl), compiled to .lua via build.sh. Converted 23 core modules (error, schema, serde, http, auth, crypto/sha256, crypto/hmac, json/encoder, json/decoder, codec/json, protocol/awsjson, endpoint, endpoint/partitions, retry, retry/standard, signer, client, interceptor, paginator, waiter, defaults, protocol, http/client). Build uses 'tl gen --gen-target=5.1 --gen-compat=off'. All existing tests pass against compiled output (197/199 — 2 minor: test-only helper not ported, one interceptor error-path edge case). Key findings: (1) Teal works well, TypeScript analogy holds. (2) Main friction is nominal typing vs duck-typed Lua patterns — requires 'as' casts for dynamic dispatch. (3) Compiled output is clean plain Lua 5.1. (4) Remaining unconverted modules (restjson, restxml, awsquery, ec2query, rpcv2cbor, xml/cbor codecs, eventstream, sigv4a, extra crypto) can be done incrementally. Branch pushed to origin/teal-runtime for later revisit."
+    "outcome": "Proof-of-concept: runtime source in Teal (.tl), compiled to .lua via build.sh. Converted 23 core modules (error, schema, serde, http, auth, crypto/sha256, crypto/hmac, json/encoder, json/decoder, codec/json, protocol/awsjson, endpoint, endpoint/partitions, retry, retry/standard, signer, client, interceptor, paginator, waiter, defaults, protocol, http/client). Build uses 'tl gen --gen-target=5.1 --gen-compat=off'. All existing tests pass against compiled output (197/199 \u2014 2 minor: test-only helper not ported, one interceptor error-path edge case). Key findings: (1) Teal works well, TypeScript analogy holds. (2) Main friction is nominal typing vs duck-typed Lua patterns \u2014 requires 'as' casts for dynamic dispatch. (3) Compiled output is clean plain Lua 5.1. (4) Remaining unconverted modules (restjson, restxml, awsquery, ec2query, rpcv2cbor, xml/cbor codecs, eventstream, sigv4a, extra crypto) can be done incrementally. Branch pushed to origin/teal-runtime for later revisit."
+  },
+  {
+    "session": 31,
+    "task": "aws-crt-lua \u2014 CRT HTTP client PoC via LuaJIT FFI",
+    "start": "2026-05-05T12:45:00-04:00",
+    "end": "2026-05-05T13:49:00-04:00",
+    "duration_minutes": 64,
+    "branch": null,
+    "prompts": [
+      "what would it take to pull in the AWS CRT as an optional dependency?",
+      "does it have a http client?",
+      "the http client is mostly what i am interested in as a poc",
+      "ok it is at ~/git/aws-crt-lua, focus on getting http client calls working",
+      "integrate into smithy-lua http client resolver"
+    ],
+    "outcome": "Created aws-crt-lua repo: C shim (src/crt_http.c) wrapping CRT async HTTP into synchronous blocking API, LuaJIT FFI binding (lua/aws_crt/http.lua) conforming to smithy.http transport interface, CMakeLists.txt with CRT submodules. Builds on macOS, all 3 tests pass (GET, POST, POST with reader body) against httpbin.org. Integrated as highest-priority backend in smithy-lua http/client.lua resolver \u2014 falls through to curl if CRT lib not present."
   }
 ]
