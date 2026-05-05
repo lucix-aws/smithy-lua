@@ -17,6 +17,8 @@ function M.new(settings)
         service_id = settings and settings.service_id or "",
         -- awsJson does NOT use json_name — member names go on the wire as-is
         codec = json_codec.new({ use_json_name = false }),
+        -- RPC protocols send initial-request/initial-response as event stream messages
+        has_event_stream_initial_message = true,
     }, M)
 end
 

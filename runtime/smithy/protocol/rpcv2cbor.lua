@@ -14,6 +14,8 @@ function M.new(settings)
     return setmetatable({
         codec = cbor_codec.new(),
         service_name = settings.service_name or "",
+        -- RPC protocols send initial-request/initial-response as event stream messages
+        has_event_stream_initial_message = true,
     }, M)
 end
 

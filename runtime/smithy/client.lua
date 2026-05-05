@@ -2,6 +2,7 @@
 -- See INVOKE_OPERATION.md for the full contract.
 
 local auth = require("smithy.auth")
+local eventstream = require("smithy.eventstream")
 
 local M = {}
 
@@ -72,6 +73,17 @@ local function do_attempt(config, input, request, operation)
     if err then return nil, err end
 
     -- 9. Deserialize
+    -- For event stream operations, check for HTTP-level errors but don't
+    -- consume the body — it will be read as a stream.
+    if operation.event_stream then
+        if response.status_code < 200 or response.status_code >= 300 then
+            -- Operation-level error: deserialize normally
+            return config.protocol:deserialize(response, operation)
+        end
+        -- Success: return the raw response for stream wrapping
+        return response, nil
+    end
+
     return config.protocol:deserialize(response, operation)
 end
 
@@ -94,41 +106,63 @@ function M.invokeOperation(self, input, operation, options)
 
     -- 8. Retry loop
     local retryer = config.retry_strategy
+    local result
+
     if not retryer then
-        -- No retry strategy: single attempt
-        return do_attempt(config, input, request, operation)
-    end
+        result, err = do_attempt(config, input, request, operation)
+    else
+        local token
+        token, err = retryer:acquire_token()
+        if err then return nil, err end
 
-    local token
-    token, err = retryer:acquire_token()
-    if err then return nil, err end
+        while true do
+            result, err = do_attempt(config, input, request, operation)
 
-    local output
-    while true do
-        output, err = do_attempt(config, input, request, operation)
+            if not err then
+                retryer:record_success(token)
+                break
+            end
 
-        if not err then
-            retryer:record_success(token)
-            return output, nil
-        end
+            local delay
+            delay, err = retryer:retry_token(token, err)
+            if not delay then
+                return nil, err
+            end
 
-        -- Attempt failed — ask retryer if we should retry
-        local delay
-        delay, err = retryer:retry_token(token, err)
-        if not delay then
-            return nil, err
-        end
-
-        if delay > 0 then
-            local socket_ok, socket = pcall(require, "socket")
-            if socket_ok and socket.sleep then
-                socket.sleep(delay)
-            else
-                local target = os.clock() + delay
-                while os.clock() < target do end
+            if delay > 0 then
+                local socket_ok, socket = pcall(require, "socket")
+                if socket_ok and socket.sleep then
+                    socket.sleep(delay)
+                else
+                    local target = os.clock() + delay
+                    while os.clock() < target do end
+                end
             end
         end
     end
+
+    if err then return nil, err end
+
+    -- For event stream operations, wrap the response in a stream object
+    if operation.event_stream then
+        local protocol = config.protocol
+        local stream = eventstream.new_stream(
+            result.body,  -- response body reader
+            operation.event_stream,  -- the streaming union schema
+            protocol.codec,
+            {
+                has_initial_message = protocol.has_event_stream_initial_message,
+                output_schema = operation.output_schema,
+                on_close = result.close,
+            }
+        )
+        -- For REST protocols, the initial response is in HTTP headers/body
+        -- which was already deserialized. For RPC protocols, it's in the stream.
+        -- Either way, return the stream as the result.
+        return stream, nil
+    end
+
+    return result, nil
 end
 
 return M

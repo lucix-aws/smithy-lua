@@ -18,6 +18,8 @@ function M.new(settings)
             use_json_name = true,
             default_timestamp_format = schema_mod.timestamp.EPOCH_SECONDS,
         }),
+        -- REST protocols bind initial response to HTTP headers, not event messages
+        has_event_stream_initial_message = false,
     }, M)
 end
 

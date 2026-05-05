@@ -312,7 +312,7 @@
   },
   {
     "session": 23,
-    "task": "Fix endpoint rules engine — 373/424 to 424/424 service endpoint tests passing",
+    "task": "Fix endpoint rules engine \u2014 373/424 to 424/424 service endpoint tests passing",
     "start": "2026-05-04T16:53:00-04:00",
     "end": "2026-05-04T17:12:00-04:00",
     "duration_minutes": 19,
@@ -336,7 +336,7 @@
       "focus on restxml failures in worktree",
       "merge and wrap up"
     ],
-    "outcome": "Refactored protocoltest: moved gradle project to codegen/protocol-test-codegen/, generated output goes to protocoltest/ (gitignored). Fixed Makefile: make generate produces both build/ and protocoltest/, make protocol-test runs tests. Fixed restxml: codegen emits id/xml_name/xml_namespace/xml_flattened on schemas, assert_xml_eq for semantic XML comparison, xml_namespace on map/simple elements in codec, idempotency token auto-fill, prefix headers empty table, timestamp list parsing. Protocol tests: 602/701 → 620/707 passing. Remaining restxml failures (39) due to shape name renaming issue (getName(service) renames Request→Input)."
+    "outcome": "Refactored protocoltest: moved gradle project to codegen/protocol-test-codegen/, generated output goes to protocoltest/ (gitignored). Fixed Makefile: make generate produces both build/ and protocoltest/, make protocol-test runs tests. Fixed restxml: codegen emits id/xml_name/xml_namespace/xml_flattened on schemas, assert_xml_eq for semantic XML comparison, xml_namespace on map/simple elements in codec, idempotency token auto-fill, prefix headers empty table, timestamp list parsing. Protocol tests: 602/701 \u2192 620/707 passing. Remaining restxml failures (39) due to shape name renaming issue (getName(service) renames Request\u2192Input)."
   },
   {
     "session": 25,
@@ -363,5 +363,24 @@
       "did you write sessions.json"
     ],
     "outcome": "Added OpenSSL FFI backend for ECDSA P-256 signing. ecdsa.lua refactored to lazy resolver: on first sign() call, probes libcrypto via ffi.load, locks in OpenSSL backend if available, otherwise falls back to pure-Lua (ecdsa_lua.lua). New ecdsa_openssl.lua uses EC_KEY_new_by_curve_name + ECDSA_sign. All 23 tests pass (17 sigv4a + 6 resolution). Backend confirmed as openssl on macOS."
+  },
+  {
+    "session": 27,
+    "task": "Event streams \u2014 output-only streaming support (runtime + codegen + HTTP client)",
+    "start": "2026-05-05T10:43:00-04:00",
+    "end": "2026-05-05T11:35:00-04:00",
+    "duration_minutes": 52,
+    "branch": "event-streams",
+    "prompts": [
+      "figure out what supporting event streams looks like",
+      "isn't there an event streaming SEP",
+      "can we actually do input streams in lua",
+      "just do the output case, create a worktree",
+      "talk about the API - returning stream object",
+      "go for codegen, skip input stream operations",
+      "fix the HTTP client to truly stream (curl_multi)",
+      "regenerate aws-sdk-lua and e2e test with Bedrock ConverseStream"
+    ],
+    "outcome": "Full output-only event stream support. Runtime: binary frame decoder (CRC-32, header parsing), event deserialization with @eventHeader/@eventPayload bindings, Stream object with :events() iterator and :close(), initial-response for RPC protocols. HTTP client rewritten with curl_multi for true streaming. Pipeline: invokeOperation detects event_stream operations, returns stream instead of deserialized output. Codegen: skips input/duplex stream operations, emits event_stream field referencing streaming union schema, emits event_header/event_payload traits. E2E verified: Bedrock ConverseStream with Nova Lite, real-time token streaming."
   }
 ]

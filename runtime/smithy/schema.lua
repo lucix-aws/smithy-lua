@@ -50,6 +50,8 @@ M.trait = {
     AWS_QUERY_ERROR  = "aws_query_error",
     DEFAULT          = "default",
     MEDIA_TYPE       = "media_type",
+    EVENT_HEADER     = "event_header",
+    EVENT_PAYLOAD    = "event_payload",
 }
 
 -- Timestamp format constants

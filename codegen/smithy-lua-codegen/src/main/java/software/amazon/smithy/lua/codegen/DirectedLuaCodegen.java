@@ -29,9 +29,12 @@ import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.shapes.UnionShape;
 import software.amazon.smithy.model.traits.ClientOptionalTrait;
 import software.amazon.smithy.model.traits.DefaultTrait;
 import software.amazon.smithy.model.traits.ErrorTrait;
+import software.amazon.smithy.model.traits.EventHeaderTrait;
+import software.amazon.smithy.model.traits.EventPayloadTrait;
 import software.amazon.smithy.model.traits.HttpHeaderTrait;
 import software.amazon.smithy.model.traits.HttpLabelTrait;
 import software.amazon.smithy.model.traits.HttpPayloadTrait;
@@ -44,6 +47,7 @@ import software.amazon.smithy.model.traits.IdempotencyTokenTrait;
 import software.amazon.smithy.model.traits.JsonNameTrait;
 import software.amazon.smithy.model.traits.MediaTypeTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
+import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.model.traits.TimestampFormatTrait;
 import software.amazon.smithy.model.traits.XmlFlattenedTrait;
 import software.amazon.smithy.model.traits.XmlNameTrait;
@@ -271,14 +275,35 @@ public final class DirectedLuaCodegen
         var opSymbol = symbolProvider.toSymbol(operation);
         var opName = operation.getId().getName(service);
 
+        // Get input/output shapes
+        var inputShape = operationIndex.expectInputShape(operation);
+        var outputShape = operationIndex.expectOutputShape(operation);
+
+        // Check for input event streams (duplex or input-only) — skip these operations
+        for (var member : inputShape.members()) {
+            var target = model.expectShape(member.getTarget());
+            if (target.hasTrait(StreamingTrait.class) && target.isUnionShape()) {
+                // Input event stream: not supported, skip this operation
+                return;
+            }
+        }
+
+        // Check for output event stream
+        String outputEventStreamUnion = null;
+        for (var member : outputShape.members()) {
+            var target = model.expectShape(member.getTarget());
+            if (target.hasTrait(StreamingTrait.class) && target.isUnionShape()) {
+                outputEventStreamUnion = target.getId().getName(service);
+                break;
+            }
+        }
+        final String eventStreamUnion = outputEventStreamUnion;
+
         // Get HTTP trait if present
         var httpTrait = operation.getTrait(HttpTrait.class).orElse(null);
         String httpMethod = httpTrait != null ? httpTrait.getMethod() : "POST";
         String httpPath = httpTrait != null ? httpTrait.getUri().toString() : "/";
 
-        // Get input/output shape names for schema references
-        var inputShape = operationIndex.expectInputShape(operation);
-        var outputShape = operationIndex.expectOutputShape(operation);
         var inputName = inputShape.getId().getName(service);
         var outputName = outputShape.getId().getName(service);
 
@@ -298,6 +323,11 @@ public final class DirectedLuaCodegen
             writer.write("output_schema = types.$L,", outputName);
             writer.write("http_method = $S,", httpMethod);
             writer.write("http_path = $S,", httpPath);
+
+            // Event stream: reference the streaming union schema
+            if (eventStreamUnion != null) {
+                writer.write("event_stream = types.$L,", eventStreamUnion);
+            }
 
             // Emit effective auth scheme IDs (static from model)
             writer.write("effective_auth_schemes = {");
@@ -616,6 +646,8 @@ public final class DirectedLuaCodegen
         member.getTrait(TimestampFormatTrait.class).ifPresent(t ->
                 traits.put("timestamp_format", "\"" + t.getValue() + "\""));
         if (member.hasTrait(IdempotencyTokenTrait.class)) traits.put("idempotency_token", "true");
+        if (member.hasTrait(EventHeaderTrait.class)) traits.put("event_header", "true");
+        if (member.hasTrait(EventPayloadTrait.class)) traits.put("event_payload", "true");
         // Check target shape for traits that can be on the target
         if (model != null) {
             var target = model.expectShape(member.getTarget());

@@ -1,4 +1,4 @@
--- HTTP client using libcurl via LuaJIT FFI.
+-- HTTP client using libcurl via LuaJIT FFI (curl_multi for streaming).
 -- Conforms to: function(request) -> response, err
 
 local ffi = require("ffi")
@@ -6,14 +6,23 @@ local http = require("smithy.http")
 
 ffi.cdef[[
 typedef void CURL;
+typedef void CURLM;
 typedef int CURLcode;
+typedef int CURLMcode;
 
 CURL *curl_easy_init(void);
 void curl_easy_cleanup(CURL *handle);
 CURLcode curl_easy_setopt(CURL *handle, int option, ...);
-CURLcode curl_easy_perform(CURL *handle);
 CURLcode curl_easy_getinfo(CURL *handle, int info, ...);
 const char *curl_easy_strerror(CURLcode code);
+
+CURLM *curl_multi_init(void);
+CURLMcode curl_multi_cleanup(CURLM *multi);
+CURLMcode curl_multi_add_handle(CURLM *multi, CURL *easy);
+CURLMcode curl_multi_remove_handle(CURLM *multi, CURL *easy);
+CURLMcode curl_multi_perform(CURLM *multi, int *running_handles);
+CURLMcode curl_multi_wait(CURLM *multi, void *extra_fds, unsigned int extra_nfds,
+                          int timeout_ms, int *numfds);
 
 struct curl_slist;
 struct curl_slist *curl_slist_append(struct curl_slist *list, const char *string);
@@ -42,7 +51,7 @@ function M.available()
     return ok
 end
 
---- Create an HTTP client backed by libcurl FFI.
+--- Create an HTTP client backed by libcurl FFI with streaming response.
 function M.new()
     return function(request)
         local handle = curl.curl_easy_init()
@@ -50,14 +59,22 @@ function M.new()
             return nil, { type = "http", code = "CurlError", message = "curl_easy_init failed" }
         end
 
-        -- Collect response data via callbacks
-        local resp_chunks = {}
+        local multi = curl.curl_multi_init()
+        if multi == nil then
+            curl.curl_easy_cleanup(handle)
+            return nil, { type = "http", code = "CurlError", message = "curl_multi_init failed" }
+        end
+
+        -- Chunks buffer: write callback pushes, body reader pops
+        local chunks = {}
+        local headers_done = false
+        local transfer_done = false
         local resp_headers = {}
 
         local write_cb = ffi.cast("size_t (*)(char *, size_t, size_t, void *)",
             function(ptr, size, nmemb, _)
                 local len = size * nmemb
-                resp_chunks[#resp_chunks + 1] = ffi.string(ptr, len)
+                chunks[#chunks + 1] = ffi.string(ptr, len)
                 return len
             end)
 
@@ -93,6 +110,7 @@ function M.new()
                 write_cb:free()
                 header_cb:free()
                 if slist ~= nil then curl.curl_slist_free_all(slist) end
+                curl.curl_multi_cleanup(multi)
                 curl.curl_easy_cleanup(handle)
                 return nil, { type = "http", code = "ReadError", message = err }
             end
@@ -103,33 +121,110 @@ function M.new()
             curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, ffi.cast("long", #body))
         end
 
-        -- Perform
-        local rc = curl.curl_easy_perform(handle)
+        -- Add to multi handle
+        curl.curl_multi_add_handle(multi, handle)
 
-        if rc ~= 0 then
-            local msg = ffi.string(curl.curl_easy_strerror(rc))
-            write_cb:free()
-            header_cb:free()
-            if slist ~= nil then curl.curl_slist_free_all(slist) end
-            curl.curl_easy_cleanup(handle)
-            return nil, { type = "http", code = "CurlError", message = msg }
+        -- Poll until we have response headers (status code available)
+        local running = ffi.new("int[1]")
+        local numfds = ffi.new("int[1]")
+        while true do
+            curl.curl_multi_perform(multi, running)
+            -- Check if we have a status code yet
+            local code_buf = ffi.new("long[1]")
+            curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, code_buf)
+            if code_buf[0] ~= 0 then
+                break
+            end
+            -- Transfer finished before we got headers (error case)
+            if running[0] == 0 then
+                break
+            end
+            curl.curl_multi_wait(multi, nil, 0, 1000, numfds)
         end
 
-        -- Status code
+        -- Get status code
         local code_buf = ffi.new("long[1]")
         curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, code_buf)
         local status_code = tonumber(code_buf[0])
 
-        -- Cleanup
-        write_cb:free()
-        header_cb:free()
-        if slist ~= nil then curl.curl_slist_free_all(slist) end
-        curl.curl_easy_cleanup(handle)
+        if status_code == 0 then
+            write_cb:free()
+            header_cb:free()
+            curl.curl_multi_remove_handle(multi, handle)
+            curl.curl_multi_cleanup(multi)
+            if slist ~= nil then curl.curl_slist_free_all(slist) end
+            curl.curl_easy_cleanup(handle)
+            return nil, { type = "http", code = "CurlError", message = "connection failed" }
+        end
+
+        -- Cleanup function
+        local cleaned_up = false
+        local function cleanup()
+            if cleaned_up then return end
+            cleaned_up = true
+            -- Drain any remaining transfer
+            if not transfer_done then
+                transfer_done = true
+                while running[0] > 0 do
+                    curl.curl_multi_perform(multi, running)
+                    if running[0] > 0 then
+                        curl.curl_multi_wait(multi, nil, 0, 100, numfds)
+                    end
+                end
+            end
+            curl.curl_multi_remove_handle(multi, handle)
+            curl.curl_multi_cleanup(multi)
+            write_cb:free()
+            header_cb:free()
+            if slist ~= nil then curl.curl_slist_free_all(slist) end
+            curl.curl_easy_cleanup(handle)
+        end
+
+        -- Streaming body reader: polls curl_multi for more data
+        local chunk_idx = 1
+        local body_reader = function()
+            -- Return any buffered chunks first
+            if chunk_idx <= #chunks then
+                local c = chunks[chunk_idx]
+                chunks[chunk_idx] = nil -- allow GC
+                chunk_idx = chunk_idx + 1
+                return c
+            end
+
+            -- Transfer already done
+            if transfer_done then
+                return nil
+            end
+
+            -- Poll for more data
+            while true do
+                curl.curl_multi_perform(multi, running)
+
+                -- Check if new chunks arrived
+                if chunk_idx <= #chunks then
+                    local c = chunks[chunk_idx]
+                    chunks[chunk_idx] = nil
+                    chunk_idx = chunk_idx + 1
+                    return c
+                end
+
+                -- Transfer complete
+                if running[0] == 0 then
+                    transfer_done = true
+                    cleanup()
+                    return nil
+                end
+
+                -- Wait for activity
+                curl.curl_multi_wait(multi, nil, 0, 1000, numfds)
+            end
+        end
 
         return {
             status_code = status_code,
             headers = resp_headers,
-            body = http.string_reader(table.concat(resp_chunks)),
+            body = body_reader,
+            close = cleanup,
         }, nil
     end
 end
