@@ -304,7 +304,16 @@ public final class DirectedLuaCodegen
                 protocolExpr = "restjson_protocol.new()";
             } else if (name.equals("aws.protocols#restXml")) {
                 protocolRequire = "smithy.protocol.restxml";
-                protocolExpr = "restxml_protocol.new()";
+                var restXmlTrait = traits.get(traitId);
+                var noWrap = restXmlTrait.toNode().asObjectNode()
+                        .flatMap(o -> o.getBooleanMember("noErrorWrapping"))
+                        .map(b -> b.getValue())
+                        .orElse(false);
+                if (noWrap) {
+                    protocolExpr = "restxml_protocol.new({ no_error_wrapping = true })";
+                } else {
+                    protocolExpr = "restxml_protocol.new()";
+                }
             } else if (name.equals("aws.protocols#awsQuery")) {
                 protocolRequire = "smithy.protocol.query";
                 protocolExpr = "query_protocol.new(\"awsQuery\")";
