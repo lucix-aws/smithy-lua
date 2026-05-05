@@ -63,18 +63,18 @@ to support a model-loader etc.
 
 | Protocol | Pass/Total | Rate |
 |----------|-----------|------|
+| ec2Protocol | **59/59** | **100%** |
 | jsonProtocol (awsJson 1.1) | **117/117** | **100%** |
 | jsonRpc10 (awsJson 1.0) | **66/66** | **100%** |
+| queryProtocol | **76/76** | **100%** |
 | restXmlProtocol | **178/178** | **100%** |
-| restJsonProtocol | 232/235 | 99% |
-| queryProtocol | 51/59 | 86% |
-| ec2Protocol | 35/41 | 85% |
+| rpcV2Protocol (CBOR) | **68/68** | **100%** |
 | queryCompatibleJsonRpc10 | **3/3** | **100%** |
+| queryCompatibleRpcV2Protocol | **3/3** | **100%** |
 | nonQueryCompatibleRpcV2Protocol | **1/1** | **100%** |
+| restJsonProtocol | 232/235 | 99% |
 | restXmlProtocolNamespace | 1/2 | 50% |
-| rpcV2Protocol (CBOR) | 7/27 | 26% |
-| queryCompatibleRpcV2Protocol | 0/3 | 0% |
-| **Total** | **691/732** | **94%** |
+| **Total** | **804/808** | **99.5%** |
 
 ## Hackathon Progress
 
