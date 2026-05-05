@@ -231,7 +231,6 @@ local function parse_xml(s)
     end
 
     local function parse_node()
-        skip_ws()
         if pos > len then return nil end
 
         -- Text content
@@ -291,7 +290,12 @@ local function parse_xml(s)
         local children = {}
         local texts = {}
         while pos <= len do
-            skip_ws()
+            -- Only skip whitespace if it's indentation between sibling elements
+            -- (next non-ws is '<' but NOT '</' which would be our closing tag)
+            local ws_end = s:find("%S", pos)
+            if ws_end and s:byte(ws_end) == 0x3C and s:sub(ws_end, ws_end + 1) ~= "</" then
+                pos = ws_end
+            end
             if pos > len then break end
             if s:sub(pos, pos + 1) == "</" then
                 -- Closing tag
@@ -299,18 +303,33 @@ local function parse_xml(s)
                 if close_end then pos = close_end + 1 end
                 break
             end
-            local child = parse_node()
-            if child == nil then break end
-            if type(child) == "string" then
-                texts[#texts + 1] = child
+            -- Skip CDATA sections (treat content as text)
+            if s:sub(pos, pos + 8) == "<![CDATA[" then
+                pos = pos + 9
+                local cdata_end = s:find("]]>", pos, true)
+                if cdata_end then
+                    texts[#texts + 1] = s:sub(pos, cdata_end - 1)
+                    pos = cdata_end + 3
+                end
+            -- Skip comments
+            elseif s:sub(pos, pos + 3) == "<!--" then
+                local comment_end = s:find("-->", pos, true)
+                if comment_end then pos = comment_end + 3 end
             else
-                children[#children + 1] = child
+                local child = parse_node()
+                if child == nil then break end
+                if type(child) == "string" then
+                    texts[#texts + 1] = child
+                else
+                    children[#children + 1] = child
+                end
             end
         end
 
         return { tag = tag, attrs = attrs, children = children, text = table.concat(texts) }
     end
 
+    skip_ws()
     return parse_node()
 end
 

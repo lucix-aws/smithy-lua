@@ -181,6 +181,31 @@ local function parse_header_value(v, member_schema)
         return tonumber(v)
     elseif member_schema.type == stype.LIST then
         local items = {}
+        local elem = member_schema.list_member
+        -- HTTP-date timestamps contain commas; split on every other comma
+        local is_httpdate_list = false
+        if elem and elem.type == stype.TIMESTAMP then
+            local tf_trait = elem:trait(t.TIMESTAMP_FORMAT)
+            local tf = tf_trait and tf_trait.format or "http-date"
+            is_httpdate_list = (tf == "http-date")
+        end
+        if is_httpdate_list then
+            -- Split on every other comma (HTTP-dates have one internal comma)
+            local skip = true
+            local j = 1
+            for i = 1, #v do
+                if v:sub(i, i) == "," then
+                    if skip then
+                        skip = false
+                    else
+                        skip = true
+                        items[#items + 1] = v:sub(j, i - 1):match("^%s*(.-)%s*$")
+                        j = i + 1
+                    end
+                end
+            end
+            items[#items + 1] = v:sub(j):match("^%s*(.-)%s*$")
+        else
         local i = 1
         while i <= #v do
             while i <= #v and v:sub(i,i) == " " do i = i + 1 end
@@ -207,6 +232,7 @@ local function parse_header_value(v, member_schema)
             end
             while i <= #v and (v:sub(i,i) == "," or v:sub(i,i) == " ") do i = i + 1 end
         end
+        end -- end if/else is_httpdate_list
         local elem = member_schema.list_member
         if elem then
             for idx, item in ipairs(items) do
