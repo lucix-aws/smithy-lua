@@ -24,7 +24,7 @@ public final class LuaCodegenPlugin implements SmithyBuildPlugin {
         runner.service(settings.service());
 
         runner.performDefaultCodegenTransforms();
-        
+        runner.createDedicatedInputsAndOutputs();
 
         runner.run();
     }
