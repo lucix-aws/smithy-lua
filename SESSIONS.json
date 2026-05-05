@@ -347,5 +347,21 @@
     "branch": null,
     "prompts": [],
     "outcome": "Implemented paginators end-to-end. Runtime: paginator.lua with pages() iterator (dot-path token resolution, shallow-copy input mutation, stop on nil/empty/repeated token) and items() iterator (flattens item_key from each page). Codegen: PaginatorGenerator.java (LuaIntegration via writeAdditionalFiles) reads PaginatedIndex, emits {ns}/paginators.lua + paginators.d.tl per service with pages_* and items_* functions. Tests in test_paginator.lua."
+  },
+  {
+    "session": 26,
+    "task": "OpenSSL FFI backend for ECDSA P-256 signing in SigV4a",
+    "start": "2026-05-05T10:25:00-04:00",
+    "end": "2026-05-05T10:40:00-04:00",
+    "duration_minutes": 15,
+    "branch": "sigv4a-openssl",
+    "prompts": [
+      "investigate openssl implementation of sigv4a",
+      "create worktree before doing anything",
+      "prefer openssl, lazy resolve at runtime, keep pure lua as fallback",
+      "show me how it works",
+      "did you write sessions.json"
+    ],
+    "outcome": "Added OpenSSL FFI backend for ECDSA P-256 signing. ecdsa.lua refactored to lazy resolver: on first sign() call, probes libcrypto via ffi.load, locks in OpenSSL backend if available, otherwise falls back to pure-Lua (ecdsa_lua.lua). New ecdsa_openssl.lua uses EC_KEY_new_by_curve_name + ECDSA_sign. All 23 tests pass (17 sigv4a + 6 resolution). Backend confirmed as openssl on macOS."
   }
 ]
