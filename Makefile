@@ -36,7 +36,7 @@ protocol-test:
 	@pass=0; fail=0; skip=0; \
 	for f in protocoltest/*/test_*.lua; do \
 		[ -f "$$f" ] || continue; \
-		result=$$(LUA_PATH="protocoltest/?.lua;runtime/smithy/?.lua;runtime/smithy/?/init.lua;;" luajit "$$f" 2>&1); \
+		result=$$(LUA_PATH="protocoltest/?.lua;runtime/?.lua;runtime/?/init.lua;runtime/smithy/?.lua;runtime/smithy/?/init.lua;;" luajit "$$f" 2>&1); \
 		p=$$(echo "$$result" | grep -c "^PASS:"); \
 		s=$$(echo "$$result" | grep -c "^SKIP:"); \
 		fl=$$(echo "$$result" | grep -c "^FAIL:"); \

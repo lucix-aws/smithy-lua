@@ -73,16 +73,16 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return shape.accept(this);
     }
 
-    // --- Aggregate shapes: these get generated into types.lua ---
+    // --- Aggregate shapes ---
 
     @Override
     public Symbol structureShape(StructureShape shape) {
-        return typesSymbol(shape);
+        return schemasSymbol(shape);
     }
 
     @Override
     public Symbol unionShape(UnionShape shape) {
-        return typesSymbol(shape);
+        return schemasSymbol(shape);
     }
 
     @Override
@@ -210,6 +210,15 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
                 .name(name)
                 .namespace(serviceNamespace, ".")
                 .definitionFile(serviceNamespace + "/types.lua")
+                .build();
+    }
+
+    private Symbol schemasSymbol(Shape shape) {
+        String name = shape.getId().getName(service);
+        return Symbol.builder()
+                .name(name)
+                .namespace(serviceNamespace, ".")
+                .definitionFile(serviceNamespace + "/schemas.lua")
                 .build();
     }
 

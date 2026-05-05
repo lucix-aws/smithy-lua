@@ -246,7 +246,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("");
         w.write("package.path = \"runtime/?.lua;runtime/?/init.lua;\" .. package.path");
         w.write("");
-        w.write("local types = require($S)", ns + ".types");
+        w.write("local types = require($S)", ns + ".schemas");
         w.write("local http = require(\"http\")");
         w.write("local json_decoder = require(\"json.decoder\")");
 

@@ -4,7 +4,7 @@
 local json_codec = require("smithy.codec.json")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")
-local strait = schema_mod.trait
+local t = require("smithy.traits")
 
 local M = {}
 M.__index = M
@@ -98,8 +98,9 @@ local function format_header_value(v, member_schema)
     if member_schema and member_schema.type == "timestamp" then
         -- Default header timestamp format is http-date (RFC 7231)
         local ts_format = "http-date"
-        if member_schema.traits and member_schema.traits[strait.TIMESTAMP_FORMAT] then
-            ts_format = member_schema.traits[strait.TIMESTAMP_FORMAT]
+        local ts_trait = member_schema:trait(t.TIMESTAMP_FORMAT)
+        if ts_trait then
+            ts_format = ts_trait.format
         end
         if ts_format == "http-date" then
             return json_codec._format_http_date(v)
@@ -111,20 +112,21 @@ local function format_header_value(v, member_schema)
             return tostring(v)
         end
     end
-    if member_schema and member_schema.traits and member_schema.traits[strait.MEDIA_TYPE] then
+    if member_schema and member_schema:trait(t.MEDIA_TYPE) then
         -- @mediaType: base64-encode the value for header transport
         return json_codec._base64_encode(tostring(v))
     end
     if type(v) == "table" then
         -- list header: comma-separated, quote items containing commas or quotes
         local items = {}
-        local elem = member_schema and member_schema.member
+        local elem = member_schema and member_schema.list_member
         for _, item in ipairs(v) do
             if elem and elem.type == "timestamp" then
                 -- Format each timestamp in the list
                 local tf = "http-date"
-                if elem.traits and elem.traits[strait.TIMESTAMP_FORMAT] then
-                    tf = elem.traits[strait.TIMESTAMP_FORMAT]
+                local tf_trait = elem:trait(t.TIMESTAMP_FORMAT)
+                if tf_trait then
+                    tf = tf_trait.format
                 end
                 if tf == "http-date" then
                     items[#items + 1] = json_codec._format_http_date(item)
@@ -154,21 +156,22 @@ local function parse_header_value(v, member_schema)
         return (v == "true")
     elseif member_schema.type == "timestamp" then
         local ts_format = "http-date"
-        if member_schema.traits and member_schema.traits[strait.TIMESTAMP_FORMAT] then
-            ts_format = member_schema.traits[strait.TIMESTAMP_FORMAT]
+        local ts_trait = member_schema:trait(t.TIMESTAMP_FORMAT)
+        if ts_trait then
+            ts_format = ts_trait.format
         end
         if ts_format == "http-date" then
             -- Parse RFC 7231 date
-            local t = {}
-            t.day, t.month, t.year, t.hour, t.min, t.sec = v:match(
+            local dt = {}
+            dt.day, dt.month, dt.year, dt.hour, dt.min, dt.sec = v:match(
                 "%a+, (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) GMT")
-            if not t.day then return tonumber(v) end
+            if not dt.day then return tonumber(v) end
             local months = {Jan=1,Feb=2,Mar=3,Apr=4,May=5,Jun=6,Jul=7,Aug=8,Sep=9,Oct=10,Nov=11,Dec=12}
-            t.month = months[t.month] or 1
-            t.year = tonumber(t.year); t.day = tonumber(t.day)
-            t.hour = tonumber(t.hour); t.min = tonumber(t.min); t.sec = tonumber(t.sec)
-            t.isdst = false
-            local epoch = os.time(t)
+            dt.month = months[dt.month] or 1
+            dt.year = tonumber(dt.year); dt.day = tonumber(dt.day)
+            dt.hour = tonumber(dt.hour); dt.min = tonumber(dt.min); dt.sec = tonumber(dt.sec)
+            dt.isdst = false
+            local epoch = os.time(dt)
             local utc_offset = os.time(os.date("!*t", 0)) - os.time(os.date("*t", 0))
             return epoch - utc_offset
         elseif ts_format == "date-time" then
@@ -176,7 +179,7 @@ local function parse_header_value(v, member_schema)
         else
             return tonumber(v)
         end
-    elseif member_schema.traits and member_schema.traits[strait.MEDIA_TYPE] then
+    elseif member_schema:trait(t.MEDIA_TYPE) then
         return json_codec._base64_decode(v)
     elseif member_schema.type == "number" or member_schema.type == "integer"
         or member_schema.type == "long" or member_schema.type == "float"
@@ -216,7 +219,7 @@ local function parse_header_value(v, member_schema)
             while i <= #v and (v:sub(i,i) == "," or v:sub(i,i) == " ") do i = i + 1 end
         end
         -- Convert items based on member element type
-        local elem = member_schema.member
+        local elem = member_schema.list_member
         if elem then
             for idx, item in ipairs(items) do
                 if elem.type == "integer" or elem.type == "long" or elem.type == "short"
@@ -226,8 +229,9 @@ local function parse_header_value(v, member_schema)
                     items[idx] = (item == "true")
                 elseif elem.type == "timestamp" then
                     local tf = "http-date"
-                    if elem.traits and elem.traits[strait.TIMESTAMP_FORMAT] then
-                        tf = elem.traits[strait.TIMESTAMP_FORMAT]
+                    local tf_trait = elem:trait(t.TIMESTAMP_FORMAT)
+                    if tf_trait then
+                        tf = tf_trait.format
                     end
                     if tf == "http-date" then
                         -- individual items in a list header are not full http-date
@@ -247,7 +251,7 @@ end
 function M.serialize(self, input, operation)
     input = input or {}
     local schema = operation.input_schema
-    local members = schema and schema.members or {}
+    local members = schema and schema:members() or {}
 
     local labels = {}
     local query = {}
@@ -259,23 +263,29 @@ function M.serialize(self, input, operation)
 
     -- Partition members by HTTP binding (two passes: prefix headers first, then specific headers)
     for name, ms in pairs(members) do
-        local t = ms.traits
-        if t and t[strait.HTTP_PREFIX_HEADERS] then
+        local pfx = ms:trait(t.HTTP_PREFIX_HEADERS)
+        if pfx then
             if type(input[name]) == "table" then
-                local prefix = t[strait.HTTP_PREFIX_HEADERS]
                 for k, v in pairs(input[name]) do
-                    headers[prefix .. k] = tostring(v)
+                    headers[pfx.prefix .. k] = tostring(v)
                 end
             end
         end
     end
     for name, ms in pairs(members) do
-        local t = ms.traits
-        if t and t[strait.HTTP_LABEL] then
+        local lbl = ms:trait(t.HTTP_LABEL)
+        local qry = ms:trait(t.HTTP_QUERY)
+        local qp = ms:trait(t.HTTP_QUERY_PARAMS)
+        local hdr = ms:trait(t.HTTP_HEADER)
+        local pfx = ms:trait(t.HTTP_PREFIX_HEADERS)
+        local pld = ms:trait(t.HTTP_PAYLOAD)
+
+        if lbl then
             local lv = input[name]
             -- Format timestamps in labels
             if ms.type == "timestamp" and type(lv) == "number" then
-                local tf = (t[strait.TIMESTAMP_FORMAT]) or "date-time"
+                local ts_trait = ms:trait(t.TIMESTAMP_FORMAT)
+                local tf = ts_trait and ts_trait.format or "date-time"
                 if tf == "date-time" then
                     lv = json_codec._format_iso8601(lv)
                 elseif tf == "http-date" then
@@ -289,19 +299,21 @@ function M.serialize(self, input, operation)
                 end
             end
             labels[name] = lv
-        elseif t and t[strait.HTTP_QUERY] then
+        elseif qry then
             if input[name] ~= nil then
                 local qv = input[name]
                 -- Format timestamps as ISO 8601 for query strings
                 if ms.type == "timestamp" then
-                    local tf = t[strait.TIMESTAMP_FORMAT] or "date-time"
+                    local ts_trait = ms:trait(t.TIMESTAMP_FORMAT)
+                    local tf = ts_trait and ts_trait.format or "date-time"
                     if tf == "date-time" then
                         qv = json_codec._format_iso8601(qv)
                     elseif tf == "http-date" then
                         qv = json_codec._format_http_date(qv)
                     end
-                elseif ms.type == "list" and ms.member and ms.member.type == "timestamp" then
-                    local tf = (ms.member.traits and ms.member.traits[strait.TIMESTAMP_FORMAT]) or "date-time"
+                elseif ms.type == "list" and ms.list_member and ms.list_member.type == "timestamp" then
+                    local tf_trait = ms.list_member:trait(t.TIMESTAMP_FORMAT)
+                    local tf = tf_trait and tf_trait.format or "date-time"
                     local formatted = {}
                     for _, item in ipairs(qv) do
                         if tf == "date-time" then
@@ -314,21 +326,21 @@ function M.serialize(self, input, operation)
                     end
                     qv = formatted
                 end
-                query[t[strait.HTTP_QUERY]] = qv
+                query[qry.name] = qv
             end
-        elseif t and t[strait.HTTP_QUERY_PARAMS] then
+        elseif qp then
             if type(input[name]) == "table" then
                 for k, v in pairs(input[name]) do
                     if not query[k] then query[k] = v end
                 end
             end
-        elseif t and t[strait.HTTP_HEADER] then
+        elseif hdr then
             if input[name] ~= nil then
-                headers[t[strait.HTTP_HEADER]] = format_header_value(input[name], ms)
+                headers[hdr.name] = format_header_value(input[name], ms)
             end
-        elseif t and t[strait.HTTP_PREFIX_HEADERS] then
+        elseif pfx then
             -- Already handled in first pass
-        elseif t and t[strait.HTTP_PAYLOAD] then
+        elseif pld then
             payload_name = name
             payload_schema = ms
         else
@@ -374,9 +386,9 @@ function M.serialize(self, input, operation)
         elseif payload_schema.type == "blob" then
             body_str = v
             -- Use @mediaType if present, then check if header member already set it
-            local mt = payload_schema.traits and payload_schema.traits[strait.MEDIA_TYPE]
+            local mt = payload_schema:trait(t.MEDIA_TYPE)
             if mt then
-                headers["Content-Type"] = mt
+                headers["Content-Type"] = mt.value
             elseif headers["Content-Type"] == "application/json" then
                 headers["Content-Type"] = "application/octet-stream"
             end
@@ -393,7 +405,7 @@ function M.serialize(self, input, operation)
             if input[name] ~= nil then has_body = true; break end
         end
         if has_body then
-            local body_schema = { type = schema_mod.type.STRUCTURE, members = body_members }
+            local body_schema = schema_mod.new({ type = schema_mod.type.STRUCTURE, members = body_members })
             local err
             body_str, err = self.codec:serialize(input, body_schema)
             if err then return nil, err end
@@ -461,7 +473,7 @@ function M.deserialize(self, response, operation)
 
     -- Success: deserialize output
     local schema = operation.output_schema
-    local members = schema and schema.members or {}
+    local members = schema and schema:members() or {}
     local output = {}
 
     local payload_name, payload_schema
@@ -469,17 +481,20 @@ function M.deserialize(self, response, operation)
 
     -- Partition output members by binding
     for name, ms in pairs(members) do
-        local t = ms.traits
-        if t and t[strait.HTTP_RESPONSE_CODE] then
+        local rc = ms:trait(t.HTTP_RESPONSE_CODE)
+        local hdr = ms:trait(t.HTTP_HEADER)
+        local pfx = ms:trait(t.HTTP_PREFIX_HEADERS)
+        local pld = ms:trait(t.HTTP_PAYLOAD)
+
+        if rc then
             output[name] = response.status_code
-        elseif t and t[strait.HTTP_HEADER] then
-            local hdr = t[strait.HTTP_HEADER]
-            local v = response.headers and (response.headers[hdr] or response.headers[hdr:lower()])
+        elseif hdr then
+            local v = response.headers and (response.headers[hdr.name] or response.headers[hdr.name:lower()])
             if v ~= nil then
                 output[name] = parse_header_value(v, ms)
             end
-        elseif t and t[strait.HTTP_PREFIX_HEADERS] then
-            local prefix = t[strait.HTTP_PREFIX_HEADERS]:lower()
+        elseif pfx then
+            local prefix = pfx.prefix:lower()
             local map = {}
             if response.headers then
                 for k, v in pairs(response.headers) do
@@ -489,7 +504,7 @@ function M.deserialize(self, response, operation)
                 end
             end
             if next(map) then output[name] = map end
-        elseif t and t[strait.HTTP_PAYLOAD] then
+        elseif pld then
             payload_name = name
             payload_schema = ms
         else
@@ -513,7 +528,7 @@ function M.deserialize(self, response, operation)
             end
         end
     elseif body_str and #body_str > 0 then
-        local body_schema = { type = schema_mod.type.STRUCTURE, members = body_members }
+        local body_schema = schema_mod.new({ type = schema_mod.type.STRUCTURE, members = body_members })
         local decoded, err = self.codec:deserialize(body_str, body_schema)
         if err then return nil, err end
         for k, v in pairs(decoded) do

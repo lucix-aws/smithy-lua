@@ -6,7 +6,6 @@ local bit = require("bit")
 local ffi = require("ffi")
 local schema_mod = require("smithy.schema")
 local stype = schema_mod.type
-local strait = schema_mod.trait
 
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 local concat = table.concat
@@ -154,7 +153,7 @@ local function encode_value(v, schema, buf, pos)
     local st = schema.type
 
     if st == stype.STRUCTURE then
-        local members = schema.members or {}
+        local members = schema:members()
         local keys = {}
         for k in pairs(members) do
             if v[k] ~= nil then keys[#keys + 1] = k end
@@ -169,7 +168,7 @@ local function encode_value(v, schema, buf, pos)
         return pos
 
     elseif st == stype.MAP then
-        local val_schema = schema.value or { type = stype.STRING }
+        local val_schema = schema.map_value or { type = stype.STRING }
         local keys = {}
         for k in pairs(v) do keys[#keys + 1] = k end
         table.sort(keys)
@@ -182,7 +181,7 @@ local function encode_value(v, schema, buf, pos)
         return pos
 
     elseif st == stype.LIST then
-        local elem_schema = schema.member or { type = stype.STRING }
+        local elem_schema = schema.list_member or { type = stype.STRING }
         pos = pos + 1; buf[pos] = char(0x9F) -- indefinite-length array
         for i = 1, #v do
             pos = encode_value(v[i], elem_schema, buf, pos)
@@ -191,7 +190,7 @@ local function encode_value(v, schema, buf, pos)
         return pos
 
     elseif st == stype.UNION then
-        local members = schema.members or {}
+        local members = schema:members()
         for k, ms in pairs(members) do
             if v[k] ~= nil then
                 pos = pos + 1; buf[pos] = char(0xBF) -- indefinite-length map
@@ -428,7 +427,7 @@ local function decode_schema_value(raw, schema)
 
     if st == stype.STRUCTURE then
         if type(raw) ~= "table" then return raw end
-        local members = schema.members or {}
+        local members = schema:members()
         local result = {}
         for k, v in pairs(raw) do
             local ms = members[k]
@@ -440,7 +439,7 @@ local function decode_schema_value(raw, schema)
 
     elseif st == stype.LIST then
         if type(raw) ~= "table" then return raw end
-        local elem_schema = schema.member or { type = stype.STRING }
+        local elem_schema = schema.list_member or { type = stype.STRING }
         local result = {}
         for i = 1, #raw do
             result[i] = decode_schema_value(raw[i], elem_schema)
@@ -449,7 +448,7 @@ local function decode_schema_value(raw, schema)
 
     elseif st == stype.MAP then
         if type(raw) ~= "table" then return raw end
-        local val_schema = schema.value or { type = stype.STRING }
+        local val_schema = schema.map_value or { type = stype.STRING }
         local result = {}
         for k, v in pairs(raw) do
             result[tostring(k)] = decode_schema_value(v, val_schema)
@@ -458,7 +457,7 @@ local function decode_schema_value(raw, schema)
 
     elseif st == stype.UNION then
         if type(raw) ~= "table" then return raw end
-        local members = schema.members or {}
+        local members = schema:members()
         local result = {}
         for k, v in pairs(raw) do
             if k ~= "__type" then

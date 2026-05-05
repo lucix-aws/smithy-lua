@@ -31,8 +31,9 @@ function M.serialize(self, input, operation)
     -- Check if input has any members with values
     local has_body = false
     local schema = operation.input_schema
-    if schema and schema.members then
-        for k in pairs(schema.members) do
+    local members = schema and schema:members()
+    if members then
+        for k in pairs(members) do
             if input[k] ~= nil then has_body = true; break end
         end
     end
@@ -80,8 +81,8 @@ function M.deserialize(self, response, operation)
         if body_str and #body_str > 0 then
             local raw = self.codec:deserialize(body_str, nil)
             if type(raw) == "table" then
-                local t = raw["__type"] or ""
-                code = t:match("#(.+)$") or t
+                local rt = raw["__type"] or ""
+                code = rt:match("#(.+)$") or rt
                 if code == "" then code = "UnknownError" end
                 message = raw["message"] or raw["Message"] or ""
             end

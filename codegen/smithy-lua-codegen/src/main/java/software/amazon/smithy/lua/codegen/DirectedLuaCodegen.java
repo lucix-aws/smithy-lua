@@ -1,10 +1,8 @@
 package software.amazon.smithy.lua.codegen;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.TreeMap;
 import software.amazon.smithy.codegen.core.SymbolProvider;
 import software.amazon.smithy.codegen.core.WriterDelegator;
@@ -29,7 +27,6 @@ import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
-import software.amazon.smithy.model.shapes.UnionShape;
 import software.amazon.smithy.model.traits.ClientOptionalTrait;
 import software.amazon.smithy.model.traits.DefaultTrait;
 import software.amazon.smithy.model.traits.ErrorTrait;
@@ -80,10 +77,27 @@ public final class DirectedLuaCodegen
 
     @Override
     public void customizeBeforeShapeGeneration(CustomizeDirective<LuaContext, LuaSettings> directive) {
-        // Write module header to types.lua before any shapes are generated
         var serviceNs = LuaSymbolProvider.getServiceNamespace(directive.context().service());
+        var service = directive.context().service();
+        var namespace = service.getId().getNamespace();
+
+        // Write module header to types.lua
         var typesFile = serviceNs + "/types.lua";
         directive.context().writerDelegator().useFileWriter(typesFile, serviceNs, writer -> {
+            writer.write("local M = {}");
+            writer.write("");
+        });
+
+        // Write module header to schemas.lua
+        var schemasFile = serviceNs + "/schemas.lua";
+        directive.context().writerDelegator().useFileWriter(schemasFile, serviceNs, writer -> {
+            writer.write("local id = require(\"smithy.shape_id\")");
+            writer.write("local schema = require(\"smithy.schema\")");
+            writer.write("local prelude = require(\"smithy.prelude\")");
+            writer.write("local traits = require(\"smithy.traits\")");
+            writer.write("");
+            writer.write("local _N = $S", namespace);
+            writer.write("");
             writer.write("local M = {}");
             writer.write("");
         });
@@ -91,10 +105,18 @@ public final class DirectedLuaCodegen
 
     @Override
     public void customizeBeforeIntegrations(CustomizeDirective<LuaContext, LuaSettings> directive) {
-        // Write module footer to types.lua after all shapes are generated
         var serviceNs = LuaSymbolProvider.getServiceNamespace(directive.context().service());
+
+        // Write module footer to types.lua
         var typesFile = serviceNs + "/types.lua";
         directive.context().writerDelegator().useFileWriter(typesFile, serviceNs, writer -> {
+            writer.write("");
+            writer.write("return M");
+        });
+
+        // Write module footer to schemas.lua
+        var schemasFile = serviceNs + "/schemas.lua";
+        directive.context().writerDelegator().useFileWriter(schemasFile, serviceNs, writer -> {
             writer.write("");
             writer.write("return M");
         });
@@ -307,9 +329,9 @@ public final class DirectedLuaCodegen
         var inputName = inputShape.getId().getName(service);
         var outputName = outputShape.getId().getName(service);
 
-        // Add require for types module
+        // Add require for schemas module
         var serviceNs = LuaSymbolProvider.getServiceNamespace(service);
-        writer.addRequire("types", serviceNs + ".types");
+        writer.addRequire("schemas", serviceNs + ".schemas");
 
         // Compute effective auth schemes for this operation
         var serviceIndex = ServiceIndex.of(model);
@@ -319,14 +341,14 @@ public final class DirectedLuaCodegen
             writer.write("return self:invokeOperation(input, {");
             writer.indent();
             writer.write("name = $S,", opName);
-            writer.write("input_schema = types.$L,", inputName);
-            writer.write("output_schema = types.$L,", outputName);
+            writer.write("input_schema = schemas.$L,", inputName);
+            writer.write("output_schema = schemas.$L,", outputName);
             writer.write("http_method = $S,", httpMethod);
             writer.write("http_path = $S,", httpPath);
 
             // Event stream: reference the streaming union schema
             if (eventStreamUnion != null) {
-                writer.write("event_stream = types.$L,", eventStreamUnion);
+                writer.write("event_stream = schemas.$L,", eventStreamUnion);
             }
 
             // Emit effective auth scheme IDs (static from model)
@@ -364,7 +386,7 @@ public final class DirectedLuaCodegen
         var shape = directive.shape();
         var context = directive.context();
         context.writerDelegator().useShapeWriter(shape, writer -> {
-            writeSchema(writer, shape, context, "structure");
+            writeSchemaNew(writer, shape, context);
         });
     }
 
@@ -373,7 +395,7 @@ public final class DirectedLuaCodegen
         var shape = directive.shape();
         var context = directive.context();
         context.writerDelegator().useShapeWriter(shape, writer -> {
-            writeSchema(writer, shape, context, "structure");
+            writeSchemaNew(writer, shape, context);
         });
     }
 
@@ -384,21 +406,22 @@ public final class DirectedLuaCodegen
         context.writerDelegator().useShapeWriter(shape, writer -> {
             var name = shape.getId().getName(context.service());
             var model = context.model();
-            writer.write("M.$L = {", name);
+            var namespace = shape.getId().getNamespace();
+            writer.write("M.$L = schema.new({", name);
             writer.indent();
+            writer.write("id = id.from(_N, $S),", shape.getId().getName());
             writer.write("type = \"union\",");
-            writer.write("id = $S,", name);
             if (!shape.members().isEmpty()) {
                 writer.write("members = {");
                 writer.indent();
                 for (var member : shape.members()) {
-                    writeMemberSchema(writer, member, model, context.service());
+                    writeMemberSchemaNew(writer, member, shape, model, context.service());
                 }
                 writer.dedent();
                 writer.write("},");
             }
             writer.dedent();
-            writer.write("}");
+            writer.write("})");
         });
     }
 
@@ -448,218 +471,245 @@ public final class DirectedLuaCodegen
         });
     }
 
-    // --- Schema generation helpers ---
+    // --- New Schema generation helpers ---
 
-    private void writeSchema(LuaWriter writer, StructureShape shape, LuaContext context, String schemaType) {
+    private void writeSchemaNew(LuaWriter writer, StructureShape shape, LuaContext context) {
         var name = shape.getId().getName(context.service());
-        var rawName = shape.getId().getName();
         var model = context.model();
 
-        writer.write("M.$L = {", name);
+        writer.write("M.$L = schema.new({", name);
         writer.indent();
-        writer.write("type = $S,", schemaType);
-        writer.write("id = $S,", name);
+        writer.write("id = id.from(_N, $S),", shape.getId().getName());
+        writer.write("type = \"structure\",");
 
-        // Error trait
-        shape.getTrait(ErrorTrait.class).ifPresent(t ->
-                writer.write("error = $S,", t.getValue()));
-
-        // XML traits on the structure itself
-        var structTraits = new TreeMap<String, String>();
-        shape.getTrait(XmlNameTrait.class).ifPresent(t ->
-                structTraits.put("xml_name", "\"" + t.getValue() + "\""));
-        if (!structTraits.containsKey("xml_name") && !rawName.equals(name)) {
-            structTraits.put("xml_name", "\"" + rawName + "\"");
-        }
-        shape.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
-            var prefix = ns.getPrefix().orElse(null);
-            if (prefix != null) {
-                structTraits.put("xml_namespace", "{ uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
-            } else {
-                structTraits.put("xml_namespace", "\"" + ns.getUri() + "\"");
-            }
-        });
-        if (!structTraits.isEmpty()) {
-            writer.write("traits = {");
-            writer.indent();
-            for (var entry : structTraits.entrySet()) {
-                writer.write("$L = $L,", entry.getKey(), entry.getValue());
-            }
-            writer.dedent();
-            writer.write("},");
-        }
+        // Collect structure-level traits
+        writeStructTraits(writer, shape, context);
 
         if (!shape.members().isEmpty()) {
             writer.write("members = {");
             writer.indent();
             for (var member : shape.members()) {
-                writeMemberSchema(writer, member, model, context.service());
+                writeMemberSchemaNew(writer, member, shape, model, context.service());
             }
             writer.dedent();
             writer.write("},");
         }
 
         writer.dedent();
-        writer.write("}");
+        writer.write("})");
     }
 
-    private void writeMemberSchema(LuaWriter writer, MemberShape member, software.amazon.smithy.model.Model model,
-                                   ServiceShape service) {
-        var target = model.expectShape(member.getTarget());
-        var targetType = target.getType();
+    private void writeStructTraits(LuaWriter writer, StructureShape shape, LuaContext context) {
+        var traitEntries = new ArrayList<String>();
+        var name = shape.getId().getName(context.service());
+        var rawName = shape.getId().getName();
 
-        // For structure/union targets, reference the top-level schema directly
-        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
-            var targetName = target.getId().getName(service);
-            // Write traits wrapper if needed, otherwise just reference
-            var traits = collectTraits(member, model);
-            if (traits.isEmpty()) {
-                writer.write("$L = M.$L,", member.getMemberName(), targetName);
-            } else {
-                // Need to merge: create a table that references the schema but adds traits
-                // We'll use a pattern: copy type+members from target, add traits
-                writer.write("$L = setmetatable({ traits = {", member.getMemberName());
-                writer.indent();
-                for (var entry : traits.entrySet()) {
-                    writer.write("$L = $L,", entry.getKey(), entry.getValue());
-                }
-                writer.dedent();
-                writer.write("} }, { __index = M.$L }),", targetName);
-            }
-            return;
+        shape.getTrait(ErrorTrait.class).ifPresent(t ->
+                traitEntries.add("[traits.ERROR] = { value = \"" + t.getValue() + "\" }"));
+
+        shape.getTrait(XmlNameTrait.class).ifPresent(t ->
+                traitEntries.add("[traits.XML_NAME] = { name = \"" + t.getValue() + "\" }"));
+        if (traitEntries.stream().noneMatch(s -> s.contains("XML_NAME")) && !rawName.equals(name)) {
+            traitEntries.add("[traits.XML_NAME] = { name = \"" + rawName + "\" }");
         }
 
-        writer.write("$L = {", member.getMemberName());
-        writer.indent();
-        writer.write("type = $S,", toLuaSchemaType(target));
-
-        // If the target is a list, include the member schema
-        if (targetType == ShapeType.LIST) {
-            var listMember = target.asListShape().get().getMember();
-            var listTarget = model.expectShape(listMember.getTarget());
-            var listTargetType = listTarget.getType();
-            if (listTargetType == ShapeType.STRUCTURE || listTargetType == ShapeType.UNION) {
-                writer.write("member = M.$L,", listTarget.getId().getName(service));
+        shape.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
+            var prefix = ns.getPrefix().orElse(null);
+            if (prefix != null) {
+                traitEntries.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
             } else {
-                writer.write("member = { type = $S },", toLuaSchemaType(listTarget));
+                traitEntries.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\" }");
             }
-        }
+        });
 
-        // If the target is a map, include key/value schemas
-        if (targetType == ShapeType.MAP) {
-            var mapShape = target.asMapShape().get();
-            var keyMember = mapShape.getKey();
-            var keyTarget = model.expectShape(keyMember.getTarget());
-            var valueMember = mapShape.getValue();
-            var valueTarget = model.expectShape(valueMember.getTarget());
-            var valueTargetType = valueTarget.getType();
-            writeMapSubSchema(writer, "key", keyMember, keyTarget, service, model);
-            if (valueTargetType == ShapeType.STRUCTURE || valueTargetType == ShapeType.UNION) {
-                writer.write("value = M.$L,", valueTarget.getId().getName(service));
-            } else {
-                writeMapSubSchema(writer, "value", valueMember, valueTarget, service, model);
-            }
-        }
-
-        // Collect traits relevant to serde
-        var traits = collectTraits(member, model);
-
-        if (!traits.isEmpty()) {
+        if (!traitEntries.isEmpty()) {
             writer.write("traits = {");
             writer.indent();
-            for (var entry : traits.entrySet()) {
-                writer.write("$L = $L,", entry.getKey(), entry.getValue());
+            for (var entry : traitEntries) {
+                writer.write("$L,", entry);
+            }
+            writer.dedent();
+            writer.write("},");
+        }
+    }
+
+    private void writeMemberSchemaNew(LuaWriter writer, MemberShape member, Shape parent,
+                                      software.amazon.smithy.model.Model model, ServiceShape service) {
+        var target = model.expectShape(member.getTarget());
+        var memberName = member.getMemberName();
+        var parentName = parent.getId().getName();
+
+        writer.write("$L = schema.new({", memberName);
+        writer.indent();
+        writer.write("id = id.from(_N, $S, $S),", parentName, memberName);
+        writer.write("type = $S,", toLuaSchemaType(target));
+        writer.write("name = $S,", memberName);
+        writer.write("target_id = $L,", targetIdExpr(target, service));
+
+        // For structure/union targets, add a reference to the target schema
+        var targetType = target.getType();
+        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
+            writer.write("target = M.$L,", target.getId().getName(service));
+        }
+
+        // List member schema
+        if (target.getType() == ShapeType.LIST) {
+            var listMember = target.asListShape().get().getMember();
+            var listTarget = model.expectShape(listMember.getTarget());
+            writer.write("list_member = $L,", targetSchemaRef(listTarget, service));
+        }
+
+        // Map key/value schemas
+        if (target.getType() == ShapeType.MAP) {
+            var mapShape = target.asMapShape().get();
+            var keyTarget = model.expectShape(mapShape.getKey().getTarget());
+            var valueTarget = model.expectShape(mapShape.getValue().getTarget());
+            writer.write("map_key = $L,", targetSchemaRef(keyTarget, service));
+            writer.write("map_value = $L,", targetSchemaRef(valueTarget, service));
+        }
+
+        // Collect effective traits (merged: target + member)
+        var effectiveTraits = collectTraitsNew(member, model);
+        // Collect direct traits (member-only)
+        var directTraits = collectDirectTraitsNew(member);
+
+        if (!effectiveTraits.isEmpty()) {
+            writer.write("traits = {");
+            writer.indent();
+            for (var entry : effectiveTraits) {
+                writer.write("$L,", entry);
+            }
+            writer.dedent();
+            writer.write("},");
+        }
+
+        if (!directTraits.isEmpty() && !directTraits.equals(effectiveTraits)) {
+            writer.write("direct_traits = {");
+            writer.indent();
+            for (var entry : directTraits) {
+                writer.write("$L,", entry);
             }
             writer.dedent();
             writer.write("},");
         }
 
         writer.dedent();
-        writer.write("},");
+        writer.write("}),");
     }
 
-    private void writeMapSubSchema(LuaWriter writer, String field, MemberShape member, Shape target,
-                                    ServiceShape service, software.amazon.smithy.model.Model model) {
-        var subTraits = new TreeMap<String, String>();
-        member.getTrait(XmlNameTrait.class).ifPresent(t ->
-                subTraits.put("xml_name", "\"" + t.getValue() + "\""));
-        member.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
-            var prefix = ns.getPrefix().orElse(null);
-            if (prefix != null) {
-                subTraits.put("xml_namespace", "{ uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
-            } else {
-                subTraits.put("xml_namespace", "\"" + ns.getUri() + "\"");
-            }
-        });
-        if (subTraits.isEmpty()) {
-            writer.write("$L = { type = $S },", field, toLuaSchemaType(target));
-        } else {
-            writer.write("$L = { type = $S, traits = {", field, toLuaSchemaType(target));
-            writer.indent();
-            for (var entry : subTraits.entrySet()) {
-                writer.write("$L = $L,", entry.getKey(), entry.getValue());
-            }
-            writer.dedent();
-            writer.write("} },");
+    private String targetIdExpr(Shape target, ServiceShape service) {
+        var targetType = target.getType();
+        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
+            // Use id.from() directly to avoid forward reference issues with recursive shapes
+            return "id.from(_N, \"" + target.getId().getName() + "\")";
         }
+        return preludeIdExpr(target);
     }
 
-    private TreeMap<String, String> collectTraits(MemberShape member) {
-        return collectTraits(member, null);
+    private String targetSchemaRef(Shape target, ServiceShape service) {
+        var targetType = target.getType();
+        if (targetType == ShapeType.STRUCTURE || targetType == ShapeType.UNION) {
+            return "M." + target.getId().getName(service);
+        }
+        return preludeSchemaRef(target);
     }
 
-    private TreeMap<String, String> collectTraits(MemberShape member, software.amazon.smithy.model.Model model) {
-        var traits = new TreeMap<String, String>();
-        if (member.hasTrait(RequiredTrait.class)) traits.put("required", "true");
+    private String preludeIdExpr(Shape target) {
+        return "prelude." + preludeName(target) + ".id";
+    }
+
+    private String preludeSchemaRef(Shape target) {
+        return "prelude." + preludeName(target);
+    }
+
+    private String preludeName(Shape target) {
+        return switch (target.getType()) {
+            case STRING, ENUM -> "String";
+            case BOOLEAN -> "Boolean";
+            case BYTE -> "Byte";
+            case SHORT -> "Short";
+            case INTEGER, INT_ENUM -> "Integer";
+            case LONG -> "Long";
+            case FLOAT -> "Float";
+            case DOUBLE -> "Double";
+            case BIG_INTEGER -> "Integer";
+            case BIG_DECIMAL -> "Double";
+            case TIMESTAMP -> "Timestamp";
+            case BLOB -> "Blob";
+            case DOCUMENT -> "Document";
+            default -> "Document";
+        };
+    }
+
+    private List<String> collectTraitsNew(MemberShape member, software.amazon.smithy.model.Model model) {
+        var entries = new ArrayList<String>();
+        var target = model.expectShape(member.getTarget());
+
+        // Member traits
+        addMemberTraitEntries(entries, member);
+
+        // Target traits that merge into effective view
+        if (!member.hasTrait(TimestampFormatTrait.class)) {
+            target.getTrait(TimestampFormatTrait.class).ifPresent(t ->
+                    entries.add("[traits.TIMESTAMP_FORMAT] = { format = \"" + t.getValue() + "\" }"));
+        }
+        target.getTrait(MediaTypeTrait.class).ifPresent(t ->
+                entries.add("[traits.MEDIA_TYPE] = { value = \"" + t.getValue() + "\" }"));
+
+        return entries;
+    }
+
+    private List<String> collectDirectTraitsNew(MemberShape member) {
+        var entries = new ArrayList<String>();
+        addMemberTraitEntries(entries, member);
+        return entries;
+    }
+
+    private void addMemberTraitEntries(List<String> entries, MemberShape member) {
+        if (member.hasTrait(RequiredTrait.class))
+            entries.add("[traits.REQUIRED] = {}");
         if (!member.hasTrait(ClientOptionalTrait.class)) {
-            member.getTrait(DefaultTrait.class).ifPresent(t -> {
-                var node = t.toNode();
-                traits.put("default", nodeToLua(node));
-            });
+            member.getTrait(DefaultTrait.class).ifPresent(t ->
+                    entries.add("[traits.DEFAULT] = { value = " + nodeToLua(t.toNode()) + " }"));
         }
-        if (member.hasTrait(HttpLabelTrait.class)) traits.put("http_label", "true");
+        if (member.hasTrait(HttpLabelTrait.class))
+            entries.add("[traits.HTTP_LABEL] = {}");
         member.getTrait(HttpQueryTrait.class).ifPresent(t ->
-                traits.put("http_query", "\"" + t.getValue() + "\""));
-        if (member.hasTrait(HttpQueryParamsTrait.class)) traits.put("http_query_params", "true");
+                entries.add("[traits.HTTP_QUERY] = { name = \"" + t.getValue() + "\" }"));
+        if (member.hasTrait(HttpQueryParamsTrait.class))
+            entries.add("[traits.HTTP_QUERY_PARAMS] = {}");
         member.getTrait(HttpHeaderTrait.class).ifPresent(t ->
-                traits.put("http_header", "\"" + t.getValue() + "\""));
+                entries.add("[traits.HTTP_HEADER] = { name = \"" + t.getValue() + "\" }"));
         if (member.hasTrait(HttpPrefixHeadersTrait.class)) {
             var prefix = member.getTrait(HttpPrefixHeadersTrait.class).get().getValue();
-            traits.put("http_prefix_headers", "\"" + prefix + "\"");
+            entries.add("[traits.HTTP_PREFIX_HEADERS] = { prefix = \"" + prefix + "\" }");
         }
-        if (member.hasTrait(HttpPayloadTrait.class)) traits.put("http_payload", "true");
-        if (member.hasTrait(HttpResponseCodeTrait.class)) traits.put("http_response_code", "true");
+        if (member.hasTrait(HttpPayloadTrait.class))
+            entries.add("[traits.HTTP_PAYLOAD] = {}");
+        if (member.hasTrait(HttpResponseCodeTrait.class))
+            entries.add("[traits.HTTP_RESPONSE_CODE] = {}");
         member.getTrait(JsonNameTrait.class).ifPresent(t ->
-                traits.put("json_name", "\"" + t.getValue() + "\""));
+                entries.add("[traits.JSON_NAME] = { name = \"" + t.getValue() + "\" }"));
         member.getTrait(XmlNameTrait.class).ifPresent(t ->
-                traits.put("xml_name", "\"" + t.getValue() + "\""));
-        if (member.hasTrait(XmlFlattenedTrait.class)) traits.put("xml_flattened", "true");
+                entries.add("[traits.XML_NAME] = { name = \"" + t.getValue() + "\" }"));
+        if (member.hasTrait(XmlFlattenedTrait.class))
+            entries.add("[traits.XML_FLATTENED] = {}");
         member.getTrait(XmlNamespaceTrait.class).ifPresent(ns -> {
             var prefix = ns.getPrefix().orElse(null);
             if (prefix != null) {
-                traits.put("xml_namespace", "{ uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
+                entries.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\", prefix = \"" + prefix + "\" }");
             } else {
-                traits.put("xml_namespace", "\"" + ns.getUri() + "\"");
+                entries.add("[traits.XML_NAMESPACE] = { uri = \"" + ns.getUri() + "\" }");
             }
         });
-        // @timestampFormat: check member first, then target shape
         member.getTrait(TimestampFormatTrait.class).ifPresent(t ->
-                traits.put("timestamp_format", "\"" + t.getValue() + "\""));
-        if (member.hasTrait(IdempotencyTokenTrait.class)) traits.put("idempotency_token", "true");
-        if (member.hasTrait(EventHeaderTrait.class)) traits.put("event_header", "true");
-        if (member.hasTrait(EventPayloadTrait.class)) traits.put("event_payload", "true");
-        // Check target shape for traits that can be on the target
-        if (model != null) {
-            var target = model.expectShape(member.getTarget());
-            // @timestampFormat on target (if not already on member)
-            if (!traits.containsKey("timestamp_format")) {
-                target.getTrait(TimestampFormatTrait.class).ifPresent(t ->
-                        traits.put("timestamp_format", "\"" + t.getValue() + "\""));
-            }
-            target.getTrait(MediaTypeTrait.class).ifPresent(t ->
-                    traits.put("media_type", "\"" + t.getValue() + "\""));
-        }
-        return traits;
+                entries.add("[traits.TIMESTAMP_FORMAT] = { format = \"" + t.getValue() + "\" }"));
+        if (member.hasTrait(IdempotencyTokenTrait.class))
+            entries.add("[traits.IDEMPOTENCY_TOKEN] = {}");
+        if (member.hasTrait(EventHeaderTrait.class))
+            entries.add("[traits.EVENT_HEADER] = {}");
+        if (member.hasTrait(EventPayloadTrait.class))
+            entries.add("[traits.EVENT_PAYLOAD] = {}");
     }
 
     private static String nodeToLua(Node node) {
