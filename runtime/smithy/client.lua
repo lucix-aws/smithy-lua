@@ -3,6 +3,7 @@
 
 local auth = require("smithy.auth")
 local eventstream = require("smithy.eventstream")
+local eventstream_signer = require("smithy.eventstream_signer")
 local interceptor = require("smithy.interceptor")
 local traits = require("smithy.traits")
 
@@ -14,6 +15,26 @@ local function shallow_copy(t)
         out[k] = v
     end
     return out
+end
+
+--- Find the input event stream member in an operation's input schema.
+--- Returns the member name and schema, or nil if none.
+local function find_input_event_stream(operation)
+    local input = operation.input
+    if not input then return nil end
+    local members = input:members()
+    if not members then return nil end
+    for name, ms in pairs(members) do
+        if ms:trait(traits.STREAMING) and ms.type == "union" then
+            return name, ms
+        end
+    end
+    return nil
+end
+
+--- Extract the hex signature from an Authorization header.
+local function extract_signature(auth_header)
+    return auth_header and auth_header:match("Signature=(%x+)")
 end
 
 --- Create a new base client.
@@ -94,9 +115,30 @@ local function do_attempt(config, service, operation, input, request, intercepto
         end
     end
 
-    -- 7. Sign
+    -- 7. Sign (for input event streams, use streaming payload hash)
+    local input_es_name = find_input_event_stream(operation)
+    if input_es_name then
+        request.headers["X-Amz-Content-Sha256"] = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+        request.headers["Transfer-Encoding"] = "chunked"
+        request.headers["Content-Type"] = "application/vnd.amazon.eventstream"
+    end
+
     request, err = selected.scheme.signer(request, identity, signer_props)
     if err then return nil, err end
+
+    -- For input event streams: set up the signing writer as the request body
+    local signing_writer
+    if input_es_name then
+        local seed = extract_signature(request.headers["Authorization"])
+        if not seed then
+            return nil, { type = "sdk", message = "failed to extract signature for event stream signing" }
+        end
+        local es_signer = eventstream_signer.new(identity, signer_props, seed)
+        signing_writer = eventstream.new_signing_writer(es_signer)
+        request.body = signing_writer.body_reader
+        request.streaming = true
+    end
+
     ctx.request = request
 
     -- read_after_signing
@@ -151,6 +193,8 @@ local function do_attempt(config, service, operation, input, request, intercepto
         if response.status_code < 200 or response.status_code >= 300 then
             return config.protocol:deserialize(response, operation)
         end
+        response._signing_writer = signing_writer
+        response._input_event_stream = input_es_name
         return response, nil
     end
 
@@ -342,6 +386,26 @@ function M.invokeOperation(self, service, operation, input, options)
                 on_close = result.close,
             }
         )
+
+        -- For bidirectional streams, add send capability
+        if result._signing_writer then
+            local sw = result._signing_writer
+            local input_es_name = result._input_event_stream
+            -- Find the input event stream schema
+            local input_members = operation.input:members()
+            local input_es_schema = input_members[input_es_name]._target or input_members[input_es_name]
+
+            function stream:send(event)
+                local frame, err = eventstream.serialize_event(event, input_es_schema, protocol.codec)
+                if err then return nil, { type = "sdk", message = err } end
+                return sw:write(frame)
+            end
+
+            function stream:close_input()
+                sw:close()
+            end
+        end
+
         return stream, nil
     end
 

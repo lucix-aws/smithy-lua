@@ -477,15 +477,6 @@ public final class DirectedLuaCodegen
         var inputShape = operationIndex.expectInputShape(operation);
         var outputShape = operationIndex.expectOutputShape(operation);
 
-        // Check for input event streams (duplex or input-only) — skip these operations
-        for (var member : inputShape.members()) {
-            var target = model.expectShape(member.getTarget());
-            if (target.hasTrait(StreamingTrait.class) && target.isUnionShape()) {
-                // Input event stream: not supported, skip this operation
-                return;
-            }
-        }
-
         // Check for output event stream
         String outputEventStreamUnion = null;
         for (var member : outputShape.members()) {

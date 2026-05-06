@@ -100,12 +100,15 @@ function M.sign(request, identity, props)
 
     -- Read body for payload hash
     local body = ""
-    if request.body then
-        local b, err = http.read_all(request.body)
-        if err then return nil, { type = "sdk", code = "SigningError", message = err } end
-        body = b or ""
+    local payload_hash = request.headers and request.headers["X-Amz-Content-Sha256"]
+    if not payload_hash then
+        if request.body then
+            local b, err = http.read_all(request.body)
+            if err then return nil, { type = "sdk", code = "SigningError", message = err } end
+            body = b or ""
+        end
+        payload_hash = sha256.hex_digest(body)
     end
-    local payload_hash = sha256.hex_digest(body)
 
     -- Ensure required headers
     request.headers = request.headers or {}
@@ -181,8 +184,12 @@ function M.sign(request, identity, props)
         "AWS4-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s",
         identity.access_key, scope, signed_headers, signature)
 
-    -- Re-wrap body as reader since we consumed it
-    request.body = http.string_reader(body)
+    -- Re-wrap body as reader since we consumed it (only if we read it)
+    if #body > 0 then
+        request.body = http.string_reader(body)
+    elseif body == "" and not request.streaming then
+        request.body = nil
+    end
 
     return request, nil
 end

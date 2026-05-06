@@ -39,6 +39,9 @@ local CURLOPT_POSTFIELDS     = 10015
 local CURLOPT_POSTFIELDSIZE  = 60
 local CURLOPT_WRITEFUNCTION  = 20011
 local CURLOPT_HEADERFUNCTION = 20079
+local CURLOPT_READFUNCTION   = 20012
+local CURLOPT_UPLOAD         = 46
+local CURLOPT_INFILESIZE     = 14
 
 -- CURLINFO constants
 local CURLINFO_RESPONSE_CODE = 0x200002
@@ -103,8 +106,37 @@ function M.new()
         end
 
         -- Body
-        local body = ""
-        if request.body then
+        local read_cb
+        if request.body and request.streaming then
+            -- Streaming upload: pull from body reader via READFUNCTION
+            local read_buf = ""
+            local read_eof = false
+
+            read_cb = ffi.cast("size_t (*)(char *, size_t, size_t, void *)",
+                function(dest, size, nmemb, _)
+                    local max = size * nmemb
+                    -- Refill buffer from reader if empty
+                    while #read_buf == 0 and not read_eof do
+                        local chunk = request.body()
+                        if not chunk then
+                            read_eof = true
+                        else
+                            read_buf = chunk
+                        end
+                    end
+                    if #read_buf == 0 then return 0 end
+                    local n = math.min(#read_buf, max)
+                    ffi.copy(dest, read_buf, n)
+                    read_buf = read_buf:sub(n + 1)
+                    return n
+                end)
+
+            curl.curl_easy_setopt(handle, CURLOPT_UPLOAD, ffi.cast("long", 1))
+            curl.curl_easy_setopt(handle, CURLOPT_READFUNCTION, read_cb)
+            -- -1 signals unknown size (chunked transfer)
+            curl.curl_easy_setopt(handle, CURLOPT_INFILESIZE, ffi.cast("long", -1))
+        elseif request.body then
+            local body = ""
             local b, err = http.read_all(request.body)
             if err then
                 write_cb:free()
@@ -115,10 +147,10 @@ function M.new()
                 return nil, { type = "http", code = "ReadError", message = err }
             end
             body = b or ""
-        end
-        if #body > 0 then
-            curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDS, body)
-            curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, ffi.cast("long", #body))
+            if #body > 0 then
+                curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDS, body)
+                curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, ffi.cast("long", #body))
+            end
         end
 
         -- Add to multi handle
@@ -176,6 +208,7 @@ function M.new()
             curl.curl_multi_cleanup(multi)
             write_cb:free()
             header_cb:free()
+            if read_cb then read_cb:free() end
             if slist ~= nil then curl.curl_slist_free_all(slist) end
             curl.curl_easy_cleanup(handle)
         end

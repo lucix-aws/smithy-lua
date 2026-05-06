@@ -4,10 +4,10 @@
 
 local bit = require("bit")
 local ffi = require("ffi")
-local schema_mod = require("smithy.schema")
+local traits = require("smithy.traits")
 
 local band, bxor, rshift, lshift = bit.band, bit.bxor, bit.rshift, bit.lshift
-local strait = schema_mod.trait
+local strait = traits
 
 local M = {}
 
@@ -247,8 +247,8 @@ end
 --- Deserialize an event's payload members using the protocol codec, respecting
 --- @eventHeader and @eventPayload bindings.
 local function deserialize_event_struct(frame, member_schema, codec)
-    local target = member_schema.target or member_schema
-    local members = target.members
+    local target = member_schema._target or member_schema
+    local members = target:members()
     if not members then return {} end
 
     local result = {}
@@ -258,14 +258,13 @@ local function deserialize_event_struct(frame, member_schema, codec)
     local body_members = {}
 
     for name, ms in pairs(members) do
-        local traits = ms.traits
-        if traits and traits[strait.EVENT_HEADER] then
+        if ms:trait(strait.EVENT_HEADER) then
             -- Read from frame headers
             local hval = frame.headers[name]
             if hval ~= nil then
                 result[name] = hval
             end
-        elseif traits and traits[strait.EVENT_PAYLOAD] then
+        elseif ms:trait(strait.EVENT_PAYLOAD) then
             payload_member_name = name
             payload_member_schema = ms
         else
@@ -321,7 +320,8 @@ function M.deserialize_event(frame, event_schema, codec)
         if not exc_type then
             return nil, { type = "api", code = "UnknownError", message = "missing :exception-type" }
         end
-        local member_schema = event_schema.members and event_schema.members[exc_type]
+        local es_members = event_schema:members() or (event_schema._members)
+        local member_schema = es_members and es_members[exc_type]
         if not member_schema then
             return nil, { type = "api", code = exc_type, message = "unknown exception type" }
         end
@@ -345,7 +345,8 @@ function M.deserialize_event(frame, event_schema, codec)
             return { _initial_response = true, _payload = frame.payload }, nil
         end
 
-        local member_schema = event_schema.members and event_schema.members[event_type]
+        local es_members = event_schema:members() or (event_schema._members)
+        local member_schema = es_members and es_members[event_type]
         if not member_schema then
             -- Unknown event type: skip (backwards compatible)
             return nil, nil
@@ -358,6 +359,265 @@ function M.deserialize_event(frame, event_schema, codec)
 
     -- Unknown message type: skip
     return nil, nil
+end
+
+----------------------------------------------------------------------------
+-- Binary writing helpers
+----------------------------------------------------------------------------
+
+local function write_u8_str(v)
+    return string.char(band(v, 0xFF))
+end
+
+local function write_u16_str(v)
+    return string.char(band(rshift(v, 8), 0xFF), band(v, 0xFF))
+end
+
+local function write_u32_str(v)
+    return string.char(
+        band(rshift(v, 24), 0xFF),
+        band(rshift(v, 16), 0xFF),
+        band(rshift(v, 8), 0xFF),
+        band(v, 0xFF)
+    )
+end
+
+----------------------------------------------------------------------------
+-- Header encoding
+----------------------------------------------------------------------------
+
+--- Encode a single header name+value into binary.
+local function encode_header(name, value)
+    local parts = { write_u8_str(#name), name }
+    local vtype = type(value)
+    if vtype == "boolean" then
+        parts[#parts + 1] = write_u8_str(value and 0 or 1)
+    elseif vtype == "number" then
+        -- Encode as int32
+        parts[#parts + 1] = write_u8_str(4)
+        parts[#parts + 1] = write_u32_str(value)
+    elseif vtype == "string" then
+        parts[#parts + 1] = write_u8_str(7) -- string type
+        parts[#parts + 1] = write_u16_str(#value)
+        parts[#parts + 1] = value
+    else
+        error("unsupported header value type: " .. vtype)
+    end
+    return table.concat(parts)
+end
+
+--- Encode a header with explicit type 6 (bytes).
+function M.encode_bytes_header(name, value)
+    local parts = { write_u8_str(#name), name }
+    parts[#parts + 1] = write_u8_str(6) -- bytes type
+    parts[#parts + 1] = write_u16_str(#value)
+    parts[#parts + 1] = value
+    return table.concat(parts)
+end
+
+--- Encode a header with explicit type 8 (timestamp, epoch millis as int64).
+function M.encode_timestamp_header(name, epoch_ms)
+    local parts = { write_u8_str(#name), name }
+    parts[#parts + 1] = write_u8_str(8)
+    -- Encode as 8 bytes big-endian
+    local hi = math.floor(epoch_ms / 4294967296)
+    local lo = epoch_ms - hi * 4294967296
+    parts[#parts + 1] = write_u32_str(hi)
+    parts[#parts + 1] = write_u32_str(lo)
+    return table.concat(parts)
+end
+
+--- Encode headers table into binary. Returns concatenated header bytes.
+function M.encode_headers(headers)
+    local parts = {}
+    for name, value in pairs(headers) do
+        parts[#parts + 1] = encode_header(name, value)
+    end
+    return table.concat(parts)
+end
+
+----------------------------------------------------------------------------
+-- Frame encoding
+----------------------------------------------------------------------------
+
+-- CRC over a string
+local function crc32_string(s, init)
+    local len = #s
+    local buf = ffi.new("uint8_t[?]", len)
+    ffi.copy(buf, s, len)
+    return crc32(buf, 0, len, init)
+end
+
+--- Encode a frame (headers_bytes string + payload string) into a complete
+--- event stream message binary string.
+function M.encode_frame(headers_bytes, payload)
+    payload = payload or ""
+    local headers_len = #headers_bytes
+    local total_len = 12 + headers_len + #payload + 4 -- prelude(12) + headers + payload + msg_crc
+
+    -- Prelude: total_length(4) + headers_length(4)
+    local prelude = write_u32_str(total_len) .. write_u32_str(headers_len)
+    local prelude_crc = crc32_string(prelude)
+
+    -- Message without final CRC
+    local msg = prelude .. write_u32_str(prelude_crc) .. headers_bytes .. payload
+
+    -- Message CRC over everything
+    local msg_crc = crc32_string(msg)
+
+    return msg .. write_u32_str(msg_crc)
+end
+
+----------------------------------------------------------------------------
+-- Event serialization (input direction)
+----------------------------------------------------------------------------
+
+--- Serialize an event table into a binary event stream frame.
+--- @param event table: union-like table, e.g. { AudioEvent = { AudioChunk = "..." } }
+--- @param event_schema table: the streaming union schema (with members)
+--- @param codec table: protocol codec for payload serialization
+--- @return string: encoded frame bytes, or nil + error
+function M.serialize_event(event, event_schema, codec)
+    -- Find the single set member (union semantics)
+    local event_type, event_data
+    for k, v in pairs(event) do
+        event_type = k
+        event_data = v
+        break
+    end
+    if not event_type then
+        return nil, "empty event"
+    end
+
+    local es_members = event_schema:members() or (event_schema._members)
+    local member_schema = es_members and es_members[event_type]
+    if not member_schema then
+        return nil, "unknown event type: " .. event_type
+    end
+
+    local target = member_schema._target or member_schema
+    local members = target:members()
+
+    -- Build headers and payload
+    local header_parts = {}
+    -- Protocol headers
+    header_parts[#header_parts + 1] = encode_header(":message-type", "event")
+    header_parts[#header_parts + 1] = encode_header(":event-type", event_type)
+
+    local payload = ""
+    if members then
+        local payload_member_name, payload_member_schema
+        local body_members = {}
+
+        for name, ms in pairs(members) do
+            if ms:trait(strait.EVENT_HEADER) then
+                -- Serialize to event header
+                if event_data[name] ~= nil then
+                    header_parts[#header_parts + 1] = encode_header(name, event_data[name])
+                end
+            elseif ms:trait(strait.EVENT_PAYLOAD) then
+                payload_member_name = name
+                payload_member_schema = ms
+            else
+                body_members[name] = ms
+            end
+        end
+
+        if payload_member_name and event_data[payload_member_name] ~= nil then
+            local ptype = payload_member_schema.type
+            if ptype == "blob" or ptype == "string" then
+                payload = event_data[payload_member_name]
+                if ptype == "blob" then
+                    header_parts[#header_parts + 1] = encode_header(":content-type", "application/octet-stream")
+                else
+                    header_parts[#header_parts + 1] = encode_header(":content-type", "text/plain")
+                end
+            else
+                -- Structure payload: serialize with codec
+                payload = codec:serialize_value(event_data[payload_member_name], payload_member_schema)
+                header_parts[#header_parts + 1] = encode_header(":content-type", codec.content_type or "application/json")
+            end
+        elseif next(body_members) then
+            -- Implicit payload: serialize all non-header members as structure
+            payload = codec:serialize_value(event_data, target)
+            header_parts[#header_parts + 1] = encode_header(":content-type", codec.content_type or "application/json")
+        end
+    end
+
+    local headers_bytes = table.concat(header_parts)
+    return M.encode_frame(headers_bytes, payload)
+end
+
+----------------------------------------------------------------------------
+-- SigningWriter: signs event frames and provides a streaming body reader
+----------------------------------------------------------------------------
+
+local SigningWriter = {}
+SigningWriter.__index = SigningWriter
+
+--- Create a new SigningWriter.
+--- @param signer table: event stream signer with :sign(headers_bytes, payload)
+--- @return table: writer with :write(frame), :close(), and .body_reader
+function M.new_signing_writer(signer)
+    local sw = setmetatable({
+        _signer = signer,
+        _queue = {},   -- queue of signed envelope frame strings
+        _closed = false,
+    }, SigningWriter)
+
+    -- Body reader function for the HTTP client to pull from
+    sw.body_reader = function()
+        -- Return queued frames
+        if #sw._queue > 0 then
+            local frame = table.remove(sw._queue, 1)
+            return frame
+        end
+        -- EOF
+        if sw._closed then return nil end
+        -- No data yet (caller must write before reader pulls)
+        return nil
+    end
+
+    return sw
+end
+
+--- Write an already-encoded inner event frame. Signs it and enqueues the
+--- outer envelope frame.
+function SigningWriter:write(inner_frame)
+    if self._closed then return nil, "writer closed" end
+
+    local now = os.time()
+    local epoch_ms = now * 1000
+
+    -- Build the :date header for signing
+    local date_header = M.encode_timestamp_header(":date", epoch_ms)
+
+    -- Sign: the signer sees the :date header bytes and the inner frame as payload
+    local sig = self._signer:sign(date_header, inner_frame, now)
+
+    -- Build outer envelope: :date + :chunk-signature headers, inner frame as payload
+    local headers_bytes = date_header .. M.encode_bytes_header(":chunk-signature", sig)
+    local envelope = M.encode_frame(headers_bytes, inner_frame)
+
+    self._queue[#self._queue + 1] = envelope
+    return true
+end
+
+--- Close the writer: send a signed empty message to signal end-of-stream.
+function SigningWriter:close()
+    if self._closed then return end
+
+    local now = os.time()
+    local epoch_ms = now * 1000
+    local date_header = M.encode_timestamp_header(":date", epoch_ms)
+
+    -- Sign empty payload
+    local sig = self._signer:sign(date_header, "", now)
+    local headers_bytes = date_header .. M.encode_bytes_header(":chunk-signature", sig)
+    local envelope = M.encode_frame(headers_bytes, "")
+
+    self._queue[#self._queue + 1] = envelope
+    self._closed = true
 end
 
 ----------------------------------------------------------------------------
