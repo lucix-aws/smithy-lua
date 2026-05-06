@@ -171,7 +171,11 @@ public final class DirectedLuaCodegen
 
     @Override
     public void customizeAfterIntegrations(CustomizeDirective<LuaContext, LuaSettings> directive) {
+        var serviceId = directive.context().service().getId();
         for (var integration : directive.context().integrations()) {
+            if (!integration.forService(serviceId)) {
+                continue;
+            }
             integration.writeAdditionalFiles(directive.context());
         }
     }
@@ -187,6 +191,9 @@ public final class DirectedLuaCodegen
         // Collect config resolvers from all integrations
         List<ConfigResolver> configResolvers = new ArrayList<>();
         for (var integration : context.integrations()) {
+            if (!integration.forService(service.getId())) {
+                continue;
+            }
             configResolvers.addAll(integration.getConfigResolvers(context));
         }
 

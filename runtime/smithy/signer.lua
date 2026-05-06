@@ -76,8 +76,11 @@ local function canonical_query_string(query)
 end
 
 --- Normalize path: URI-encode each segment, preserve slashes.
-local function canonical_path(path)
+local function canonical_path(path, disable_double_encoding)
     if path == "" or path == "/" then return "/" end
+    if disable_double_encoding then
+        return path
+    end
     local segments = {}
     for seg in path:gmatch("[^/]+") do
         segments[#segments + 1] = M.uri_encode(seg, true)
@@ -148,7 +151,7 @@ function M.sign(request, identity, props)
     -- Canonical request
     local canonical_request = table.concat({
         request.method,
-        canonical_path(path),
+        canonical_path(path, props.disable_double_encoding),
         canonical_query_string(query),
         canonical_headers_str,
         signed_headers,

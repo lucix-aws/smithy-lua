@@ -3,9 +3,25 @@ package software.amazon.smithy.lua.codegen;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.smithy.codegen.core.SmithyIntegration;
+import software.amazon.smithy.model.shapes.ShapeId;
 
 public interface LuaIntegration
         extends SmithyIntegration<LuaSettings, LuaWriter, LuaContext> {
+
+    /**
+     * Returns whether this integration applies to the given service.
+     *
+     * <p>Integrations that are service-specific (e.g. S3 customizations)
+     * override this to return true only for their target service. The
+     * codegen pipeline skips integrations that return false for the
+     * service being generated.
+     *
+     * @param service the shape ID of the service being generated
+     * @return true if this integration should run for the given service
+     */
+    default boolean forService(ShapeId service) {
+        return true;
+    }
 
     /**
      * Hook for integrations to write additional generated source files.

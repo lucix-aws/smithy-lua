@@ -44,7 +44,7 @@ local function do_attempt(config, input, request, operation, interceptors, ctx)
 
     -- 1. Resolve auth scheme
     local resolver = config.auth_scheme_resolver or auth.default_auth_scheme_resolver
-    local options = resolver(operation)
+    local options = resolver(operation, input)
 
     local selected, err = auth.select_scheme(options, config.auth_schemes, config.identity_resolvers)
     if not selected then return nil, { type = "sdk", message = err } end
