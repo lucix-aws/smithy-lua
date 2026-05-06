@@ -52,4 +52,18 @@ public interface LuaIntegration
     default List<ConfigResolver> getConfigResolvers(LuaContext context) {
         return Collections.emptyList();
     }
+
+    /**
+     * Returns config finalizers to emit after client construction (post-setmetatable).
+     *
+     * <p>These are emitted after {@code local self = setmetatable(...)} in the
+     * generated constructor, allowing access to the constructed client instance.
+     * The function call expression can reference both {@code cfg} and {@code self}.
+     *
+     * @param context the codegen context
+     * @return list of config finalizers
+     */
+    default List<ConfigResolver> getConfigFinalizers(LuaContext context) {
+        return Collections.emptyList();
+    }
 }

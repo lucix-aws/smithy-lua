@@ -190,11 +190,13 @@ public final class DirectedLuaCodegen
 
         // Collect config resolvers from all integrations
         List<ConfigResolver> configResolvers = new ArrayList<>();
+        List<ConfigResolver> configFinalizers = new ArrayList<>();
         for (var integration : context.integrations()) {
             if (!integration.forService(service.getId())) {
                 continue;
             }
             configResolvers.addAll(integration.getConfigResolvers(context));
+            configFinalizers.addAll(integration.getConfigFinalizers(context));
         }
 
         context.writerDelegator().useShapeWriter(service, writer -> {
@@ -278,6 +280,13 @@ public final class DirectedLuaCodegen
                 }
 
                 writer.write("local self = setmetatable(base_client.new(cfg), Client)");
+
+                // Config finalizers (need access to self)
+                for (var finalizer : configFinalizers) {
+                    writer.addRequire(finalizer.requireAlias(), finalizer.requirePath());
+                    writer.write(finalizer.functionCall());
+                }
+
                 writer.write("return self");
             });
             writer.write("");
