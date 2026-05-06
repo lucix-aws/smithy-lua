@@ -80,11 +80,11 @@ to support a model-loader etc.
 
 All of this was done on Opus 4.6.
 
-**From this point on my writing ends, the progress log is AI-generated.**
-
 ### Day 1
 
 Kiro credits: 2084.55
+
+(this list was AI-generated from SESSIONS.json)
 
 - Full operation pipeline: serialize, retry loop (endpoint resolve, sign, send, deserialize), error classification
 - All 6 AWS protocols: awsJson 1.0/1.1, restJson1, restXml, awsQuery/ec2Query, rpcv2Cbor
@@ -100,3 +100,19 @@ Kiro credits: 2084.55
 - 424 generated service clients (in aws-sdk-lua)
 - Real AWS calls: DynamoDB ListTables through the full pipeline (codegen client, awsJson 1.0, SigV4, env creds, libcurl FFI)
 - 620/707 Smithy protocol test cases passing (~88%)
+
+### Day 2
+
+Kiro credits: 1392.38
+
+(this list was AI-generated from SESSIONS.json)
+
+- Protocol tests: 620/707 → 814/814 (100% pass rate across all protocols)
+- Schema system refactor: formal ShapeId, Trait types, prelude schemas, proper container API
+- SigV4a signing: ECDSA P-256 with OpenSSL FFI backend (pure Lua fallback)
+- Event streams: output-only streaming support (binary frame decoder, curl_multi HTTP client, Bedrock ConverseStream verified)
+- Operation interceptors: full SRA hook model (19 hooks, zero overhead when unused)
+- Dynamic client: load Smithy JSON AST models at runtime, call operations without codegen
+- aws-crt-lua: CRT HTTP client PoC via LuaJIT FFI (highest-priority backend in resolver)
+- Automated model updates: GitHub Actions workflow syncing from api-models-aws daily
+- Teal-native runtime exploration: proof-of-concept converting runtime source to .tl (branch pushed, not merged)
