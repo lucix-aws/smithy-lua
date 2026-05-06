@@ -4,13 +4,15 @@
 
 local M = {}
 
---- Resolve the default auth schemes (sigv4 + noAuth).
+--- Resolve the default auth schemes (sigv4 + sigv4a + noAuth).
 function M.resolve_auth_schemes(cfg)
     if cfg.auth_schemes then return end
     local auth = require("smithy.auth")
     local signer = require("smithy.signer")
+    local sigv4a = require("smithy.sigv4a")
     cfg.auth_schemes = {
         [auth.SIGV4] = auth.new_auth_scheme(auth.SIGV4, "aws_credentials", signer.sign),
+        [auth.SIGV4A] = auth.new_auth_scheme(auth.SIGV4A, "aws_credentials", sigv4a.sign),
         [auth.NO_AUTH] = auth.no_auth_scheme,
     }
 end

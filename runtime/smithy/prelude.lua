@@ -16,6 +16,8 @@ return {
     Long      = schema.new({ id = id.from(ns, "Long"),      type = "long" }),
     Float     = schema.new({ id = id.from(ns, "Float"),     type = "float" }),
     Double    = schema.new({ id = id.from(ns, "Double"),    type = "double" }),
+    BigInteger = schema.new({ id = id.from(ns, "BigInteger"), type = "bigInteger" }),
+    BigDecimal = schema.new({ id = id.from(ns, "BigDecimal"), type = "bigDecimal" }),
     Timestamp = schema.new({ id = id.from(ns, "Timestamp"), type = "timestamp" }),
     Document  = schema.new({ id = id.from(ns, "Document"),  type = "document" }),
     Unit      = schema.new({ id = id.from(ns, "Unit"),      type = "structure" }),

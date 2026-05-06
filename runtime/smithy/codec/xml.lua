@@ -67,6 +67,9 @@ local function simple_value(v, schema, codec)
     if st == stype.BOOLEAN then return v and "true" or "false" end
     if st == stype.BLOB then return base64_encode(v) end
     if st == stype.TIMESTAMP then return format_timestamp(v, schema, codec) end
+    if st == stype.BIG_INTEGER or st == stype.BIG_DECIMAL then
+        error("bigInteger/bigDecimal not supported in XML codec")
+    end
     if st == stype.FLOAT or st == stype.DOUBLE then
         if v ~= v then return "NaN"
         elseif v == huge then return "Infinity"
@@ -348,6 +351,9 @@ local function decode_simple(text, schema, codec)
     local st = schema.type
     if st == stype.BOOLEAN then return text == "true" end
     if st == stype.BLOB then return base64_decode(text) end
+    if st == stype.BIG_INTEGER or st == stype.BIG_DECIMAL then
+        error("bigInteger/bigDecimal not supported in XML codec")
+    end
     if st == stype.TIMESTAMP then
         local n = tonumber(text)
         if n then return n end

@@ -24,6 +24,7 @@ function M.new(settings)
     settings = settings or {}
     return setmetatable({
         use_json_name = settings.use_json_name or false,
+        use_bignum_strings = settings.use_bignum_strings or false,
         default_timestamp_format = settings.default_timestamp_format or schema_mod.timestamp.EPOCH_SECONDS,
     }, M)
 end
@@ -166,6 +167,12 @@ local function encode_schema_value(v, schema, buf, n, codec, apply_defaults)
         end
         return n
 
+    elseif st == stype.BIG_INTEGER or st == stype.BIG_DECIMAL then
+        if not codec.use_bignum_strings then
+            error("bigInteger/bigDecimal requires use_bignum_strings to be enabled")
+        end
+        return encode_string(tostring(v), buf, n)
+
     elseif st == stype.BLOB then
         return encode_string(base64.encode(v), buf, n)
 
@@ -251,6 +258,7 @@ local function decode_schema_value(v, schema, codec)
                     elseif mt == stype.BYTE or mt == stype.SHORT or mt == stype.INTEGER
                         or mt == stype.LONG or mt == stype.FLOAT or mt == stype.DOUBLE
                         or mt == stype.INT_ENUM or mt == stype.TIMESTAMP then result[name] = 0
+                    elseif mt == stype.BIG_INTEGER or mt == stype.BIG_DECIMAL then result[name] = "0"
                     elseif mt == stype.BLOB then result[name] = ""
                     elseif mt == stype.LIST or mt == stype.MAP then result[name] = {}
                     end
@@ -333,6 +341,12 @@ local function decode_schema_value(v, schema, codec)
             end
         end
         return tonumber(v)
+
+    elseif st == stype.BIG_INTEGER or st == stype.BIG_DECIMAL then
+        if not codec.use_bignum_strings then
+            return nil, "bigInteger/bigDecimal requires use_bignum_strings to be enabled"
+        end
+        return tostring(v)
 
     elseif st == stype.BLOB then
         if type(v) == "string" then

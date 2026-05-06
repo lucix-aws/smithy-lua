@@ -45,7 +45,7 @@ local TYPE_MAP = {
     blob = "blob", boolean = "boolean", string = "string", timestamp = "timestamp",
     byte = "byte", short = "short", integer = "integer", long = "long",
     float = "float", double = "double", document = "document",
-    bigDecimal = "double", bigInteger = "long",
+    bigDecimal = "bigDecimal", bigInteger = "bigInteger",
     list = "list", set = "list", map = "map",
     structure = "structure", union = "union",
     enum = "enum", intEnum = "int_enum",

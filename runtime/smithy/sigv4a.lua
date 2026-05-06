@@ -133,7 +133,7 @@ function M.sign(request, identity, props)
     local date_stamp = amz_date:sub(1, 8)
 
     -- Region set header
-    local region_set = props.region_set or { "*" }
+    local region_set = props.signing_region_set or props.region_set or { "*" }
     request.headers["X-Amz-Region-Set"] = table.concat(region_set, ",")
 
     if identity.session_token then

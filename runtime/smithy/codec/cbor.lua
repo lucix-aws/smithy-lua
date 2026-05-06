@@ -218,6 +218,9 @@ local function encode_value(v, schema, buf, pos)
         or st == stype.LONG or st == stype.INT_ENUM then
         return encode_int(v, buf, pos)
 
+    elseif st == stype.BIG_INTEGER or st == stype.BIG_DECIMAL then
+        error("bigInteger/bigDecimal not supported in CBOR codec")
+
     elseif st == stype.FLOAT then
         if v ~= v then return encode_float32(v, buf, pos) end -- NaN
         if v == huge or v == -huge then return encode_float32(v, buf, pos) end
@@ -505,6 +508,9 @@ local function decode_schema_value(raw, schema)
         or st == stype.LONG or st == stype.INT_ENUM
         or st == stype.FLOAT or st == stype.DOUBLE then
         return tonumber(raw)
+
+    elseif st == stype.BIG_INTEGER or st == stype.BIG_DECIMAL then
+        error("bigInteger/bigDecimal not supported in CBOR codec")
 
     elseif st == stype.TIMESTAMP then
         return tonumber(raw)

@@ -395,7 +395,8 @@ public final class DirectedLuaCodegen
 
         // Compute effective auth schemes for this operation
         var serviceIndex = ServiceIndex.of(model);
-        var effectiveAuth = serviceIndex.getEffectiveAuthSchemes(service, operation);
+        var effectiveAuth = serviceIndex.getEffectiveAuthSchemes(
+                service, operation, ServiceIndex.AuthSchemeMode.NO_AUTH_AWARE);
 
         writer.block("function Client:" + opSymbol.getName() + "(input, options)", () -> {
             writer.write("return self:invokeOperation(input, {");
