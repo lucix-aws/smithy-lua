@@ -597,7 +597,3 @@ Each agent session should:
   - ~/git/smithy-go
 - **Smithy Java** — reference for schema-serde implementation
   - ~/git/smithy-java
-- **Schema-Serde SEP** — specification for serialization approach (`~/gitfarm/AwsDrSeps/seps/accepted/shared/schema-serde/`)
-- **Smithy endpoint rules spec** — for rules engine implementation
-- **AWS SigV4 documentation + test vectors** — for signing implementation
-- **DR SEPs** — credential resolution, retry, and other behavioral specifications (`~/gitfarm/AwsDrSeps/seps/`)
