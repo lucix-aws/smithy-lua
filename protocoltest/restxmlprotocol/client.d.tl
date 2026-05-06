@@ -3,69 +3,165 @@
 local types = require("restxmlprotocol.types")
 
 local record Client
+    -- This example uses all query string types.
     allQueryStringTypes: function(Client, types.AllQueryStringTypesInput): types.AllQueryStringTypesOutput, table
+    -- The following example serializes a body that uses an XML name,
+    -- changing the wrapper name.
     bodyWithXmlName: function(Client, types.BodyWithXmlNameInput): types.BodyWithXmlNameOutput, table
+    -- This example uses fixed query string params and variable query string params.
+    -- The fixed query string parameters and variable parameters must both be
+    -- serialized (implementations may need to merge them together).
     constantAndVariableQueryString: function(Client, types.ConstantAndVariableQueryStringInput): types.ConstantAndVariableQueryStringOutput, table
+    -- This example uses a constant query string parameters and a label.
+    -- This simply tests that labels and query string parameters are
+    -- compatible. The fixed query string parameter named "hello" should
+    -- in no way conflict with the label, `{hello}`.
     constantQueryString: function(Client, types.ConstantQueryStringInput): types.ConstantQueryStringOutput, table
+    -- The example tests how servers must support requests
+    -- containing a `Content-Type` header with parameters.
     contentTypeParameters: function(Client, types.ContentTypeParametersInput): types.ContentTypeParametersOutput, table
     datetimeOffsets: function(Client, types.DatetimeOffsetsInput): types.DatetimeOffsetsOutput, table
+    -- The example tests how requests and responses are serialized when there's
+    -- no request or response payload because the operation has an empty input
+    -- and empty output structure that reuses the same shape. While this should
+    -- be rare, code generators must support this.
     emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput): types.EmptyInputAndEmptyOutputOutput, table
     endpointOperation: function(Client, types.EndpointOperationInput): types.EndpointOperationOutput, table
     endpointWithHostLabelHeaderOperation: function(Client, types.EndpointWithHostLabelHeaderOperationInput): types.EndpointWithHostLabelHeaderOperationOutput, table
     endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput): types.EndpointWithHostLabelOperationOutput, table
+    -- Flattened maps
     flattenedXmlMap: function(Client, types.FlattenedXmlMapInput): types.FlattenedXmlMapOutput, table
+    -- Flattened maps with @xmlName
     flattenedXmlMapWithXmlName: function(Client, types.FlattenedXmlMapWithXmlNameInput): types.FlattenedXmlMapWithXmlNameOutput, table
+    -- Flattened maps with @xmlNamespace and @xmlName
     flattenedXmlMapWithXmlNamespace: function(Client, types.FlattenedXmlMapWithXmlNamespaceInput): types.FlattenedXmlMapWithXmlNamespaceOutput, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
+    -- This operation has three possible return values:
+    --
+    -- 1. A successful response in the form of GreetingWithErrorsOutput
+    -- 2. An InvalidGreeting error.
+    -- 3. A BadRequest error.
+    --
+    -- Implementations must be able to successfully take a response and
+    -- properly (de)serialize successful and error responses based on the
+    -- the presence of the
     greetingWithErrors: function(Client, types.GreetingWithErrorsInput): types.GreetingWithErrorsOutput, table
+    -- Clients that perform this test extract all headers from the response.
     httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput): types.HttpEmptyPrefixHeadersOutput, table
     httpEnumPayload: function(Client, types.HttpEnumPayloadInput): types.HttpEnumPayloadOutput, table
+    -- This example serializes a blob shape in the payload.
+    --
+    -- In this example, no XML document is synthesized because the payload is
+    -- not a structure or a union type.
     httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput): types.HttpPayloadTraitsOutput, table
+    -- This example uses a `@mediaType` trait on the payload to force a custom
+    -- content-type to be serialized.
     httpPayloadTraitsWithMediaType: function(Client, types.HttpPayloadTraitsWithMediaTypeInput): types.HttpPayloadTraitsWithMediaTypeOutput, table
+    -- The following example serializes a payload that uses an XML name
+    -- on the member, changing the wrapper name.
     httpPayloadWithMemberXmlName: function(Client, types.HttpPayloadWithMemberXmlNameInput): types.HttpPayloadWithMemberXmlNameOutput, table
+    -- This example serializes a structure in the payload.
+    --
+    -- Note that serializing a structure changes the wrapper element name
+    -- to match the targeted structure.
     httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput): types.HttpPayloadWithStructureOutput, table
+    -- This example serializes a union in the payload.
     httpPayloadWithUnion: function(Client, types.HttpPayloadWithUnionInput): types.HttpPayloadWithUnionOutput, table
+    -- The following example serializes a payload that uses an XML name,
+    -- changing the wrapper name.
     httpPayloadWithXmlName: function(Client, types.HttpPayloadWithXmlNameInput): types.HttpPayloadWithXmlNameOutput, table
+    -- The following example serializes a payload that uses an XML namespace.
     httpPayloadWithXmlNamespace: function(Client, types.HttpPayloadWithXmlNamespaceInput): types.HttpPayloadWithXmlNamespaceOutput, table
+    -- The following example serializes a payload that uses an XML namespace.
     httpPayloadWithXmlNamespaceAndPrefix: function(Client, types.HttpPayloadWithXmlNamespaceAndPrefixInput): types.HttpPayloadWithXmlNamespaceAndPrefixOutput, table
+    -- This examples adds headers to the input of a request and response by prefix.
     httpPrefixHeaders: function(Client, types.HttpPrefixHeadersInput): types.HttpPrefixHeadersOutput, table
     httpRequestWithFloatLabels: function(Client, types.HttpRequestWithFloatLabelsInput): types.HttpRequestWithFloatLabelsOutput, table
     httpRequestWithGreedyLabelInPath: function(Client, types.HttpRequestWithGreedyLabelInPathInput): types.HttpRequestWithGreedyLabelInPathOutput, table
+    -- The example tests how requests are serialized when there's no input
+    -- payload but there are HTTP labels.
     httpRequestWithLabels: function(Client, types.HttpRequestWithLabelsInput): types.HttpRequestWithLabelsOutput, table
+    -- The example tests how requests serialize different timestamp formats in the
+    -- URI path.
     httpRequestWithLabelsAndTimestampFormat: function(Client, types.HttpRequestWithLabelsAndTimestampFormatInput): types.HttpRequestWithLabelsAndTimestampFormatOutput, table
     httpResponseCode: function(Client, types.HttpResponseCodeInput): types.HttpResponseCodeOutput, table
     httpStringPayload: function(Client, types.HttpStringPayloadInput): types.HttpStringPayloadOutput, table
+    -- This example ensures that query string bound request parameters are
+    -- serialized in the body of responses if the structure is used in both
+    -- the request and response.
     ignoreQueryParamsInResponse: function(Client, types.IgnoreQueryParamsInResponseInput): types.IgnoreQueryParamsInResponseOutput, table
+    -- The example tests how requests and responses are serialized when there is
+    -- no input or output payload but there are HTTP header bindings.
     inputAndOutputWithHeaders: function(Client, types.InputAndOutputWithHeadersInput): types.InputAndOutputWithHeadersOutput, table
     nestedXmlMaps: function(Client, types.NestedXmlMapsInput): types.NestedXmlMapsOutput, table
+    -- Nested Xml Maps with key/values with @xmlName
     nestedXmlMapWithXmlName: function(Client, types.NestedXmlMapWithXmlNameInput): types.NestedXmlMapWithXmlNameOutput, table
+    -- The example tests how requests and responses are serialized when there's
+    -- no request or response payload because the operation has no input or output.
+    -- While this should be rare, code generators must support this.
     noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput): types.NoInputAndNoOutputOutput, table
+    -- The example tests how requests and responses are serialized when there's
+    -- no request or response payload because the operation has no input and the
+    -- output is empty. While this should be rare, code generators must support
+    -- this.
     noInputAndOutput: function(Client, types.NoInputAndOutputInput): types.NoInputAndOutputOutput, table
+    -- Null headers are not sent over the wire, empty headers are serialized to ""
     nullAndEmptyHeadersClient: function(Client, types.NullAndEmptyHeadersClientInput): types.NullAndEmptyHeadersClientOutput, table
+    -- Null headers are not sent over the wire, empty headers are serialized to ""
     nullAndEmptyHeadersServer: function(Client, types.NullAndEmptyHeadersServerInput): types.NullAndEmptyHeadersServerOutput, table
+    -- Omits null, but serializes empty string value.
     omitsNullSerializesEmptyString: function(Client, types.OmitsNullSerializesEmptyStringInput): types.OmitsNullSerializesEmptyStringOutput, table
     putWithContentEncoding: function(Client, types.PutWithContentEncodingInput): types.PutWithContentEncodingOutput, table
+    -- Automatically adds idempotency tokens.
     queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput): types.QueryIdempotencyTokenAutoFillOutput, table
     queryParamsAsStringListMap: function(Client, types.QueryParamsAsStringListMapInput): types.QueryParamsAsStringListMapOutput, table
     queryPrecedence: function(Client, types.QueryPrecedenceInput): types.QueryPrecedenceOutput, table
+    -- Recursive shapes
     recursiveShapes: function(Client, types.RecursiveShapesInput): types.RecursiveShapesOutput, table
     simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput): types.SimpleScalarPropertiesOutput, table
+    -- The example tests how timestamp request and response headers are serialized.
     timestampFormatHeaders: function(Client, types.TimestampFormatHeadersInput): types.TimestampFormatHeadersOutput, table
+    -- This example serializes an XML attributes on synthesized document.
     xmlAttributes: function(Client, types.XmlAttributesInput): types.XmlAttributesOutput, table
+    -- This example serializes an XML attribute on a payload when it's defined in the middle of the member list.
+    -- This tests that implementations correctly write attributes immediately after the element start tag,
+    -- which is critical for languages like C# where attribute writing must happen before child elements.
     xmlAttributesInMiddle: function(Client, types.XmlAttributesInMiddleInput): types.XmlAttributesInMiddleOutput, table
+    -- This example serializes an XML attributes on a document targeted by httpPayload.
     xmlAttributesOnPayload: function(Client, types.XmlAttributesOnPayloadInput): types.XmlAttributesOnPayloadOutput, table
+    -- Blobs are base64 encoded
     xmlBlobs: function(Client, types.XmlBlobsInput): types.XmlBlobsOutput, table
+    -- Blobs are base64 encoded
     xmlEmptyBlobs: function(Client, types.XmlEmptyBlobsInput): types.XmlEmptyBlobsOutput, table
     xmlEmptyLists: function(Client, types.XmlEmptyListsInput): types.XmlEmptyListsOutput, table
     xmlEmptyMaps: function(Client, types.XmlEmptyMapsInput): types.XmlEmptyMapsOutput, table
     xmlEmptyStrings: function(Client, types.XmlEmptyStringsInput): types.XmlEmptyStringsOutput, table
+    -- This example serializes enums as top level properties, in lists, sets, and maps.
     xmlEnums: function(Client, types.XmlEnumsInput): types.XmlEnumsOutput, table
+    -- This example serializes enums as top level properties, in lists, sets, and maps.
     xmlIntEnums: function(Client, types.XmlIntEnumsInput): types.XmlIntEnumsOutput, table
+    -- This test case serializes XML lists for the following cases for both
+    -- input and output:
+    --
+    -- 1. Normal XML lists.
+    -- 2. Normal XML sets.
+    -- 3. XML lists of lists.
+    -- 4. XML lists with @xmlName on its members
+    -- 5. Flattened XML lists.
+    -- 6. Flattened XML lists with @xmlName.
+    -- 7. Flattened XML lists with @xmlNamespace.
+    -- 8. Lists of structures.
+    -- 9. Flattened XML list of structures
     xmlLists: function(Client, types.XmlListsInput): types.XmlListsOutput, table
+    -- The example tests basic map serialization.
     xmlMaps: function(Client, types.XmlMapsInput): types.XmlMapsOutput, table
     xmlMapsXmlName: function(Client, types.XmlMapsXmlNameInput): types.XmlMapsXmlNameOutput, table
+    -- Maps with @xmlNamespace and @xmlName
     xmlMapWithXmlNamespace: function(Client, types.XmlMapWithXmlNamespaceInput): types.XmlMapWithXmlNamespaceOutput, table
     xmlNamespaces: function(Client, types.XmlNamespacesInput): types.XmlNamespacesOutput, table
+    -- This tests how timestamps are serialized, including using the
+    -- default format of date-time and various @timestampFormat trait
+    -- values.
     xmlTimestamps: function(Client, types.XmlTimestampsInput): types.XmlTimestampsOutput, table
     xmlUnions: function(Client, types.XmlUnionsInput): types.XmlUnionsOutput, table
 end

@@ -176,32 +176,58 @@ local record SparseNullsOperationOutput
     sparseStringMap: {string : string}
 end
 
+-- This error is thrown when an invalid greeting value is provided.
 local record InvalidGreeting
     Message: string
 end
 
+-- This error is thrown when a request is invalid.
 local record ComplexError
     TopLevel: string
     Nested: ComplexNestedErrorData
 end
 
+-- A standard error for input validation failures.
+-- This should be thrown by services when a member of the input structure
+-- falls outside of the modeled or documented constraints.
 local record ValidationException
+    -- A summary of the validation failure.
     message: string
+    -- A list of specific failures encountered while validating the input.
+    -- A member can appear in this list more than once if it failed to satisfy multiple constraints.
     fieldList: {ValidationExceptionField}
 end
 
+-- A standard error for input validation failures.
+-- This should be thrown by services when a member of the input structure
+-- falls outside of the modeled or documented constraints.
 local record ValidationException
+    -- A summary of the validation failure.
     message: string
+    -- A list of specific failures encountered while validating the input.
+    -- A member can appear in this list more than once if it failed to satisfy multiple constraints.
     fieldList: {ValidationExceptionField}
 end
 
+-- A standard error for input validation failures.
+-- This should be thrown by services when a member of the input structure
+-- falls outside of the modeled or documented constraints.
 local record ValidationException
+    -- A summary of the validation failure.
     message: string
+    -- A list of specific failures encountered while validating the input.
+    -- A member can appear in this list more than once if it failed to satisfy multiple constraints.
     fieldList: {ValidationExceptionField}
 end
 
+-- A standard error for input validation failures.
+-- This should be thrown by services when a member of the input structure
+-- falls outside of the modeled or documented constraints.
 local record ValidationException
+    -- A summary of the validation failure.
     message: string
+    -- A list of specific failures encountered while validating the input.
+    -- A member can appear in this list more than once if it failed to satisfy multiple constraints.
     fieldList: {ValidationExceptionField}
 end
 

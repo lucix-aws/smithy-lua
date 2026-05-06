@@ -6,12 +6,28 @@ local record Client
     emptyInputOutput: function(Client, types.EmptyInputOutputInput): types.EmptyInputOutputOutput, table
     float16: function(Client, types.Float16Input): types.Float16Output, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
+    -- This operation has three possible return values:
+    --
+    -- 1. A successful response in the form of GreetingWithErrorsOutput
+    -- 2. An InvalidGreeting error.
+    -- 3. A ComplexError error.
+    --
+    -- Implementations must be able to successfully take a response and
+    -- properly deserialize successful and error responses.
     greetingWithErrors: function(Client, types.GreetingWithErrorsInput): types.GreetingWithErrorsOutput, table
     noInputOutput: function(Client, types.NoInputOutputInput): types.NoInputOutputOutput, table
     operationWithDefaults: function(Client, types.OperationWithDefaultsInput): types.OperationWithDefaultsOutput, table
     optionalInputOutput: function(Client, types.OptionalInputOutputInput): types.OptionalInputOutputOutput, table
     recursiveShapes: function(Client, types.RecursiveShapesInput): types.RecursiveShapesOutput, table
+    -- The example tests basic map serialization.
     rpcV2CborDenseMaps: function(Client, types.RpcV2CborDenseMapsInput): types.RpcV2CborDenseMapsOutput, table
+    -- This test case serializes JSON lists for the following cases for both
+    -- input and output:
+    --
+    -- 1. Normal lists.
+    -- 2. Normal sets.
+    -- 3. Lists of lists.
+    -- 4. Lists of structures.
     rpcV2CborLists: function(Client, types.RpcV2CborListsInput): types.RpcV2CborListsOutput, table
     rpcV2CborSparseMaps: function(Client, types.RpcV2CborSparseMapsInput): types.RpcV2CborSparseMapsOutput, table
     simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput): types.SimpleScalarPropertiesOutput, table

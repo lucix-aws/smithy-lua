@@ -256,7 +256,9 @@ local record HttpRequestWithLabelsInput
     long: number
     float: number
     double: number
+    -- Serialized in the path as true or false.
     boolean: boolean
+    -- Note that this member has no format, so it's serialized as an RFC 3399 date-time.
     timestamp: number
 end
 
@@ -466,10 +468,12 @@ local record JsonTimestampsOutput
     httpDateOnTarget: number
 end
 
+-- A shared structure that contains a single union member.
 local record JsonUnionsInput
     contents: MyUnion
 end
 
+-- A shared structure that contains a single union member.
 local record JsonUnionsOutput
     contents: MyUnion
 end
@@ -1092,16 +1096,20 @@ local record ServiceUnavailableError
     message: string
 end
 
+-- This error is thrown when an invalid greeting value is provided.
 local record InvalidGreeting
     Message: string
 end
 
+-- This error is thrown when a request is invalid.
 local record ComplexError
     Header: string
     TopLevel: string
     Nested: ComplexNestedErrorData
 end
 
+-- This error has test cases that test some of the dark corners of Amazon service
+-- framework history. It should only be implemented by clients.
 local record FooError
 end
 

@@ -170,15 +170,19 @@ local record SimpleScalarPropertiesOutput
     doubleValue: number
 end
 
+-- This error is thrown when an invalid greeting value is provided.
 local record InvalidGreeting
     Message: string
 end
 
+-- This error is thrown when a request is invalid.
 local record ComplexError
     TopLevel: string
     Nested: ComplexNestedErrorData
 end
 
+-- This error has test cases that test some of the dark corners of Amazon service
+-- framework history. It should only be implemented by clients.
 local record FooError
 end
 

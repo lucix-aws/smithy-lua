@@ -300,10 +300,12 @@ local record XmlTimestampsOutput
     httpDateOnTarget: number
 end
 
+-- This error is thrown when an invalid greeting value is provided.
 local record InvalidGreeting
     Message: string
 end
 
+-- This error is thrown when a request is invalid.
 local record ComplexError
     TopLevel: string
     Nested: ComplexNestedErrorData

@@ -246,7 +246,9 @@ local record HttpRequestWithLabelsInput
     long: number
     float: number
     double: number
+    -- Serialized in the path as true or false.
     boolean: boolean
+    -- Note that this member has no format, so it's serialized as an RFC 3399 date-time.
     timestamp: number
 end
 
@@ -699,10 +701,12 @@ local record XmlUnionsOutput
     unionValue: XmlUnionShape
 end
 
+-- This error is thrown when an invalid greeting value is provided.
 local record InvalidGreeting
     Message: string
 end
 
+-- This error is thrown when a request is invalid.
 local record ComplexError
     Header: string
     TopLevel: string

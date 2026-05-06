@@ -3,20 +3,34 @@
 local types = require("jsonprotocol.types")
 
 local record Client
+    -- The example tests how servers must support requests
+    -- containing a `Content-Type` header with parameters.
     contentTypeParameters: function(Client, types.ContentTypeParametersInput): types.ContentTypeParametersOutput, table
     datetimeOffsets: function(Client, types.DatetimeOffsetsInput): types.DatetimeOffsetsOutput, table
     emptyOperation: function(Client, types.EmptyOperationInput): types.EmptyOperationOutput, table
     endpointOperation: function(Client, types.EndpointOperationInput): types.EndpointOperationOutput, table
     endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput): types.EndpointWithHostLabelOperationOutput, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
+    -- This operation has three possible return values:
+    --
+    -- 1. A successful response in the form of GreetingWithErrorsOutput
+    -- 2. An InvalidGreeting error.
+    -- 3. A ComplexError error.
+    --
+    -- Implementations must be able to successfully take a response and
+    -- properly deserialize successful and error responses.
     greetingWithErrors: function(Client, types.GreetingWithErrorsInput): types.GreetingWithErrorsOutput, table
     hostWithPathOperation: function(Client, types.HostWithPathOperationInput): types.HostWithPathOperationOutput, table
+    -- This example serializes enums as top level properties, in lists, sets, and maps.
     jsonEnums: function(Client, types.JsonEnumsInput): types.JsonEnumsOutput, table
+    -- This example serializes intEnums as top level properties, in lists, sets, and maps.
     jsonIntEnums: function(Client, types.JsonIntEnumsInput): types.JsonIntEnumsOutput, table
+    -- This operation uses unions for inputs and outputs.
     jsonUnions: function(Client, types.JsonUnionsInput): types.JsonUnionsOutput, table
     kitchenSinkOperation: function(Client, types.KitchenSinkOperationInput): types.KitchenSinkOperationOutput, table
     nullOperation: function(Client, types.NullOperationInput): types.NullOperationOutput, table
     operationWithOptionalInputOutput: function(Client, types.OperationWithOptionalInputOutputInput): types.OperationWithOptionalInputOutputOutput, table
+    -- This example serializes an inline document as part of the payload.
     putAndGetInlineDocuments: function(Client, types.PutAndGetInlineDocumentsInput): types.PutAndGetInlineDocumentsOutput, table
     putWithContentEncoding: function(Client, types.PutWithContentEncodingInput): types.PutWithContentEncodingOutput, table
     simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput): types.SimpleScalarPropertiesOutput, table
