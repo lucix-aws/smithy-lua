@@ -58,6 +58,12 @@ import software.amazon.smithy.rulesengine.traits.EndpointRuleSetTrait;
 public final class DirectedLuaCodegen
         implements DirectedCodegen<LuaContext, LuaSettings, LuaIntegration> {
 
+    private static final java.util.Set<String> LUA_RESERVED = java.util.Set.of(
+        "and", "break", "do", "else", "elseif", "end", "false", "for",
+        "function", "goto", "if", "in", "local", "nil", "not", "or",
+        "repeat", "return", "then", "true", "until", "while"
+    );
+
     @Override
     public SymbolProvider createSymbolProvider(CreateSymbolProviderDirective<LuaSettings> directive) {
         return new LuaSymbolProvider(directive.model(), directive.service());
@@ -674,7 +680,8 @@ public final class DirectedLuaCodegen
         var memberName = member.getMemberName();
         var parentName = parent.getId().getName();
 
-        writer.write("$L = schema.new({", memberName);
+        var luaKey = LUA_RESERVED.contains(memberName) ? "[\"" + memberName + "\"]" : memberName;
+        writer.write("$L = schema.new({", luaKey);
         writer.indent();
         writer.write("id = id.from(_N, $S, $S),", parentName, memberName);
         writer.write("type = $S,", toLuaSchemaType(target));
