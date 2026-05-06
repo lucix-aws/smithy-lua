@@ -16,6 +16,7 @@ import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
 import software.amazon.smithy.model.shapes.UnionShape;
+import software.amazon.smithy.model.traits.DocumentationTrait;
 import software.amazon.smithy.model.traits.HttpPayloadTrait;
 import software.amazon.smithy.model.traits.RequiredTrait;
 import software.amazon.smithy.model.traits.StreamingTrait;
@@ -124,6 +125,7 @@ final class TealGenerator {
                 var opName = symbolProvider.toSymbol(operation).getName();
                 var inputName = operationIndex.expectInputShape(operation).getId().getName(service);
                 var outputName = operationIndex.expectOutputShape(operation).getId().getName(service);
+                writeDoc(writer, operation);
                 writer.write("$L: function(Client, types.$L): types.$L, table",
                         opName, inputName, outputName);
             }
@@ -144,6 +146,7 @@ final class TealGenerator {
 
     private static void writeStructureRecord(LuaWriter writer, StructureShape shape, ServiceShape service, Model model) {
         var name = shape.getId().getName(service);
+        writeDoc(writer, shape);
         writer.write("local record $L", name);
         writer.indent();
         for (var member : shape.members()) {
@@ -154,6 +157,7 @@ final class TealGenerator {
             } else {
                 tealType = toTealType(target, service, model);
             }
+            writeDoc(writer, member);
             writer.write("$L: $L", member.getMemberName(), tealType);
         }
         writer.dedent();
@@ -219,5 +223,13 @@ final class TealGenerator {
             if (member.getTarget().equals(target.getId())) return true;
         }
         return false;
+    }
+
+    private static void writeDoc(LuaWriter writer, Shape shape) {
+        shape.getTrait(DocumentationTrait.class).ifPresent(trait -> {
+            for (var line : trait.getValue().split("\n")) {
+                writer.write("-- $L", line);
+            }
+        });
     }
 }
