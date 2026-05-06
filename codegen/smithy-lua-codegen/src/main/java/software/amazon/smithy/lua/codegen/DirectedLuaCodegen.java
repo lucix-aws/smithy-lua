@@ -328,8 +328,11 @@ public final class DirectedLuaCodegen
                 protocolRequire = "smithy.protocol.query";
                 protocolExpr = "query_protocol.new(\"ec2Query\")";
             } else if (name.equals("smithy.protocols#rpcv2Cbor")) {
-                protocolRequire = "smithy.protocol.rpcv2cbor";
-                protocolExpr = "rpcv2cbor_protocol.new()";
+                protocolRequire = "smithy.protocol.rpcv2";
+                protocolExpr = "rpcv2_protocol.new_cbor()";
+            } else if (name.equals("smithy.protocols#rpcv2Json")) {
+                protocolRequire = "smithy.protocol.rpcv2";
+                protocolExpr = "rpcv2_protocol.new_json()";
             }
         }
 

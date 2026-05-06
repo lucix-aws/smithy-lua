@@ -1,23 +1,31 @@
--- smithy-lua runtime: Smithy RPCv2 CBOR protocol
--- RPC-style protocol with CBOR body.
+-- smithy-lua runtime: Smithy RPCv2 protocol (CBOR and JSON variants)
+-- RPC-style protocol parameterized by codec format.
 
-local cbor_codec = require("smithy.codec.cbor")
 local http = require("smithy.http")
-local schema_mod = require("smithy.schema")
 local prelude = require("smithy.prelude")
-local stype = schema_mod.type
 
 local M = {}
 M.__index = M
 
-function M.new(settings)
+local function new(codec, protocol_id, content_type, settings)
     settings = settings or {}
     return setmetatable({
-        codec = cbor_codec.new(),
+        codec = codec,
+        protocol_id = protocol_id,
+        content_type = content_type,
         service_name = settings.service_name or "",
-        -- RPC protocols send initial-request/initial-response as event stream messages
         has_event_stream_initial_message = true,
     }, M)
+end
+
+function M.new_cbor(settings)
+    local cbor_codec = require("smithy.codec.cbor")
+    return new(cbor_codec.new(), "rpc-v2-cbor", "application/cbor", settings)
+end
+
+function M.new_json(settings)
+    local json_codec = require("smithy.codec.json")
+    return new(json_codec.new(), "rpc-v2-json", "application/json", settings)
 end
 
 function M.serialize(self, input, operation)
@@ -25,27 +33,20 @@ function M.serialize(self, input, operation)
     local path = "/service/" .. self.service_name .. "/operation/" .. operation.name
 
     local headers = {
-        ["smithy-protocol"] = "rpc-v2-cbor",
-        ["Accept"] = "application/cbor",
+        ["smithy-protocol"] = self.protocol_id,
+        ["Accept"] = self.content_type,
     }
 
-    -- Unit input (no defined input shape) = no body
     local schema = operation.input_schema
     if schema == prelude.Unit then
         return http.new_request("POST", path, headers, http.string_reader("")), nil
     end
 
-    -- Non-Unit input: always serialize (even if empty)
-    headers["Content-Type"] = "application/cbor"
+    headers["Content-Type"] = self.content_type
     local body_str, err = self.codec:serialize(input, schema)
     if err then return nil, err end
 
-    return http.new_request(
-        "POST",
-        path,
-        headers,
-        http.string_reader(body_str)
-    ), nil
+    return http.new_request("POST", path, headers, http.string_reader(body_str)), nil
 end
 
 function M.deserialize(self, response, operation)
@@ -54,20 +55,18 @@ function M.deserialize(self, response, operation)
         return nil, { type = "http", code = "ResponseReadError", message = read_err }
     end
 
-    -- Check Smithy-Protocol header
     local proto_header = response.headers and (
         response.headers["Smithy-Protocol"] or
         response.headers["smithy-protocol"]
     )
-    if proto_header and proto_header ~= "rpc-v2-cbor" then
+    if proto_header and proto_header ~= self.protocol_id then
         return nil, {
             type = "sdk",
             code = "ProtocolMismatch",
-            message = "expected Smithy-Protocol: rpc-v2-cbor, got: " .. proto_header,
+            message = "expected Smithy-Protocol: " .. self.protocol_id .. ", got: " .. proto_header,
         }
     end
 
-    -- Error response
     if response.status_code < 200 or response.status_code >= 300 then
         local code, message = "UnknownError", ""
         if body_str and #body_str > 0 then
@@ -87,7 +86,6 @@ function M.deserialize(self, response, operation)
         }
     end
 
-    -- Success: empty body is valid
     if not body_str or #body_str == 0 then return {}, nil end
 
     return self.codec:deserialize(body_str, operation.output_schema)

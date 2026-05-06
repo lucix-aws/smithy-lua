@@ -303,8 +303,11 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("local protocol_mod = require(\"smithy.protocol.ec2query\")");
             w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());
         } else if (proto.contains("rpcv2Cbor")) {
-            w.write("local protocol_mod = require(\"smithy.protocol.rpcv2cbor\")");
-            w.write("local protocol = protocol_mod.new({ service_name = $S })", serviceName);
+            w.write("local protocol_mod = require(\"smithy.protocol.rpcv2\")");
+            w.write("local protocol = protocol_mod.new_cbor({ service_name = $S })", serviceName);
+        } else if (proto.contains("rpcv2Json")) {
+            w.write("local protocol_mod = require(\"smithy.protocol.rpcv2\")");
+            w.write("local protocol = protocol_mod.new_json({ service_name = $S })", serviceName);
         } else {
             w.write("-- TODO: protocol module for $L", proto);
             w.write("local protocol = nil");

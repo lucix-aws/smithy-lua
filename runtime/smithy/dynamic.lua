@@ -245,7 +245,10 @@ local PROTOCOL_MAP = {
         return require("smithy.protocol.ec2query").new({ version = version })
     end,
     ["smithy.protocols#rpcv2Cbor"] = function(_, service_name)
-        return require("smithy.protocol.rpcv2cbor").new({ service_name = service_name })
+        return require("smithy.protocol.rpcv2").new_cbor({ service_name = service_name })
+    end,
+    ["smithy.protocols#rpcv2Json"] = function(_, service_name)
+        return require("smithy.protocol.rpcv2").new_json({ service_name = service_name })
     end,
 }
 
