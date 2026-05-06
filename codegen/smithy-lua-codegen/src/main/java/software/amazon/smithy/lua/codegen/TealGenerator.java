@@ -227,8 +227,21 @@ final class TealGenerator {
 
     private static void writeDoc(LuaWriter writer, Shape shape) {
         shape.getTrait(DocumentationTrait.class).ifPresent(trait -> {
-            for (var line : trait.getValue().split("\n")) {
-                writer.write("-- $L", line);
+            var text = trait.getValue()
+                    .replaceAll("<[^>]+>", "")
+                    .replaceAll("&nbsp;", " ")
+                    .replaceAll("&amp;", "&")
+                    .replaceAll("&lt;", "<")
+                    .replaceAll("&gt;", ">")
+                    .replaceAll("&quot;", "\"")
+                    .replaceAll(" +", " ")
+                    .strip();
+            if (text.isEmpty()) return;
+            for (var line : text.split("\n")) {
+                var stripped = line.strip();
+                if (!stripped.isEmpty()) {
+                    writer.write("-- $L", stripped);
+                }
             }
         });
     }
