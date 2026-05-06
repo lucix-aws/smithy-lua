@@ -59,9 +59,15 @@ M.no_auth_scheme = {
     end,
 }
 
---- Default auth scheme resolver: returns operation.auth_schemes as-is.
-function M.default_auth_scheme_resolver(operation)
-    return operation.auth_schemes or {}
+--- Default auth scheme resolver: reads AUTH trait from operation schema,
+--- falls back to service schema.
+function M.default_auth_scheme_resolver(service, operation)
+    local traits = require("smithy.traits")
+    local auth_trait = operation:trait(traits.AUTH)
+    if not auth_trait then
+        auth_trait = service:trait(traits.AUTH)
+    end
+    return auth_trait or {}
 end
 
 --- Select the auth scheme to use for a request.

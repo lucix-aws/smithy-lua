@@ -5,7 +5,10 @@ package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
 local aws_json = require("smithy.protocol.awsjson")
 local http = require("smithy.http")
-local stype = require("smithy.schema").type
+local schema = require("smithy.schema")
+local shape_id = require("smithy.shape_id")
+local traits = require("smithy.traits")
+local stype = schema.type
 
 local pass_count = 0
 
@@ -26,105 +29,122 @@ local function assert_eq(a, b, msg)
     end
 end
 
--- Schemas matching codegen format (table-keyed members)
-local get_queue_url_input = {
+-- Service schema
+local service = schema.service({
+    id = shape_id.from("com.amazonaws.sqs", "AmazonSQS"),
+    version = "2012-11-05",
+    traits = {},
+})
+
+-- Input/output schemas
+local get_queue_url_input = schema.new({
+    id = shape_id.from("com.amazonaws.sqs", "GetQueueUrlInput"),
     type = stype.STRUCTURE,
     members = {
-        QueueName = { type = stype.STRING },
+        QueueName = schema.new({ type = stype.STRING, name = "QueueName" }),
     },
-}
+})
 
-local get_queue_url_output = {
+local get_queue_url_output = schema.new({
+    id = shape_id.from("com.amazonaws.sqs", "GetQueueUrlOutput"),
     type = stype.STRUCTURE,
     members = {
-        QueueUrl = { type = stype.STRING },
+        QueueUrl = schema.new({ type = stype.STRING, name = "QueueUrl" }),
     },
-}
+})
 
-local send_message_input = {
+local send_message_input = schema.new({
+    id = shape_id.from("com.amazonaws.sqs", "SendMessageInput"),
     type = stype.STRUCTURE,
     members = {
-        QueueUrl    = { type = stype.STRING },
-        MessageBody = { type = stype.STRING },
-        DelaySeconds = { type = stype.INTEGER },
+        QueueUrl = schema.new({ type = stype.STRING, name = "QueueUrl" }),
+        MessageBody = schema.new({ type = stype.STRING, name = "MessageBody" }),
+        DelaySeconds = schema.new({ type = stype.INTEGER, name = "DelaySeconds" }),
     },
-}
+})
 
-local send_message_output = {
+local send_message_output = schema.new({
+    id = shape_id.from("com.amazonaws.sqs", "SendMessageOutput"),
     type = stype.STRUCTURE,
     members = {
-        MessageId        = { type = stype.STRING },
-        MD5OfMessageBody = { type = stype.STRING },
+        MessageId = schema.new({ type = stype.STRING, name = "MessageId" }),
+        MD5OfMessageBody = schema.new({ type = stype.STRING, name = "MD5OfMessageBody" }),
     },
-}
+})
 
-local empty_output = { type = stype.STRUCTURE }
+local empty_output = schema.new({
+    id = shape_id.from("com.amazonaws.sqs", "EmptyOutput"),
+    type = stype.STRUCTURE,
+})
 
-local operation = {
-    name = "GetQueueUrl",
-    input_schema = get_queue_url_input,
-    output_schema = get_queue_url_output,
-    http_method = "POST",
-    http_path = "/",
-}
+-- Operation schemas
+local operation = schema.operation({
+    id = shape_id.from("com.amazonaws.sqs", "GetQueueUrl"),
+    input = get_queue_url_input,
+    output = get_queue_url_output,
+    traits = {
+        [traits.HTTP] = { method = "POST", path = "/" },
+    },
+})
 
 -- === Serialize tests ===
 
-local protocol = aws_json.new({ version = "1.0", service_id = "AmazonSQS" })
+local protocol = aws_json.new({ version = "1.0" })
 
 test("serialize: content-type is application/x-amz-json-1.0", function()
-    local req, err = protocol:serialize({ QueueName = "test" }, operation)
+    local req, err = protocol:serialize({ QueueName = "test" }, service, operation)
     assert(not err, tostring(err and err.message))
     assert_eq(req.headers["Content-Type"], "application/x-amz-json-1.0")
 end)
 
 test("serialize: X-Amz-Target is service.operation", function()
-    local req, err = protocol:serialize({ QueueName = "test" }, operation)
+    local req, err = protocol:serialize({ QueueName = "test" }, service, operation)
     assert(not err)
     assert_eq(req.headers["X-Amz-Target"], "AmazonSQS.GetQueueUrl")
 end)
 
 test("serialize: method and path from operation", function()
-    local req, err = protocol:serialize({ QueueName = "test" }, operation)
+    local req, err = protocol:serialize({ QueueName = "test" }, service, operation)
     assert(not err)
     assert_eq(req.method, "POST")
     assert_eq(req.url, "/")
 end)
 
 test("serialize: body is JSON-encoded input", function()
-    local req, err = protocol:serialize({ QueueName = "my-queue" }, operation)
+    local req, err = protocol:serialize({ QueueName = "my-queue" }, service, operation)
     assert(not err)
     local body = http.read_all(req.body)
     assert_eq(body, '{"QueueName":"my-queue"}')
 end)
 
 test("serialize: empty input produces {}", function()
-    local req, err = protocol:serialize({}, operation)
+    local req, err = protocol:serialize({}, service, operation)
     assert(not err)
     local body = http.read_all(req.body)
     assert_eq(body, '{}')
 end)
 
 test("serialize: nil input produces {}", function()
-    local req, err = protocol:serialize(nil, operation)
+    local req, err = protocol:serialize(nil, service, operation)
     assert(not err)
     local body = http.read_all(req.body)
     assert_eq(body, '{}')
 end)
 
 test("serialize: multiple members", function()
-    local op = {
-        name = "SendMessage",
-        input_schema = send_message_input,
-        output_schema = send_message_output,
-        http_method = "POST",
-        http_path = "/",
-    }
+    local op = schema.operation({
+        id = shape_id.from("com.amazonaws.sqs", "SendMessage"),
+        input = send_message_input,
+        output = send_message_output,
+        traits = {
+            [traits.HTTP] = { method = "POST", path = "/" },
+        },
+    })
     local req, err = protocol:serialize({
         QueueUrl = "https://sqs.us-east-1.amazonaws.com/123/test",
         MessageBody = "hello",
         DelaySeconds = 10,
-    }, op)
+    }, service, op)
     assert(not err)
     local body = http.read_all(req.body)
     -- Keys sorted: DelaySeconds, MessageBody, QueueUrl
@@ -132,8 +152,13 @@ test("serialize: multiple members", function()
 end)
 
 test("serialize: version 1.1", function()
-    local p11 = aws_json.new({ version = "1.1", service_id = "DynamoDB_20120810" })
-    local req, err = p11:serialize({}, operation)
+    local p11 = aws_json.new({ version = "1.1" })
+    local svc = schema.service({
+        id = shape_id.from("com.amazonaws.dynamodb", "DynamoDB_20120810"),
+        version = "2012-08-10",
+        traits = {},
+    })
+    local req, err = p11:serialize({}, svc, operation)
     assert(not err)
     assert_eq(req.headers["Content-Type"], "application/x-amz-json-1.1")
 end)
@@ -157,7 +182,12 @@ test("deserialize: empty body returns empty table", function()
         headers = {},
         body = http.string_reader(""),
     }
-    local op = { name = "DeleteQueue", input_schema = empty_output, output_schema = empty_output, http_method = "POST", http_path = "/" }
+    local op = schema.operation({
+        id = shape_id.from("com.amazonaws.sqs", "DeleteQueue"),
+        input = empty_output,
+        output = empty_output,
+        traits = { [traits.HTTP] = { method = "POST", path = "/" } },
+    })
     local output, err = protocol:deserialize(response, op)
     assert(not err)
     assert(output, "expected non-nil output")

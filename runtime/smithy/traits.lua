@@ -47,6 +47,13 @@ M.EVENT_PAYLOAD      = { id = id.from("smithy.api", "eventPayload") }
 -- Error trait
 M.ERROR              = { id = id.from("smithy.api", "error") }
 
+-- Operation traits
+M.HTTP               = { id = id.from("smithy.api", "http") }
+M.AUTH               = { id = id.from("smithy.api", "auth") }
+M.CONTEXT_PARAMS     = { id = id.from("smithy.rules", "contextParams") }
+M.STATIC_CONTEXT_PARAMS = { id = id.from("smithy.rules", "staticContextParams") }
+M.EVENT_STREAM       = { id = id.from("smithy.api", "eventStream") }
+
 -- AWS protocol traits
 M.AWS_QUERY_ERROR    = { id = id.from("aws.protocols", "awsQueryError") }
 M.EC2_QUERY_NAME     = { id = id.from("aws.protocols", "ec2QueryName") }

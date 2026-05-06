@@ -23,32 +23,6 @@ local record schema
         UNION: string
     end
 
-    -- Trait key constants
-    record trait
-        JSON_NAME: string
-        XML_NAME: string
-        XML_ATTRIBUTE: string
-        XML_FLATTENED: string
-        XML_NAMESPACE: string
-        TIMESTAMP_FORMAT: string
-        HTTP_HEADER: string
-        HTTP_LABEL: string
-        HTTP_QUERY: string
-        HTTP_QUERY_PARAMS: string
-        HTTP_PAYLOAD: string
-        HTTP_PREFIX_HEADERS: string
-        HTTP_RESPONSE_CODE: string
-        SPARSE: string
-        REQUIRED: string
-        SENSITIVE: string
-        STREAMING: string
-        IDEMPOTENCY_TOKEN: string
-        HOST_LABEL: string
-        CONTEXT_PARAM: string
-        EC2_QUERY_NAME: string
-        AWS_QUERY_ERROR: string
-    end
-
     -- Timestamp format constants
     record timestamp
         DATE_TIME: string
@@ -56,22 +30,47 @@ local record schema
         EPOCH_SECONDS: string
     end
 
-    -- A schema describes a Smithy shape at runtime.
-    -- Structure/union members are keyed by member name.
-    -- Each member is itself a Schema (with type, optional traits, etc.).
+    -- A schema describes a Smithy data shape at runtime.
     record Schema
-        id: string
+        id: ShapeId
         type: string
         members: {string: Schema}
         member: Schema
         key: Schema
         value: Schema
-        traits: {string: any}
+        _traits: {any: any}
         error: string
+
+        trait: function(Schema, key: any): any
+        direct_trait: function(Schema, key: any): any
+        member: function(Schema, name: string): Schema
+        members: function(Schema): {string: Schema}
     end
 
-    -- Look up a member schema by name
-    member: function(schema: Schema, name: string): Schema
+    -- A service schema describes a Smithy service shape.
+    record ServiceSchema
+        id: ShapeId
+        version: string
+        _traits: {any: any}
+
+        trait: function(ServiceSchema, key: any): any
+    end
+
+    -- An operation schema describes a Smithy operation shape.
+    record OperationSchema
+        id: ShapeId
+        input: Schema
+        output: Schema
+        errors: {Schema}
+        _traits: {any: any}
+
+        trait: function(OperationSchema, key: any): any
+    end
+
+    -- Constructors
+    new: function(args: table): Schema
+    service: function(args: table): ServiceSchema
+    operation: function(args: table): OperationSchema
 
 end
 

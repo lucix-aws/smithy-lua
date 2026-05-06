@@ -141,8 +141,9 @@ public final class DirectedLuaCodegen
             writer.write("return M");
         });
 
-        // Write module footer to schemas.lua (with forward reference fixup)
+        // Write module footer to schemas.lua (with forward reference fixup + service/operation schemas)
         var schemasFile = serviceNs + "/schemas.lua";
+        var model = directive.model();
         directive.context().writerDelegator().useFileWriter(schemasFile, serviceNs, writer -> {
             writer.write("");
             writer.write("-- Fix forward references for recursive schemas");
@@ -159,6 +160,109 @@ public final class DirectedLuaCodegen
             writer.write("    end");
             writer.write("end");
             writer.write("");
+
+            // Emit service schema
+            var namespace = service.getId().getNamespace();
+            writer.write("M.Service = schema.service({");
+            writer.indent();
+            writer.write("id = id.from($S, $S),", namespace, service.getId().getName());
+            writer.write("version = $S,", service.getVersion());
+            // Service-level auth trait
+            var serviceIndex = ServiceIndex.of(model);
+            var serviceAuth = serviceIndex.getEffectiveAuthSchemes(service);
+            if (!serviceAuth.isEmpty()) {
+                writer.write("traits = {");
+                writer.indent();
+                writer.write("[traits.AUTH] = {");
+                writer.indent();
+                for (var schemeId : serviceAuth.keySet()) {
+                    writer.write("{ scheme_id = $S },", schemeId.toString());
+                }
+                writer.dedent();
+                writer.write("},");
+                writer.dedent();
+                writer.write("},");
+            } else {
+                writer.write("traits = {},");
+            }
+            writer.dedent();
+            writer.write("})");
+            writer.write("");
+
+            // Emit operation schemas
+            var topDown = TopDownIndex.of(model);
+            var operations = topDown.getContainedOperations(service);
+            var operationIndex = OperationIndex.of(model);
+            for (var operation : operations) {
+                var opName = operation.getId().getName(service);
+                var inputShape = operationIndex.expectInputShape(operation);
+                var outputShape = operationIndex.expectOutputShape(operation);
+                var inputName = inputShape.getId().getName(service);
+                var outputName = outputShape.getId().getName(service);
+
+                // HTTP trait
+                var httpTrait = operation.getTrait(HttpTrait.class).orElse(null);
+
+                // Effective auth
+                var effectiveAuth = serviceIndex.getEffectiveAuthSchemes(
+                        service, operation, ServiceIndex.AuthSchemeMode.NO_AUTH_AWARE);
+
+                // Context params from @contextParam on input members
+                var contextParams = new TreeMap<String, String>();
+                for (var member : inputShape.members()) {
+                    member.getTrait(ContextParamTrait.class).ifPresent(t ->
+                            contextParams.put(t.getName(), member.getMemberName()));
+                }
+
+                // Event stream
+                String eventStreamUnion = null;
+                for (var member : outputShape.members()) {
+                    var target = model.expectShape(member.getTarget());
+                    if (target.hasTrait(StreamingTrait.class) && target.isUnionShape()) {
+                        eventStreamUnion = target.getId().getName(service);
+                        break;
+                    }
+                }
+
+                writer.write("M.$L = schema.operation({", opName);
+                writer.indent();
+                writer.write("id = id.from($S, $S),", namespace, operation.getId().getName());
+                writer.write("input = M.$L,", inputName);
+                writer.write("output = M.$L,", outputName);
+                writer.write("traits = {");
+                writer.indent();
+                if (httpTrait != null) {
+                    writer.write("[traits.HTTP] = { method = $S, path = $S },",
+                            httpTrait.getMethod(), httpTrait.getUri().toString());
+                }
+                if (!effectiveAuth.isEmpty()) {
+                    writer.write("[traits.AUTH] = {");
+                    writer.indent();
+                    for (var schemeId : effectiveAuth.keySet()) {
+                        writer.write("{ scheme_id = $S },", schemeId.toString());
+                    }
+                    writer.dedent();
+                    writer.write("},");
+                }
+                if (!contextParams.isEmpty()) {
+                    writer.write("[traits.CONTEXT_PARAMS] = {");
+                    writer.indent();
+                    for (var entry : contextParams.entrySet()) {
+                        writer.write("$L = $S,", entry.getKey(), entry.getValue());
+                    }
+                    writer.dedent();
+                    writer.write("},");
+                }
+                if (eventStreamUnion != null) {
+                    writer.write("[traits.EVENT_STREAM] = M.$L,", eventStreamUnion);
+                }
+                writer.dedent();
+                writer.write("},");
+                writer.dedent();
+                writer.write("})");
+                writer.write("");
+            }
+
             writer.write("return M");
         });
 
@@ -249,9 +353,12 @@ public final class DirectedLuaCodegen
                 // with signer properties (signing_name from model, region from config)
                 final String finalSigningName = signingName;
                 writer.block("if not cfg.auth_scheme_resolver then", () -> {
-                    writer.block("cfg.auth_scheme_resolver = function(operation)", () -> {
+                    writer.addRequire("traits", "smithy.traits");
+                    writer.block("cfg.auth_scheme_resolver = function(service, operation)", () -> {
+                        writer.write("local auth_trait = operation:trait(traits.AUTH) or service:trait(traits.AUTH)");
                         writer.write("local options = {}");
-                        writer.block("for _, scheme_id in ipairs(operation.effective_auth_schemes) do", () -> {
+                        writer.block("for _, scheme in ipairs(auth_trait or {}) do", () -> {
+                            writer.write("local scheme_id = scheme.scheme_id or scheme");
                             writer.write("if scheme_id == \"aws.auth#sigv4\" or scheme_id == \"aws.auth#sigv4a\" then");
                             writer.indent();
                             writer.write("options[#options + 1] = { scheme_id = scheme_id, signer_properties = { signing_name = $S, signing_region = cfg.region } }",
@@ -408,46 +515,7 @@ public final class DirectedLuaCodegen
                 service, operation, ServiceIndex.AuthSchemeMode.NO_AUTH_AWARE);
 
         writer.block("function Client:" + opSymbol.getName() + "(input, options)", () -> {
-            writer.write("return self:invokeOperation(input, {");
-            writer.indent();
-            writer.write("name = $S,", opName);
-            writer.write("input_schema = schemas.$L,", inputName);
-            writer.write("output_schema = schemas.$L,", outputName);
-            writer.write("http_method = $S,", httpMethod);
-            writer.write("http_path = $S,", httpPath);
-
-            // Event stream: reference the streaming union schema
-            if (eventStreamUnion != null) {
-                writer.write("event_stream = schemas.$L,", eventStreamUnion);
-            }
-
-            // Emit effective auth scheme IDs (static from model)
-            writer.write("effective_auth_schemes = {");
-            writer.indent();
-            for (var schemeId : effectiveAuth.keySet()) {
-                writer.write("$S,", schemeId.toString());
-            }
-            writer.dedent();
-            writer.write("},");
-
-            // Emit context_params from @contextParam traits on input members
-            var contextParams = new TreeMap<String, String>();
-            for (var member : inputShape.members()) {
-                member.getTrait(ContextParamTrait.class).ifPresent(t ->
-                        contextParams.put(t.getName(), member.getMemberName()));
-            }
-            if (!contextParams.isEmpty()) {
-                writer.write("context_params = {");
-                writer.indent();
-                for (var entry : contextParams.entrySet()) {
-                    writer.write("$L = $S,", entry.getKey(), entry.getValue());
-                }
-                writer.dedent();
-                writer.write("},");
-            }
-
-            writer.dedent();
-            writer.write("}, options)");
+            writer.write("return self:invokeOperation(schemas.Service, schemas.$L, input, options)", opName);
         });
     }
 

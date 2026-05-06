@@ -17,9 +17,10 @@ local SCHEME_MAP = {
 --- operation's modeled auth schemes if the endpoint doesn't specify any.
 ---
 --- @param config table: client config (needs endpoint_provider, region, etc.)
---- @return function: auth_scheme_resolver(operation, input) -> options
+--- @return function: auth_scheme_resolver(service, operation, input) -> options
 function M.new(config)
-    return function(operation, input)
+    local traits = require("smithy.traits")
+    return function(service, operation, input)
         -- Build endpoint params (same logic as the pipeline)
         local ep_params = {}
         if config.region then ep_params.Region = config.region end
@@ -29,8 +30,15 @@ function M.new(config)
         if config.disable_s3_express_session_auth then
             ep_params.DisableS3ExpressSessionAuth = true
         end
-        if operation.context_params and input then
-            for param_name, input_field in pairs(operation.context_params) do
+        local static_ctx = operation:trait(traits.STATIC_CONTEXT_PARAMS)
+        if static_ctx then
+            for param_name, param_def in pairs(static_ctx) do
+                ep_params[param_name] = param_def.value
+            end
+        end
+        local ctx_params = operation:trait(traits.CONTEXT_PARAMS)
+        if ctx_params and input then
+            for param_name, input_field in pairs(ctx_params) do
                 ep_params[param_name] = input[input_field]
             end
         end
@@ -40,13 +48,15 @@ function M.new(config)
         if err then
             -- Fall back to modeled auth schemes on endpoint resolution failure;
             -- the pipeline will surface the endpoint error later.
-            return operation.auth_schemes or {}
+            local auth_trait = operation:trait(traits.AUTH) or service:trait(traits.AUTH)
+            return auth_trait or {}
         end
 
         -- Check if endpoint specifies auth schemes
         local props = endpoint.properties
         if not props or not props.authSchemes or #props.authSchemes == 0 then
-            return operation.auth_schemes or {}
+            local auth_trait = operation:trait(traits.AUTH) or service:trait(traits.AUTH)
+            return auth_trait or {}
         end
 
         -- Build options from endpoint auth schemes

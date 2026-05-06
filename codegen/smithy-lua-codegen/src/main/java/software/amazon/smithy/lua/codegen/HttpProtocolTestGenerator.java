@@ -125,17 +125,20 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("test($S, function()", tc.getId());
             w.indent();
             w.write("local input = $L", nodesToLua(tc.getParams()));
-            w.write("local operation = {");
+            w.write("local operation = schema.operation({");
             w.indent();
-            w.write("name = $S,", opName);
-            w.write("input_schema = types.$L,", inputShape.getId().getName(svc));
-            w.write("output_schema = {},");
-            w.write("http_method = $S,", tc.getMethod());
-            // Use full URI template (with constant query params) if available
-            w.write("http_path = $S,", fullUriTemplate != null ? fullUriTemplate : tc.getUri());
+            w.write("id = shape_id.from($S, $S),", svc.getId().getNamespace(), opName);
+            w.write("input = types.$L,", inputShape.getId().getName(svc));
+            w.write("output = schema.new({ type = \"structure\" }),");
+            w.write("traits = {");
+            w.indent();
+            w.write("[traits.HTTP] = { method = $S, path = $S },",
+                    tc.getMethod(), fullUriTemplate != null ? fullUriTemplate : tc.getUri());
             w.dedent();
-            w.write("}");
-            w.write("local request, err = protocol:serialize(input, operation)");
+            w.write("},");
+            w.dedent();
+            w.write("})");
+            w.write("local request, err = protocol:serialize(input, service, operation)");
             w.write("assert(not err, \"serialize error: \" .. tostring(err))");
             w.write("assert_eq(request.method, $S, \"method\")", tc.getMethod());
             w.write("assert_url_path(request.url, $S)", tc.getUri());
@@ -206,15 +209,14 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("test($S, function()", tc.getId());
             w.indent();
             writeMockResponse(w, tc, proto);
-            w.write("local operation = {");
+            w.write("local operation = schema.operation({");
             w.indent();
-            w.write("name = $S,", opName);
-            w.write("input_schema = {},");
-            w.write("output_schema = types.$L,", outputShape.getId().getName(svc));
-            w.write("http_method = \"POST\",");
-            w.write("http_path = \"/\",");
+            w.write("id = shape_id.from($S, $S),", svc.getId().getNamespace(), opName);
+            w.write("input = schema.new({ type = \"structure\" }),");
+            w.write("output = types.$L,", outputShape.getId().getName(svc));
+            w.write("traits = {},");
             w.dedent();
-            w.write("}");
+            w.write("})");
             w.write("local output, err = protocol:deserialize(response, operation)");
             w.write("assert(not err, \"deserialize error: \" .. tostring(err and err.message or err))");
             if (streamingMember != null) {
@@ -243,15 +245,14 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("test($S, function()", tc.getId());
             w.indent();
             writeMockResponse(w, tc, proto);
-            w.write("local operation = {");
+            w.write("local operation = schema.operation({");
             w.indent();
-            w.write("name = $S,", opName);
-            w.write("input_schema = {},");
-            w.write("output_schema = types.$L,", errorShape.getId().getName(svc));
-            w.write("http_method = \"POST\",");
-            w.write("http_path = \"/\",");
+            w.write("id = shape_id.from($S, $S),", svc.getId().getNamespace(), opName);
+            w.write("input = schema.new({ type = \"structure\" }),");
+            w.write("output = types.$L,", errorShape.getId().getName(svc));
+            w.write("traits = {},");
             w.dedent();
-            w.write("}");
+            w.write("})");
             w.write("local output, err = protocol:deserialize(response, operation)");
             w.write("assert(output == nil, \"expected nil output for error response\")");
             w.write("assert(err ~= nil, \"expected error\")");
@@ -276,14 +277,18 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("package.path = \"runtime/?.lua;runtime/?/init.lua;\" .. package.path");
         w.write("");
         w.write("local types = require($S)", ns + ".schemas");
+        w.write("local schema = require(\"smithy.schema\")");
+        w.write("local shape_id = require(\"smithy.shape_id\")");
+        w.write("local traits = require(\"smithy.traits\")");
         w.write("local http = require(\"smithy.http\")");
         w.write("local json_decoder = require(\"smithy.json.decoder\")");
 
         var serviceName = svc.getId().getName();
+        var serviceNs = svc.getId().getNamespace();
         if (proto.contains("awsJson1_0") || proto.contains("awsJson1_1")) {
             w.write("local protocol_mod = require(\"smithy.protocol.awsjson\")");
-            w.write("local protocol = protocol_mod.new({ version = $S, service_id = $S })",
-                    proto.contains("1_0") ? "1.0" : "1.1", serviceName);
+            w.write("local protocol = protocol_mod.new({ version = $S })",
+                    proto.contains("1_0") ? "1.0" : "1.1");
         } else if (proto.contains("restJson")) {
             w.write("local protocol_mod = require(\"smithy.protocol.restjson\")");
             w.write("local protocol = protocol_mod.new()");
@@ -304,14 +309,22 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("local protocol = protocol_mod.new({ version = $S })", svc.getVersion());
         } else if (proto.contains("rpcv2Cbor")) {
             w.write("local protocol_mod = require(\"smithy.protocol.rpcv2\")");
-            w.write("local protocol = protocol_mod.new_cbor({ service_name = $S })", serviceName);
+            w.write("local protocol = protocol_mod.new_cbor()");
         } else if (proto.contains("rpcv2Json")) {
             w.write("local protocol_mod = require(\"smithy.protocol.rpcv2\")");
-            w.write("local protocol = protocol_mod.new_json({ service_name = $S })", serviceName);
+            w.write("local protocol = protocol_mod.new_json()");
         } else {
             w.write("-- TODO: protocol module for $L", proto);
             w.write("local protocol = nil");
         }
+
+        // Service schema for protocol tests
+        w.write("");
+        w.write("local service = schema.service({");
+        w.write("    id = shape_id.from($S, $S),", serviceNs, serviceName);
+        w.write("    version = $S,", svc.getVersion());
+        w.write("    traits = {},");
+        w.write("})");
 
         w.write("");
         w.write("local pass_count = 0");

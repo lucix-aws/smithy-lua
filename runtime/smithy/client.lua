@@ -4,6 +4,7 @@
 local auth = require("smithy.auth")
 local eventstream = require("smithy.eventstream")
 local interceptor = require("smithy.interceptor")
+local traits = require("smithy.traits")
 
 local M = {}
 
@@ -21,7 +22,7 @@ function M.new(config)
 end
 
 --- Execute a single attempt.
-local function do_attempt(config, input, request, operation, interceptors, ctx)
+local function do_attempt(config, service, operation, input, request, interceptors, ctx)
     -- read_before_attempt
     ctx.request = request
     if interceptors then
@@ -44,7 +45,7 @@ local function do_attempt(config, input, request, operation, interceptors, ctx)
 
     -- 1. Resolve auth scheme
     local resolver = config.auth_scheme_resolver or auth.default_auth_scheme_resolver
-    local options = resolver(operation, input)
+    local options = resolver(service, operation, input)
 
     local selected, err = auth.select_scheme(options, config.auth_schemes, config.identity_resolvers)
     if not selected then return nil, { type = "sdk", message = err } end
@@ -63,8 +64,15 @@ local function do_attempt(config, input, request, operation, interceptors, ctx)
     if config.disable_s3_express_session_auth then
         ep_params.DisableS3ExpressSessionAuth = true
     end
-    if operation.context_params then
-        for param_name, input_field in pairs(operation.context_params) do
+    local static_ctx = operation:trait(traits.STATIC_CONTEXT_PARAMS)
+    if static_ctx then
+        for param_name, param_def in pairs(static_ctx) do
+            ep_params[param_name] = param_def.value
+        end
+    end
+    local ctx_params = operation:trait(traits.CONTEXT_PARAMS)
+    if ctx_params then
+        for param_name, input_field in pairs(ctx_params) do
             ep_params[param_name] = input[input_field]
         end
     end
@@ -138,7 +146,8 @@ local function do_attempt(config, input, request, operation, interceptors, ctx)
     end
 
     -- 9. Deserialize
-    if operation.event_stream then
+    local es = operation:trait(traits.EVENT_STREAM)
+    if es then
         if response.status_code < 200 or response.status_code >= 300 then
             return config.protocol:deserialize(response, operation)
         end
@@ -159,7 +168,7 @@ local function do_attempt(config, input, request, operation, interceptors, ctx)
 end
 
 --- The SDK operation pipeline.
-function M.invokeOperation(self, input, operation, options)
+function M.invokeOperation(self, service, operation, input, options)
     -- 1. Config resolution: copy + apply operation plugins
     local config = shallow_copy(self.config)
     if options and options.plugins then
@@ -178,7 +187,6 @@ function M.invokeOperation(self, input, operation, options)
     if has_interceptors then
         local hook_err = interceptor.run_read(interceptors, "read_before_execution", ctx)
         if hook_err then
-            -- Jump to modify_before_completion
             ctx.output = nil
             local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
             err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
@@ -214,7 +222,7 @@ function M.invokeOperation(self, input, operation, options)
     end
 
     -- 5. Serialize
-    local request, serialize_err = config.protocol:serialize(input, operation)
+    local request, serialize_err = config.protocol:serialize(input, service, operation)
     if serialize_err then
         if not has_interceptors then return nil, serialize_err end
         ctx.output = nil
@@ -259,7 +267,7 @@ function M.invokeOperation(self, input, operation, options)
     local result, attempt_err
 
     if not retryer then
-        result, attempt_err = do_attempt(config, input, request, operation,
+        result, attempt_err = do_attempt(config, service, operation, input, request,
             has_interceptors and interceptors or nil, ctx)
 
         -- modify_before_attempt_completion + read_after_attempt
@@ -273,7 +281,7 @@ function M.invokeOperation(self, input, operation, options)
         token, attempt_err = retryer:acquire_token()
         if not attempt_err then
             while true do
-                result, attempt_err = do_attempt(config, input, request, operation,
+                result, attempt_err = do_attempt(config, service, operation, input, request,
                     has_interceptors and interceptors or nil, ctx)
 
                 -- modify_before_attempt_completion + read_after_attempt
@@ -321,15 +329,16 @@ function M.invokeOperation(self, input, operation, options)
     if attempt_err then return nil, attempt_err end
 
     -- For event stream operations, wrap the response in a stream object
-    if operation.event_stream then
+    local es = operation:trait(traits.EVENT_STREAM)
+    if es then
         local protocol = config.protocol
         local stream = eventstream.new_stream(
             result.body,
-            operation.event_stream,
+            es,
             protocol.codec,
             {
                 has_initial_message = protocol.has_event_stream_initial_message,
-                output_schema = operation.output_schema,
+                output_schema = operation.output,
                 on_close = result.close,
             }
         )

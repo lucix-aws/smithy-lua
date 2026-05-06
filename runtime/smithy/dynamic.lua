@@ -284,7 +284,7 @@ local function detect_auth_schemes(service_shape)
     return {}
 end
 
---- Build an operation table from the model.
+--- Build an operation schema from the model.
 local function build_operation(converter, shapes, op_id_str, service_auth_schemes)
     local op_shape = shapes[op_id_str]
     if not op_shape then return nil, "operation not found: " .. op_id_str end
@@ -293,12 +293,10 @@ local function build_operation(converter, shapes, op_id_str, service_auth_scheme
     local output_schema = op_shape.output and converter:get_schema(op_shape.output.target)
 
     -- Get HTTP method/path from @http trait
-    local http_method = "POST"
-    local http_path = "/"
-    local http_trait = op_shape.traits and op_shape.traits["smithy.api#http"]
-    if http_trait then
-        http_method = http_trait.method or "POST"
-        http_path = http_trait.uri or "/"
+    local http_trait_val = nil
+    local raw_http = op_shape.traits and op_shape.traits["smithy.api#http"]
+    if raw_http then
+        http_trait_val = { method = raw_http.method or "POST", path = raw_http.uri or "/" }
     end
 
     -- Get effective auth schemes (operation-level overrides service-level)
@@ -306,16 +304,8 @@ local function build_operation(converter, shapes, op_id_str, service_auth_scheme
     local op_auth = op_shape.traits and op_shape.traits["smithy.api#auth"]
     if op_auth then effective_auth = op_auth end
 
-    -- Get context params from @staticContextParams and @contextParam on members
+    -- Get context params from @contextParam on members
     local context_params = nil
-    if op_shape.traits and op_shape.traits["smithy.rules#staticContextParams"] then
-        context_params = context_params or {}
-        for param_name, param_def in pairs(op_shape.traits["smithy.rules#staticContextParams"]) do
-            -- Static context params have a fixed value, not from input
-            -- We'd need to handle these differently; skip for now
-        end
-    end
-    -- Check input members for @contextParam
     if op_shape.input then
         local input_shape = shapes[op_shape.input.target]
         if input_shape and input_shape.members then
@@ -329,17 +319,28 @@ local function build_operation(converter, shapes, op_id_str, service_auth_scheme
         end
     end
 
-    local op_name = op_id_str:match("#(.+)$") or op_id_str
+    -- Get static context params
+    local static_ctx = nil
+    if op_shape.traits and op_shape.traits["smithy.rules#staticContextParams"] then
+        static_ctx = {}
+        for param_name, param_def in pairs(op_shape.traits["smithy.rules#staticContextParams"]) do
+            static_ctx[param_name] = param_def
+        end
+    end
 
-    return {
-        name = op_name,
-        input_schema = input_schema or schema.new({ id = parse_id(op_id_str .. "Input"), type = "structure" }),
-        output_schema = output_schema or schema.new({ id = parse_id(op_id_str .. "Output"), type = "structure" }),
-        http_method = http_method,
-        http_path = http_path,
-        effective_auth_schemes = effective_auth,
-        context_params = context_params,
-    }
+    local traits = require("smithy.traits")
+    local op_traits = {}
+    if http_trait_val then op_traits[traits.HTTP] = http_trait_val end
+    if effective_auth then op_traits[traits.AUTH] = effective_auth end
+    if context_params then op_traits[traits.CONTEXT_PARAMS] = context_params end
+    if static_ctx then op_traits[traits.STATIC_CONTEXT_PARAMS] = static_ctx end
+
+    return schema.operation({
+        id = parse_id(op_id_str),
+        input = input_schema or schema.new({ id = parse_id(op_id_str .. "Input"), type = "structure" }),
+        output = output_schema or schema.new({ id = parse_id(op_id_str .. "Output"), type = "structure" }),
+        traits = op_traits,
+    })
 end
 
 --- Load a Smithy JSON AST model from a file path or table.
@@ -439,9 +440,11 @@ function M.new(config)
 
     -- Set up auth scheme resolver if signing_name detected
     if signing_name and not config.auth_scheme_resolver then
-        client_config.auth_scheme_resolver = function(operation)
+        local traits_mod = require("smithy.traits")
+        client_config.auth_scheme_resolver = function(service, operation)
+            local auth_trait = operation:trait(traits_mod.AUTH) or service:trait(traits_mod.AUTH)
             local options = {}
-            for _, scheme_id in ipairs(operation.effective_auth_schemes or {}) do
+            for _, scheme_id in ipairs(auth_trait or {}) do
                 if scheme_id == "aws.auth#sigv4" or scheme_id == "aws.auth#sigv4a" then
                     options[#options + 1] = {
                         scheme_id = scheme_id,
@@ -502,6 +505,18 @@ function M.new(config)
         end
     end
 
+    -- Build service schema
+    local traits_mod = require("smithy.traits")
+    local svc_traits = {}
+    if service_auth_schemes and #service_auth_schemes > 0 then
+        svc_traits[traits_mod.AUTH] = service_auth_schemes
+    end
+    local service_schema = schema.service({
+        id = parse_id(service_id_str),
+        version = service_shape.version or "",
+        traits = svc_traits,
+    })
+
     -- Build the client
     local client = base_client.new(client_config)
 
@@ -526,7 +541,7 @@ function M.new(config)
             end
             op_cache[name] = op
         end
-        return self:invokeOperation(input or {}, op, options)
+        return self:invokeOperation(service_schema, op, input or {}, options)
     end
 
     --- List available operations.

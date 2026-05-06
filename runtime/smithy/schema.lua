@@ -102,4 +102,50 @@ function M.new(args)
     return s
 end
 
+-- ServiceSchema metatable
+local ServiceSchema = {}
+ServiceSchema.__index = ServiceSchema
+
+--- Get a trait value from the service schema.
+function ServiceSchema:trait(key)
+    local t = self._traits
+    if t then return t[key] end
+    return nil
+end
+
+--- Create a service schema.
+--- @param args table: { id (ShapeId), version (string), traits (table) }
+--- @return table: ServiceSchema instance
+function M.service(args)
+    return setmetatable({
+        id       = args.id,
+        version  = args.version,
+        _traits  = args.traits,
+    }, ServiceSchema)
+end
+
+-- OperationSchema metatable
+local OperationSchema = {}
+OperationSchema.__index = OperationSchema
+
+--- Get a trait value from the operation schema.
+function OperationSchema:trait(key)
+    local t = self._traits
+    if t then return t[key] end
+    return nil
+end
+
+--- Create an operation schema.
+--- @param args table: { id (ShapeId), input (Schema), output (Schema), errors (table), traits (table) }
+--- @return table: OperationSchema instance
+function M.operation(args)
+    return setmetatable({
+        id      = args.id,
+        input   = args.input,
+        output  = args.output,
+        errors  = args.errors,
+        _traits = args.traits,
+    }, OperationSchema)
+end
+
 return M

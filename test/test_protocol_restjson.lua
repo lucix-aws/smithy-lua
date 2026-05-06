@@ -5,8 +5,13 @@ package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
 local restjson = require("smithy.protocol.restjson")
 local http = require("smithy.http")
-local stype = require("smithy.schema").type
-local strait = require("smithy.schema").trait
+local schema = require("smithy.schema")
+local shape_id = require("smithy.shape_id")
+local traits = require("smithy.traits")
+local stype = schema.type
+
+-- Alias for member-level trait keys used in input schemas
+local strait = traits
 
 local pass_count = 0
 
@@ -33,6 +38,92 @@ local function assert_contains(s, sub, msg)
     end
 end
 
+-- Service schema for tests
+local service = schema.service({
+    id = shape_id.from("test.service", "TestService"),
+    version = "2024-01-01",
+    traits = {},
+})
+
+--- Helper: convert a plain table member to a Schema instance recursively.
+local function convert_member(k, v)
+    if getmetatable(v) then return v end
+    -- Fix trait values
+    local fixed_traits = nil
+    if v.traits then
+        fixed_traits = {}
+        for tk, tv in pairs(v.traits) do
+            if type(tv) == "string" then
+                if tk == traits.HTTP_PREFIX_HEADERS then
+                    fixed_traits[tk] = { prefix = tv }
+                elseif tk == traits.HTTP_HEADER then
+                    fixed_traits[tk] = { name = tv }
+                elseif tk == traits.HTTP_QUERY then
+                    fixed_traits[tk] = { name = tv }
+                elseif tk == traits.TIMESTAMP_FORMAT then
+                    fixed_traits[tk] = { format = tv }
+                else
+                    fixed_traits[tk] = { name = tv }
+                end
+            elseif type(tv) == "boolean" then
+                fixed_traits[tk] = {}
+            else
+                fixed_traits[tk] = tv
+            end
+        end
+    end
+    -- Recursively convert nested members
+    local nested_members = nil
+    if v.members then
+        nested_members = {}
+        for mk, mv in pairs(v.members) do
+            nested_members[mk] = convert_member(mk, mv)
+        end
+    end
+    return schema.new({
+        type = v.type,
+        name = k,
+        traits = fixed_traits,
+        members = nested_members,
+        list_member = v.list_member and convert_member("member", v.list_member) or nil,
+        map_key = v.map_key and convert_member("key", v.map_key) or nil,
+        map_value = v.map_value and convert_member("value", v.map_value) or nil,
+    })
+end
+
+--- Helper: convert a plain schema table to a Schema instance.
+local function convert_schema(s)
+    if not s or getmetatable(s) then return s end
+    local members = nil
+    if s.members then
+        members = {}
+        for k, v in pairs(s.members) do
+            members[k] = convert_member(k, v)
+        end
+    end
+    return schema.new({
+        type = s.type or stype.STRUCTURE,
+        members = members,
+        list_member = s.list_member and convert_member("member", s.list_member) or nil,
+        map_key = s.map_key and convert_member("key", s.map_key) or nil,
+        map_value = s.map_value and convert_member("value", s.map_value) or nil,
+    })
+end
+
+--- Helper: build an operation schema from old-style flat table.
+local function make_op(t)
+    local op_traits = {}
+    if t.http_method or t.http_path then
+        op_traits[traits.HTTP] = { method = t.http_method or "POST", path = t.http_path or "/" }
+    end
+    return schema.operation({
+        id = shape_id.from("test.service", t.name or "TestOp"),
+        input = convert_schema(t.input_schema) or schema.new({ type = stype.STRUCTURE }),
+        output = convert_schema(t.output_schema) or schema.new({ type = stype.STRUCTURE }),
+        traits = op_traits,
+    })
+end
+
 local protocol = restjson.new()
 
 -- ============================================================
@@ -53,7 +144,7 @@ test("serialize: body-only members as JSON", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Name = "foo", Count = 5 }, op)
+    local req, err = protocol:serialize({ Name = "foo", Count = 5 }, service, make_op(op))
     assert(not err, tostring(err and err.message))
     assert_eq(req.method, "POST")
     assert_eq(req.url, "/things")
@@ -75,7 +166,7 @@ test("serialize: no body members omits Content-Type", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Id = "abc" }, op)
+    local req, err = protocol:serialize({ Id = "abc" }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/things/abc")
     assert_eq(req.headers["Content-Type"], nil)
@@ -96,7 +187,7 @@ test("serialize: URI label expansion", function()
             },
         },
     }
-    local req, err = protocol:serialize({ TableName = "users", ItemId = "123" }, op)
+    local req, err = protocol:serialize({ TableName = "users", ItemId = "123" }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/tables/users/items/123")
 end)
@@ -114,7 +205,7 @@ test("serialize: URI label percent-encodes special chars", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Id = "hello world/foo" }, op)
+    local req, err = protocol:serialize({ Id = "hello world/foo" }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/items/hello%20world%2Ffoo")
 end)
@@ -133,7 +224,7 @@ test("serialize: greedy label preserves slashes", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Bucket = "my-bucket", Key = "path/to/file.txt" }, op)
+    local req, err = protocol:serialize({ Bucket = "my-bucket", Key = "path/to/file.txt" }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/buckets/my-bucket/path/to/file.txt")
 end)
@@ -152,7 +243,7 @@ test("serialize: query string params", function()
             },
         },
     }
-    local req, err = protocol:serialize({ MaxResults = 10, NextToken = "abc" }, op)
+    local req, err = protocol:serialize({ MaxResults = 10, NextToken = "abc" }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/items?maxResults=10&nextToken=abc")
 end)
@@ -171,7 +262,7 @@ test("serialize: nil query params omitted", function()
             },
         },
     }
-    local req, err = protocol:serialize({ MaxResults = 10 }, op)
+    local req, err = protocol:serialize({ MaxResults = 10 }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/items?maxResults=10")
 end)
@@ -189,7 +280,7 @@ test("serialize: httpQueryParams spreads map into query", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Params = { foo = "bar", baz = "qux" } }, op)
+    local req, err = protocol:serialize({ Params = { foo = "bar", baz = "qux" } }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/search?baz=qux&foo=bar")
 end)
@@ -208,7 +299,7 @@ test("serialize: header bindings", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Token = "secret", Name = "foo" }, op)
+    local req, err = protocol:serialize({ Token = "secret", Name = "foo" }, service, make_op(op))
     assert(not err)
     assert_eq(req.headers["X-Token"], "secret")
     local body = http.read_all(req.body)
@@ -228,7 +319,7 @@ test("serialize: prefix headers", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Meta = { color = "red", size = "large" } }, op)
+    local req, err = protocol:serialize({ Meta = { color = "red", size = "large" } }, service, make_op(op))
     assert(not err)
     assert_eq(req.headers["X-Meta-color"], "red")
     assert_eq(req.headers["X-Meta-size"], "large")
@@ -255,7 +346,7 @@ test("serialize: httpPayload structure is the entire body", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Id = "x", Data = { Name = "foo", Value = 42 } }, op)
+    local req, err = protocol:serialize({ Id = "x", Data = { Name = "foo", Value = 42 } }, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/data/x")
     assert_eq(req.headers["Content-Type"], "application/json")
@@ -276,7 +367,7 @@ test("serialize: httpPayload blob is raw body", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Body = "raw bytes here" }, op)
+    local req, err = protocol:serialize({ Body = "raw bytes here" }, service, make_op(op))
     assert(not err)
     assert_eq(req.headers["Content-Type"], "application/octet-stream")
     assert_eq(http.read_all(req.body), "raw bytes here")
@@ -295,7 +386,7 @@ test("serialize: httpPayload string is raw body", function()
             },
         },
     }
-    local req, err = protocol:serialize({ Content = "hello world" }, op)
+    local req, err = protocol:serialize({ Content = "hello world" }, service, make_op(op))
     assert(not err)
     assert_eq(http.read_all(req.body), "hello world")
 end)
@@ -313,7 +404,7 @@ test("serialize: json_name trait used for body members", function()
             },
         },
     }
-    local req, err = protocol:serialize({ TheName = "foo" }, op)
+    local req, err = protocol:serialize({ TheName = "foo" }, service, make_op(op))
     assert(not err)
     local body = http.read_all(req.body)
     assert_eq(body, '{"the_name":"foo"}')
@@ -340,7 +431,7 @@ test("serialize: mixed bindings", function()
     local req, err = protocol:serialize({
         Table = "users", Id = "42", Version = 3, IfMatch = "etag1",
         Name = "updated", Value = 99,
-    }, op)
+    }, service, make_op(op))
     assert(not err)
     assert_eq(req.method, "PUT")
     assert_eq(req.url, "/tables/users/items/42?version=3")
@@ -358,7 +449,7 @@ test("serialize: nil input", function()
         http_path = "/things",
         input_schema = { type = stype.STRUCTURE },
     }
-    local req, err = protocol:serialize(nil, op)
+    local req, err = protocol:serialize(nil, service, make_op(op))
     assert(not err)
     assert_eq(req.url, "/things")
 end)
@@ -384,7 +475,7 @@ test("deserialize: body-only members", function()
         headers = {},
         body = http.string_reader('{"Name":"foo","Count":5}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err, tostring(err and err.message))
     assert_eq(out.Name, "foo")
     assert_eq(out.Count, 5)
@@ -407,7 +498,7 @@ test("deserialize: httpResponseCode binding", function()
         headers = {},
         body = http.string_reader('{"Id":"abc"}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert_eq(out.StatusCode, 201)
     assert_eq(out.Id, "abc")
@@ -430,7 +521,7 @@ test("deserialize: header bindings", function()
         headers = { ["x-request-id"] = "req-123" },
         body = http.string_reader('{"Name":"foo"}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert_eq(out.RequestId, "req-123")
     assert_eq(out.Name, "foo")
@@ -452,7 +543,7 @@ test("deserialize: boolean header", function()
         headers = { ["x-exists"] = "true" },
         body = http.string_reader(""),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert_eq(out.Exists, true)
 end)
@@ -473,7 +564,7 @@ test("deserialize: integer header", function()
         headers = { ["x-count"] = "42" },
         body = http.string_reader(""),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert_eq(out.Count, 42)
 end)
@@ -494,7 +585,7 @@ test("deserialize: prefix headers", function()
         headers = { ["x-meta-color"] = "red", ["x-meta-size"] = "large", ["content-type"] = "application/json" },
         body = http.string_reader(""),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert(out.Meta, "expected Meta")
     assert_eq(out.Meta["color"], "red")
@@ -524,7 +615,7 @@ test("deserialize: httpPayload structure", function()
         headers = {},
         body = http.string_reader('{"Name":"foo","Value":42}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert(out.Data, "expected Data")
     assert_eq(out.Data.Name, "foo")
@@ -547,7 +638,7 @@ test("deserialize: httpPayload blob", function()
         headers = {},
         body = http.string_reader("raw bytes"),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert_eq(out.Body, "raw bytes")
 end)
@@ -563,7 +654,7 @@ test("deserialize: empty body returns empty output", function()
         headers = {},
         body = http.string_reader(""),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert(out, "expected non-nil output")
 end)
@@ -579,7 +670,7 @@ test("deserialize: error from x-amzn-errortype header", function()
         headers = { ["x-amzn-errortype"] = "NotFoundException" },
         body = http.string_reader('{"message":"thing not found"}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not out)
     assert_eq(err.type, "api")
     assert_eq(err.code, "NotFoundException")
@@ -598,7 +689,7 @@ test("deserialize: error from __type in body", function()
         headers = {},
         body = http.string_reader('{"__type":"com.example#ValidationException","message":"bad input"}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not out)
     assert_eq(err.code, "ValidationException")
     assert_eq(err.message, "bad input")
@@ -615,7 +706,7 @@ test("deserialize: error with empty body", function()
         headers = {},
         body = http.string_reader(""),
     }
-    local _, err = protocol:deserialize(resp, op)
+    local _, err = protocol:deserialize(resp, make_op(op))
     assert_eq(err.type, "api")
     assert_eq(err.code, "UnknownError")
     assert_eq(err.status_code, 500)
@@ -640,7 +731,7 @@ test("deserialize: mixed output bindings", function()
         headers = { ["x-request-id"] = "req-456" },
         body = http.string_reader('{"Id":"thing-1","Name":"foo"}'),
     }
-    local out, err = protocol:deserialize(resp, op)
+    local out, err = protocol:deserialize(resp, make_op(op))
     assert(not err)
     assert_eq(out.StatusCode, 201)
     assert_eq(out.RequestId, "req-456")

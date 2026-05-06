@@ -179,11 +179,11 @@ local function serialize_query(v, prefix, schema, params, ec2)
     end
 end
 
-function M.serialize(self, input, operation)
+function M.serialize(self, input, service, operation)
     input = input or {}
 
     -- Auto-fill idempotency tokens
-    local schema = operation.input_schema
+    local schema = operation.input
     if schema and schema:members() then
         for mname, ms in pairs(schema:members()) do
             if input[mname] == nil and ms:trait(t.IDEMPOTENCY_TOKEN) then
@@ -193,7 +193,7 @@ function M.serialize(self, input, operation)
     end
 
     local prefix_parts = {
-        "Action=" .. pct_encode(operation.name),
+        "Action=" .. pct_encode(operation.id.name),
         "Version=" .. pct_encode(self.version),
     }
 
@@ -211,9 +211,10 @@ function M.serialize(self, input, operation)
         body = table.concat(prefix_parts, "&")
     end
 
+    local http_trait = operation:trait(t.HTTP)
     return http.new_request(
         "POST",
-        operation.http_path or "/",
+        http_trait and http_trait.path or "/",
         {
             ["Content-Type"] = "application/x-www-form-urlencoded",
         },
@@ -286,7 +287,7 @@ function M.deserialize(self, response, operation)
         end
         -- If the output_schema is an error shape, use its shape name as the code
         -- (handles @awsQueryError where wire code differs from shape name)
-        local output_schema = operation.output_schema
+        local output_schema = operation.output
         if output_schema and output_schema.id and output_schema:trait(t.ERROR) then
             code = output_schema.id.name
         end
@@ -311,14 +312,14 @@ function M.deserialize(self, response, operation)
         result_node = node
     else
         -- awsQuery: <OpResponse><OpResult>...</OpResult></OpResponse>
-        local result_tag = operation.name .. "Result"
+        local result_tag = operation.id.name .. "Result"
         for _, child in ipairs(node.children or {}) do
             if child.tag == result_tag then result_node = child; break end
         end
         if not result_node then result_node = node end
     end
 
-    local output_schema = operation.output_schema
+    local output_schema = operation.output
     if not output_schema or not output_schema:members() then return {}, nil end
 
     return xml_codec.decode_node(result_node, output_schema, self.xml), nil

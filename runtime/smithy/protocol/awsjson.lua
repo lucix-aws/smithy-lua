@@ -26,18 +26,20 @@ end
 --- Serialize modeled input into an HTTP request.
 --- @param self table: protocol instance
 --- @param input table: user input
---- @param operation table: codegen operation metadata
+--- @param service table: service schema
+--- @param operation table: operation schema
 --- @return table, table: HTTP request, err
-function M.serialize(self, input, operation)
-    local body, err = self.codec:serialize(input or {}, operation.input_schema)
+function M.serialize(self, input, service, operation)
+    local body, err = self.codec:serialize(input or {}, operation.input)
     if err then return nil, err end
 
+    local http_trait = operation:trait(require("smithy.traits").HTTP)
     return http.new_request(
-        operation.http_method or "POST",
-        operation.http_path or "/",
+        http_trait and http_trait.method or "POST",
+        http_trait and http_trait.path or "/",
         {
             ["Content-Type"] = self.content_type,
-            ["X-Amz-Target"] = self.service_id .. "." .. operation.name,
+            ["X-Amz-Target"] = service.id.name .. "." .. operation.id.name,
         },
         http.string_reader(body)
     ), nil
@@ -106,7 +108,7 @@ function M.deserialize(self, response, operation)
         return {}, nil
     end
 
-    return self.codec:deserialize(body_str, operation.output_schema)
+    return self.codec:deserialize(body_str, operation.output)
 end
 
 return M

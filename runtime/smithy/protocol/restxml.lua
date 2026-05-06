@@ -279,9 +279,9 @@ local function parse_header_value(v, member_schema)
     end
 end
 
-function M.serialize(self, input, operation)
+function M.serialize(self, input, service, operation)
     input = input or {}
-    local schema = operation.input_schema
+    local schema = operation.input
     local members = schema and schema:members() or {}
 
     -- Auto-fill idempotency tokens
@@ -383,7 +383,8 @@ function M.serialize(self, input, operation)
     end
 
     -- Build URL: merge constant query params from path template with dynamic ones
-    local path = expand_path(operation.http_path or "/", labels)
+    local http_trait = operation:trait(t.HTTP)
+    local path = expand_path(http_trait and http_trait.path or "/", labels)
     local base_path, existing_qs = path:match("^([^?]*)%??(.*)")
     if existing_qs and #existing_qs > 0 then
         for pair in existing_qs:gmatch("[^&]+") do
@@ -473,7 +474,7 @@ function M.serialize(self, input, operation)
     end
 
     return http.new_request(
-        operation.http_method or "POST",
+        http_trait and http_trait.method or "POST",
         url,
         headers,
         http.string_reader(body_str)
@@ -509,7 +510,7 @@ end
 
 function M.deserialize(self, response, operation)
     -- Determine if there's a streaming blob payload before reading the body
-    local schema = operation.output_schema
+    local schema = operation.output
     local members = schema and schema:members() or {}
     local has_streaming_payload = false
     for _, ms in pairs(members) do

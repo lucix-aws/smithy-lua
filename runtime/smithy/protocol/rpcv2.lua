@@ -28,16 +28,16 @@ function M.new_json(settings)
     return new(json_codec.new(), "rpc-v2-json", "application/json", settings)
 end
 
-function M.serialize(self, input, operation)
+function M.serialize(self, input, service, operation)
     input = input or {}
-    local path = "/service/" .. self.service_name .. "/operation/" .. operation.name
+    local path = "/service/" .. service.id.name .. "/operation/" .. operation.id.name
 
     local headers = {
         ["smithy-protocol"] = self.protocol_id,
         ["Accept"] = self.content_type,
     }
 
-    local schema = operation.input_schema
+    local schema = operation.input
     if schema == prelude.Unit then
         return http.new_request("POST", path, headers, http.string_reader("")), nil
     end
@@ -88,7 +88,7 @@ function M.deserialize(self, response, operation)
 
     if not body_str or #body_str == 0 then return {}, nil end
 
-    return self.codec:deserialize(body_str, operation.output_schema)
+    return self.codec:deserialize(body_str, operation.output)
 end
 
 return M
