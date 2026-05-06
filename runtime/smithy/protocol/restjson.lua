@@ -27,7 +27,9 @@ function M.serialize(self, input, service, operation)
     local labels, query, headers, payload_name, payload_schema, body_members =
         rest.bind_request(input, schema)
 
-    headers["Content-Type"] = "application/json"
+    if not headers["Content-Type"] then
+        headers["Content-Type"] = "application/json"
+    end
 
     local url, method = rest.build_url(operation, labels, query)
 
@@ -49,11 +51,9 @@ function M.serialize(self, input, service, operation)
             body_str = require("smithy.json.encoder").encode(v)
         elseif payload_schema.type == "blob" then
             body_str = v
-            local mt = payload_schema:trait(t.MEDIA_TYPE)
-            if mt then
-                headers["Content-Type"] = mt.value
-            else
-                headers["Content-Type"] = "application/octet-stream"
+            if headers["Content-Type"] == "application/json" then
+                local mt = payload_schema:trait(t.MEDIA_TYPE)
+                headers["Content-Type"] = mt and mt.value or "application/octet-stream"
             end
         elseif payload_schema.type == "string" or payload_schema.type == "enum" then
             body_str = tostring(v)

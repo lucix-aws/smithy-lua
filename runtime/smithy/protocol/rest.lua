@@ -419,7 +419,7 @@ function M.bind_response(response, schema)
                     end
                 end
             end
-            if next(map) then output[name] = map end
+            output[name] = map
         elseif pld then
             payload_name = name
             payload_schema = ms
