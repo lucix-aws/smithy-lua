@@ -19,11 +19,8 @@ This repository implements the lua client codegen plugin lua-client-codegen.
 
 ## Runtime
 
-**Note from Luc**: some of these things are very obviously out of place. As of
-writing this is day 1 and stuff will naturally move around.
-
-This generator aims to be MOSTLY runtime. Having code in the runtime means you
-can easily test it, and it's accessible for people to read and understand.
+Smithy-lua aims to be MOSTLY runtime. Having code in the runtime means you can
+easily test it, and it's accessible for people to read and understand.
 
 ```
 runtime/smithy/
