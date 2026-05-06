@@ -54,6 +54,7 @@ import software.amazon.smithy.model.traits.XmlNamespaceTrait;
 import software.amazon.smithy.model.traits.synthetic.OriginalShapeIdTrait;
 import software.amazon.smithy.rulesengine.traits.ContextParamTrait;
 import software.amazon.smithy.rulesengine.traits.EndpointRuleSetTrait;
+import software.amazon.smithy.rulesengine.traits.StaticContextParamsTrait;
 
 public final class DirectedLuaCodegen
         implements DirectedCodegen<LuaContext, LuaSettings, LuaIntegration> {
@@ -255,6 +256,21 @@ public final class DirectedLuaCodegen
                     writer.indent();
                     for (var entry : contextParams.entrySet()) {
                         writer.write("$L = $S,", entry.getKey(), entry.getValue());
+                    }
+                    writer.dedent();
+                    writer.write("},");
+                }
+                var staticContextParams = operation.getTrait(StaticContextParamsTrait.class).orElse(null);
+                if (staticContextParams != null && !staticContextParams.getParameters().isEmpty()) {
+                    writer.write("[traits.STATIC_CONTEXT_PARAMS] = {");
+                    writer.indent();
+                    for (var entry : staticContextParams.getParameters().entrySet()) {
+                        var node = entry.getValue().getValue();
+                        if (node.isBooleanNode()) {
+                            writer.write("$L = { value = $L },", entry.getKey(), node.expectBooleanNode().getValue());
+                        } else if (node.isStringNode()) {
+                            writer.write("$L = { value = $S },", entry.getKey(), node.expectStringNode().getValue());
+                        }
                     }
                     writer.dedent();
                     writer.write("},");
