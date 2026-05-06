@@ -70,22 +70,21 @@ final class TealGenerator {
                 }
             }
 
-            // Generate enum types
-            for (var shape : model.getShapesWithTrait(software.amazon.smithy.model.traits.EnumTrait.class)) {
-                // handled by EnumShape below
-            }
-            model.shapes(EnumShape.class).forEach(shape -> {
-                if (isInService(shape, service, model)) {
+            // Generate enum types (sorted for deterministic output)
+            model.shapes(EnumShape.class)
+                .filter(shape -> isInService(shape, service, model))
+                .sorted((a, b) -> a.getId().getName(service).compareTo(b.getId().getName(service)))
+                .forEach(shape -> {
                     writeEnumType(writer, shape, service);
                     writer.write("");
-                }
-            });
-            model.shapes(IntEnumShape.class).forEach(shape -> {
-                if (isInService(shape, service, model)) {
+                });
+            model.shapes(IntEnumShape.class)
+                .filter(shape -> isInService(shape, service, model))
+                .sorted((a, b) -> a.getId().getName(service).compareTo(b.getId().getName(service)))
+                .forEach(shape -> {
                     writeIntEnumType(writer, shape, service);
                     writer.write("");
-                }
-            });
+                });
 
             // Module record
             writer.write("local record M");
