@@ -56,7 +56,7 @@ end
 
 --- Create an HTTP client backed by libcurl FFI with streaming response.
 function M.new()
-    return function(request)
+    local function do_request(request)
         local handle = curl.curl_easy_init()
         if handle == nil then
             return nil, { type = "http", code = "CurlError", message = "curl_easy_init failed" }
@@ -70,6 +70,7 @@ function M.new()
 
         -- Chunks buffer: write callback pushes, body reader pops
         local chunks = {}
+        local chunk_count = 0
         local headers_done = false
         local transfer_done = false
         local resp_headers = {}
@@ -77,7 +78,8 @@ function M.new()
         local write_cb = ffi.cast("size_t (*)(char *, size_t, size_t, void *)",
             function(ptr, size, nmemb, _)
                 local len = size * nmemb
-                chunks[#chunks + 1] = ffi.string(ptr, len)
+                chunk_count = chunk_count + 1
+                chunks[chunk_count] = ffi.string(ptr, len)
                 return len
             end)
 
@@ -215,11 +217,10 @@ function M.new()
 
         -- Streaming body reader: polls curl_multi for more data
         local chunk_idx = 1
-        local body_reader = function()
+        local function body_reader()
             -- Return any buffered chunks first
-            if chunk_idx <= #chunks then
+            if chunk_idx <= chunk_count then
                 local c = chunks[chunk_idx]
-                chunks[chunk_idx] = nil -- allow GC
                 chunk_idx = chunk_idx + 1
                 return c
             end
@@ -234,9 +235,8 @@ function M.new()
                 curl.curl_multi_perform(multi, running)
 
                 -- Check if new chunks arrived
-                if chunk_idx <= #chunks then
+                if chunk_idx <= chunk_count then
                     local c = chunks[chunk_idx]
-                    chunks[chunk_idx] = nil
                     chunk_idx = chunk_idx + 1
                     return c
                 end
@@ -252,6 +252,7 @@ function M.new()
                 curl.curl_multi_wait(multi, nil, 0, 1000, numfds)
             end
         end
+        jit.off(body_reader)
 
         return {
             status_code = status_code,
@@ -260,6 +261,19 @@ function M.new()
             close = cleanup,
         }, nil
     end
+    -- http://luajit.org/ext_ffi_semantics.html#callback:
+    -- "One thing that's not allowed, is to let an FFI call into a C function
+    -- get JIT-compiled, which in turn calls a callback, calling into Lua again.
+    -- Usually this attempt is caught by the interpreter first and the C function
+    -- is blacklisted for compilation. However, this heuristic may fail under
+    -- specific circumstances: e.g. a message polling function might not run Lua
+    -- callbacks right away and the call gets JIT-compiled. If it later happens to
+    -- call back into Lua (e.g. a rarely invoked error callback), you'll get a VM
+    -- PANIC with the message "bad callback". Then you'll need to manually turn off
+    -- JIT-compilation with jit.off() for the surrounding Lua function that invokes
+    -- such a message polling function (or similar)."
+    jit.off(do_request)
+    return do_request
 end
 
 return M
