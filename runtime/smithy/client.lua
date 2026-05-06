@@ -60,6 +60,9 @@ local function do_attempt(config, input, request, operation, interceptors, ctx)
     if config.use_fips ~= nil then ep_params.UseFIPS = config.use_fips end
     if config.use_dual_stack ~= nil then ep_params.UseDualStack = config.use_dual_stack end
     if config.endpoint_url then ep_params.Endpoint = config.endpoint_url end
+    if config.disable_s3_express_session_auth then
+        ep_params.DisableS3ExpressSessionAuth = true
+    end
     if operation.context_params then
         for param_name, input_field in pairs(operation.context_params) do
             ep_params[param_name] = input[input_field]
