@@ -1,7 +1,13 @@
 CODEGEN_TEST_BUILD = codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test
 PROTOCOLTEST_BUILD = codegen/protocol-test-codegen/build/smithyprojections/protocol-test-codegen
 
-.PHONY: generate test test-runtime test-codegen protocol-test clean
+.PHONY: generate test test-runtime test-codegen protocol-test unit clean
+
+unit:
+	@for f in test/test_*.lua; do \
+		echo "--- $$f ---"; \
+		LUA_PATH="runtime/?.lua;runtime/?/init.lua;runtime/smithy/?.lua;runtime/smithy/?/init.lua;;" luajit "$$f" || exit 1; \
+	done
 
 generate:
 	cd codegen && ./gradlew :smithy-lua-codegen-test:build :protocol-test-codegen:build

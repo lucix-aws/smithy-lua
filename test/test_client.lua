@@ -5,6 +5,7 @@ package.path = "runtime/?.lua;" .. package.path
 
 local client_mod = require("smithy.client")
 local auth = require("smithy.auth")
+local schema = require("smithy.schema")
 
 local function test(name, fn)
     local ok, err = pcall(fn)
@@ -28,16 +29,16 @@ local function record(name) calls[#calls + 1] = name end
 
 -- Mock protocol (methods accept self for colon-call from client.lua)
 local mock_protocol = {
-    serialize = function(self, input, operation)
+    serialize = function(self, input, service, operation)
         record("serialize")
         return {
-            method = operation.http_method,
-            url = operation.http_path,
+            method = "POST",
+            url = "/",
             headers = { ["Content-Type"] = "application/json" },
             body = nil,
         }, nil
     end,
-    deserialize = function(self, response, operation)
+    deserialize = function(self, response, service, operation)
         record("deserialize")
         return { Result = "ok" }, nil
     end,
@@ -85,7 +86,7 @@ local function make_auth_config(overrides)
         identity_resolvers = {
             aws_credentials = mock_identity_resolver,
         },
-        auth_scheme_resolver = function(operation)
+        auth_scheme_resolver = function(service, operation, input)
             return operation.auth_schemes
         end,
     }
@@ -95,16 +96,11 @@ local function make_auth_config(overrides)
     return cfg
 end
 
-local operation = {
-    name = "GetCallerIdentity",
-    input_schema = {},
-    output_schema = {},
-    http_method = "POST",
-    http_path = "/",
-    effective_auth_schemes = { "aws.auth#sigv4" },
-    auth_schemes = {
-        { scheme_id = "aws.auth#sigv4", signer_properties = { signing_name = "sts", signing_region = "us-east-1" } },
-    },
+local service = schema.service({ id = "sts" })
+
+local operation = schema.operation({ id = "GetCallerIdentity" })
+operation.auth_schemes = {
+    { scheme_id = "aws.auth#sigv4", signer_properties = { signing_name = "sts", signing_region = "us-east-1" } },
 }
 
 -- === Tests ===
@@ -112,7 +108,7 @@ local operation = {
 test("pipeline calls components in correct order", function()
     calls = {}
     local c = client_mod.new(make_auth_config())
-    local output, err = c:invokeOperation({}, operation)
+    local output, err = c:invokeOperation(service, operation, {})
     assert(not err, "unexpected error: " .. tostring(err and err.message))
     assert_eq(output.Result, "ok", "output")
 
@@ -137,7 +133,7 @@ test("endpoint is applied to request URL", function()
         end,
     }))
 
-    c:invokeOperation({}, operation)
+    c:invokeOperation(service, operation, {})
     assert_eq(captured_request.url, "https://sts.us-west-2.amazonaws.com/", "url")
 end)
 
@@ -145,7 +141,7 @@ test("signer receives correct identity and signer_properties", function()
     calls = {}
     signer_args = {}
     local c = client_mod.new(make_auth_config())
-    c:invokeOperation({}, operation)
+    c:invokeOperation(service, operation, {})
     assert_eq(signer_args.identity.access_key, "AKID", "access_key")
     assert_eq(signer_args.props.signing_name, "sts", "signing_name")
     assert_eq(signer_args.props.signing_region, "us-east-1", "signing_region")
@@ -161,7 +157,7 @@ test("operation plugins can override config", function()
         end,
     }))
 
-    c:invokeOperation({}, operation, {
+    c:invokeOperation(service, operation, {}, {
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
         },
@@ -171,7 +167,7 @@ end)
 
 test("plugins do not mutate original client config", function()
     local c = client_mod.new(make_auth_config())
-    c:invokeOperation({}, operation, {
+    c:invokeOperation(service, operation, {}, {
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
         },
@@ -188,7 +184,7 @@ test("serialize error short-circuits pipeline", function()
         },
     }))
 
-    local output, err = c:invokeOperation({}, operation)
+    local output, err = c:invokeOperation(service, operation, {})
     assert(output == nil, "output should be nil")
     assert_eq(err.message, "bad input", "error message")
     assert_eq(#calls, 0, "no further calls after serialize error")
@@ -196,19 +192,12 @@ end)
 
 test("noAuth scheme skips signing", function()
     calls = {}
-    local noauth_op = {
-        name = "AssumeRoleWithWebIdentity",
-        input_schema = {},
-        output_schema = {},
-        http_method = "POST",
-        http_path = "/",
-        effective_auth_schemes = { "smithy.api#noAuth" },
-        auth_schemes = {
-            { scheme_id = "smithy.api#noAuth" },
-        },
+    local noauth_op = schema.operation({ id = "AssumeRoleWithWebIdentity" })
+    noauth_op.auth_schemes = {
+        { scheme_id = "smithy.api#noAuth" },
     }
     local c = client_mod.new(make_auth_config())
-    local output, err = c:invokeOperation({}, noauth_op)
+    local output, err = c:invokeOperation(service, noauth_op, {})
     assert(not err, "unexpected error: " .. tostring(err and err.message))
     -- Should not call identity resolver or signer
     local has_identity = false
@@ -237,7 +226,7 @@ test("endpoint authSchemes overrides signer properties", function()
         end,
     }))
 
-    c:invokeOperation({}, operation)
+    c:invokeOperation(service, operation, {})
     assert_eq(signer_args.props.signing_name, "custom-service", "overridden signing_name")
     assert_eq(signer_args.props.signing_region, "us-west-2", "overridden signing_region")
 end)
@@ -248,7 +237,7 @@ test("no supported auth scheme returns error", function()
         auth_schemes = {}, -- no schemes supported
     }))
 
-    local output, err = c:invokeOperation({}, operation)
+    local output, err = c:invokeOperation(service, operation, {})
     assert(output == nil, "output should be nil")
     assert(err.message:find("no auth scheme"), "error should mention no auth scheme: " .. err.message)
 end)

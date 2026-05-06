@@ -37,11 +37,9 @@ local record Client
     flattenedXmlMapWithXmlNamespace: function(Client, types.FlattenedXmlMapWithXmlNamespaceInput): types.FlattenedXmlMapWithXmlNamespaceOutput, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
     -- This operation has three possible return values:
-    --
     -- 1. A successful response in the form of GreetingWithErrorsOutput
     -- 2. An InvalidGreeting error.
     -- 3. A BadRequest error.
-    --
     -- Implementations must be able to successfully take a response and
     -- properly (de)serialize successful and error responses based on the
     -- the presence of the
@@ -50,7 +48,6 @@ local record Client
     httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput): types.HttpEmptyPrefixHeadersOutput, table
     httpEnumPayload: function(Client, types.HttpEnumPayloadInput): types.HttpEnumPayloadOutput, table
     -- This example serializes a blob shape in the payload.
-    --
     -- In this example, no XML document is synthesized because the payload is
     -- not a structure or a union type.
     httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput): types.HttpPayloadTraitsOutput, table
@@ -61,7 +58,6 @@ local record Client
     -- on the member, changing the wrapper name.
     httpPayloadWithMemberXmlName: function(Client, types.HttpPayloadWithMemberXmlNameInput): types.HttpPayloadWithMemberXmlNameOutput, table
     -- This example serializes a structure in the payload.
-    --
     -- Note that serializing a structure changes the wrapper element name
     -- to match the targeted structure.
     httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput): types.HttpPayloadWithStructureOutput, table
@@ -142,7 +138,6 @@ local record Client
     xmlIntEnums: function(Client, types.XmlIntEnumsInput): types.XmlIntEnumsOutput, table
     -- This test case serializes XML lists for the following cases for both
     -- input and output:
-    --
     -- 1. Normal XML lists.
     -- 2. Normal XML sets.
     -- 3. XML lists of lists.

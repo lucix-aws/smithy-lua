@@ -12,11 +12,9 @@ local record Client
     endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput): types.EndpointWithHostLabelOperationOutput, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
     -- This operation has three possible return values:
-    --
     -- 1. A successful response in the form of GreetingWithErrorsOutput
     -- 2. An InvalidGreeting error.
     -- 3. A ComplexError error.
-    --
     -- Implementations must be able to successfully take a response and
     -- properly deserialize successful and error responses.
     greetingWithErrors: function(Client, types.GreetingWithErrorsInput): types.GreetingWithErrorsOutput, table

@@ -7,11 +7,9 @@ local record Client
     float16: function(Client, types.Float16Input): types.Float16Output, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
     -- This operation has three possible return values:
-    --
     -- 1. A successful response in the form of GreetingWithErrorsOutput
     -- 2. An InvalidGreeting error.
     -- 3. A ComplexError error.
-    --
     -- Implementations must be able to successfully take a response and
     -- properly deserialize successful and error responses.
     greetingWithErrors: function(Client, types.GreetingWithErrorsInput): types.GreetingWithErrorsOutput, table
@@ -23,7 +21,6 @@ local record Client
     rpcV2CborDenseMaps: function(Client, types.RpcV2CborDenseMapsInput): types.RpcV2CborDenseMapsOutput, table
     -- This test case serializes JSON lists for the following cases for both
     -- input and output:
-    --
     -- 1. Normal lists.
     -- 2. Normal sets.
     -- 3. Lists of lists.

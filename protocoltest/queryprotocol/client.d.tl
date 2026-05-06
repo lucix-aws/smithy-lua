@@ -6,7 +6,6 @@ local record Client
     datetimeOffsets: function(Client, types.DatetimeOffsetsInput): types.DatetimeOffsetsOutput, table
     -- The example tests how requests and responses are serialized when there's
     -- no request or response members.
-    --
     -- While this should be rare, code generators must support this.
     emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput): types.EmptyInputAndEmptyOutputOutput, table
     endpointOperation: function(Client, types.EndpointOperationInput): types.EndpointOperationOutput, table
@@ -19,14 +18,12 @@ local record Client
     flattenedXmlMapWithXmlNamespace: function(Client, types.FlattenedXmlMapWithXmlNamespaceInput): types.FlattenedXmlMapWithXmlNamespaceOutput, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
     -- This operation has three possible return values:
-    --
     -- 1. A successful response in the form of GreetingWithErrorsOutput
     -- 2. An InvalidGreeting error.
     -- 3. A BadRequest error.
     greetingWithErrors: function(Client, types.GreetingWithErrorsInput): types.GreetingWithErrorsOutput, table
     hostWithPathOperation: function(Client, types.HostWithPathOperationInput): types.HostWithPathOperationOutput, table
     -- The xmlName trait on the output structure is ignored in AWS Query.
-    --
     -- The wrapping element is always operation name + "Response", and
     -- inside of that wrapper is another wrapper named operation name + "Result".
     ignoresWrappingXmlName: function(Client, types.IgnoresWrappingXmlNameInput): types.IgnoresWrappingXmlNameOutput, table
@@ -34,12 +31,10 @@ local record Client
     nestedStructures: function(Client, types.NestedStructuresInput): types.NestedStructuresOutput, table
     -- The example tests how requests and responses are serialized when there's
     -- no request or response payload because the operation has no input or output.
-    --
     -- While this should be rare, code generators must support this.
     noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput): types.NoInputAndNoOutputOutput, table
     -- The example tests how requests and responses are serialized when there's
     -- no request payload or response members.
-    --
     -- While this should be rare, code generators must support this.
     noInputAndOutput: function(Client, types.NoInputAndOutputInput): types.NoInputAndOutputOutput, table
     putWithContentEncoding: function(Client, types.PutWithContentEncodingInput): types.PutWithContentEncodingOutput, table
@@ -50,7 +45,6 @@ local record Client
     -- This test serializes simple and complex maps.
     queryMaps: function(Client, types.QueryMapsInput): types.QueryMapsOutput, table
     -- This test serializes timestamps.
-    --
     -- 1. Timestamps are serialized as RFC 3339 date-time values by default.
     -- 2. A timestampFormat trait on a member changes the format.
     -- 3. A timestampFormat trait on the shape targeted by the member changes the format.
@@ -71,7 +65,6 @@ local record Client
     xmlIntEnums: function(Client, types.XmlIntEnumsInput): types.XmlIntEnumsOutput, table
     -- This test case serializes XML lists for the following cases for both
     -- input and output:
-    --
     -- 1. Normal XML lists.
     -- 2. Normal XML sets.
     -- 3. XML lists of lists.

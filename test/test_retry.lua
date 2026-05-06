@@ -7,6 +7,7 @@ local retry = require("smithy.retry")
 local standard = require("smithy.retry.standard")
 local error_mod = require("smithy.error")
 local client_mod = require("smithy.client")
+local schema = require("smithy.schema")
 
 local function test(name, fn)
     local ok, err = pcall(fn)
@@ -148,12 +149,19 @@ end)
 
 -- === Client retry integration tests ===
 
+local test_service = schema.service({ id = "test" })
+local test_op = schema.operation({ id = "Op" })
+test_op.auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } }
+
+local test_op_with_path = schema.operation({ id = "Op" })
+test_op_with_path.auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } }
+
 test("client: no retry_strategy = single attempt (backward compat)", function()
     local attempt_count = 0
     local c = client_mod.new({
         protocol = {
-            serialize = function(self, _, op)
-                return { method = "POST", url = op.http_path, headers = {} }
+            serialize = function(self, input, svc, op)
+                return { method = "POST", url = "/", headers = {} }
             end,
             deserialize = function(self)
                 attempt_count = attempt_count + 1
@@ -164,10 +172,10 @@ test("client: no retry_strategy = single attempt (backward compat)", function()
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
-        auth_scheme_resolver = function(op) return op.auth_schemes end,
+        auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local _, err = c:invokeOperation({}, { name = "Op", http_method = "POST", http_path = "/", auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } } })
+    local _, err = c:invokeOperation(test_service, test_op, {})
     assert_eq(attempt_count, 1, "single attempt")
     assert_eq(err.code, "InternalError")
 end)
@@ -177,8 +185,8 @@ test("client: retry loop retries transient errors", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 3 }),
         protocol = {
-            serialize = function(self, _, op)
-                return { method = "POST", url = op.http_path, headers = {} }
+            serialize = function(self, input, svc, op)
+                return { method = "POST", url = "/", headers = {} }
             end,
             deserialize = function(self)
                 attempt_count = attempt_count + 1
@@ -192,10 +200,10 @@ test("client: retry loop retries transient errors", function()
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
-        auth_scheme_resolver = function(op) return op.auth_schemes end,
+        auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local output, err = c:invokeOperation({}, { name = "Op", http_method = "POST", http_path = "/", auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } } })
+    local output, err = c:invokeOperation(test_service, test_op, {})
     assert(not err, "should succeed: " .. tostring(err and err.message))
     assert_eq(output.Result, "ok")
     assert_eq(attempt_count, 3, "3 attempts")
@@ -206,8 +214,8 @@ test("client: retry loop stops on non-retryable error", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 3 }),
         protocol = {
-            serialize = function(self, _, op)
-                return { method = "POST", url = op.http_path, headers = {} }
+            serialize = function(self, input, svc, op)
+                return { method = "POST", url = "/", headers = {} }
             end,
             deserialize = function(self)
                 attempt_count = attempt_count + 1
@@ -218,10 +226,10 @@ test("client: retry loop stops on non-retryable error", function()
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
-        auth_scheme_resolver = function(op) return op.auth_schemes end,
+        auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local _, err = c:invokeOperation({}, { name = "Op", http_method = "POST", http_path = "/", auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } } })
+    local _, err = c:invokeOperation(test_service, test_op, {})
     assert_eq(attempt_count, 1, "only 1 attempt for non-retryable")
     assert_eq(err.code, "ValidationError")
 end)
@@ -231,8 +239,8 @@ test("client: retry loop stops at max attempts", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 2 }),
         protocol = {
-            serialize = function(self, _, op)
-                return { method = "POST", url = op.http_path, headers = {} }
+            serialize = function(self, input, svc, op)
+                return { method = "POST", url = "/", headers = {} }
             end,
             deserialize = function(self)
                 attempt_count = attempt_count + 1
@@ -243,10 +251,10 @@ test("client: retry loop stops at max attempts", function()
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
-        auth_scheme_resolver = function(op) return op.auth_schemes end,
+        auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local _, err = c:invokeOperation({}, { name = "Op", http_method = "POST", http_path = "/", auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } } })
+    local _, err = c:invokeOperation(test_service, test_op, {})
     assert_eq(attempt_count, 2, "max 2 attempts")
     assert_eq(err.code, "InternalError")
 end)
@@ -257,8 +265,8 @@ test("client: URL rebuilt on each retry attempt", function()
     local c = client_mod.new({
         retry_strategy = standard.new({ max_attempts = 3 }),
         protocol = {
-            serialize = function(self, _, op)
-                return { method = "POST", url = op.http_path, headers = {} }
+            serialize = function(self, input, svc, op)
+                return { method = "POST", url = "/test", headers = {} }
             end,
             deserialize = function(self)
                 attempt_count = attempt_count + 1
@@ -275,10 +283,10 @@ test("client: URL rebuilt on each retry attempt", function()
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
-        auth_scheme_resolver = function(op) return op.auth_schemes end,
+        auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    c:invokeOperation({}, { name = "Op", http_method = "POST", http_path = "/test", auth_schemes = { { scheme_id = "aws.auth#sigv4", signer_properties = {} } } })
+    c:invokeOperation(test_service, test_op_with_path, {})
     -- Both attempts should have the correct full URL
     assert_eq(urls[1], "https://example.com/test", "attempt 1 URL")
     assert_eq(urls[2], "https://example.com/test", "attempt 2 URL")

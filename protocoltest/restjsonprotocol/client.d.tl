@@ -36,12 +36,10 @@ local record Client
     endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput): types.EndpointWithHostLabelOperationOutput, table
     fractionalSeconds: function(Client, types.FractionalSecondsInput): types.FractionalSecondsOutput, table
     -- This operation has four possible return values:
-    --
     -- 1. A successful response in the form of GreetingWithErrorsOutput
     -- 2. An InvalidGreeting error.
     -- 3. A BadRequest error.
     -- 4. A FooError.
-    --
     -- Implementations must be able to successfully take a response and
     -- properly (de)serialize successful and error responses based on the
     -- the presence of the
@@ -53,7 +51,6 @@ local record Client
     httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput): types.HttpEmptyPrefixHeadersOutput, table
     httpEnumPayload: function(Client, types.HttpEnumPayloadInput): types.HttpEnumPayloadOutput, table
     -- This example serializes a blob shape in the payload.
-    --
     -- In this example, no JSON document is synthesized because the payload is
     -- not a structure or a union type.
     httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput): types.HttpPayloadTraitsOutput, table
@@ -61,7 +58,6 @@ local record Client
     -- content-type to be serialized.
     httpPayloadTraitsWithMediaType: function(Client, types.HttpPayloadTraitsWithMediaTypeInput): types.HttpPayloadTraitsWithMediaTypeOutput, table
     -- This example serializes a structure in the payload.
-    --
     -- Note that serializing a structure changes the wrapper element name
     -- to match the targeted structure.
     httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput): types.HttpPayloadWithStructureOutput, table
@@ -101,7 +97,6 @@ local record Client
     jsonIntEnums: function(Client, types.JsonIntEnumsInput): types.JsonIntEnumsOutput, table
     -- This test case serializes JSON lists for the following cases for both
     -- input and output:
-    --
     -- 1. Normal JSON lists.
     -- 2. Normal JSON sets.
     -- 3. JSON lists of lists.
@@ -191,41 +186,34 @@ local record Client
     -- This example tests sparse map serialization.
     sparseJsonMaps: function(Client, types.SparseJsonMapsInput): types.SparseJsonMapsOutput, table
     -- This examples serializes a streaming blob shape in the request body.
-    --
     -- In this example, no JSON document is synthesized because the payload is
     -- not a structure or a union type.
     streamingTraits: function(Client, types.StreamingTraitsInput): types.StreamingTraitsOutput, table
     -- This examples serializes a streaming blob shape with a required content
     -- length in the request body.
-    --
     -- In this example, no JSON document is synthesized because the payload is
     -- not a structure or a union type.
     streamingTraitsRequireLength: function(Client, types.StreamingTraitsRequireLengthInput): types.StreamingTraitsRequireLengthOutput, table
     -- This examples serializes a streaming media-typed blob shape in the request body.
-    --
     -- This examples uses a `@mediaType` trait on the payload to force a custom
     -- content-type to be serialized.
     streamingTraitsWithMediaType: function(Client, types.StreamingTraitsWithMediaTypeInput): types.StreamingTraitsWithMediaTypeOutput, table
     -- This example operation serializes a structure in the HTTP body.
-    --
     -- It should ensure Content-Type: application/json is
     -- used in all requests and that an "empty" body is
     -- an empty JSON document ({}).
     testBodyStructure: function(Client, types.TestBodyStructureInput): types.TestBodyStructureOutput, table
     -- This example GET operation has no input and serializes a request without a HTTP body.
-    --
     -- These tests are to ensure we do not attach a body or related headers
     -- (Content-Length, Content-Type) to operations that semantically
     -- cannot produce an HTTP body.
     testGetNoInputNoPayload: function(Client, types.TestGetNoInputNoPayloadInput): types.TestGetNoInputNoPayloadOutput, table
     -- This example GET operation serializes a request without a modeled HTTP body.
-    --
     -- These tests are to ensure we do not attach a body or related headers
     -- (Content-Length, Content-Type) to operations that semantically
     -- cannot produce an HTTP body.
     testGetNoPayload: function(Client, types.TestGetNoPayloadInput): types.TestGetNoPayloadOutput, table
     -- This example operation serializes a payload targeting a blob.
-    --
     -- The Blob shape is not structured content and we cannot
     -- make assumptions about what data will be sent. This test ensures
     -- only a generic "Content-Type: application/octet-stream" header
@@ -233,17 +221,14 @@ local record Client
     -- empty JSON document.
     testPayloadBlob: function(Client, types.TestPayloadBlobInput): types.TestPayloadBlobOutput, table
     -- This example operation serializes a payload targeting a structure.
-    --
     -- This enforces the same requirements as TestBodyStructure
     -- but with the body specified by the @httpPayload trait.
     testPayloadStructure: function(Client, types.TestPayloadStructureInput): types.TestPayloadStructureOutput, table
     -- This example POST operation has no input and serializes a request without a HTTP body.
-    --
     -- These tests are to ensure we do not attach a body or related headers
     -- (Content-Type) to a POST operation with no modeled input.
     testPostNoInputNoPayload: function(Client, types.TestPostNoInputNoPayloadInput): types.TestPostNoInputNoPayloadOutput, table
     -- This example POST operation serializes a request without a modeled HTTP body.
-    --
     -- These tests are to ensure we do not attach a body or related headers
     -- (Content-Type) to a POST operation with no modeled payload.
     testPostNoPayload: function(Client, types.TestPostNoPayloadInput): types.TestPostNoPayloadOutput, table

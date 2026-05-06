@@ -5,10 +5,38 @@ package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
 local eventstream = require("smithy.eventstream")
 local schema_mod = require("smithy.schema")
+local traits = require("smithy.traits")
 local stype = schema_mod.type
-local strait = schema_mod.trait
 local ffi = require("ffi")
 local bit = require("bit")
+
+--- Convert a plain table schema definition to a proper Schema object.
+local function S(t)
+    if not t or t.trait then return t end -- already a Schema
+    local members
+    if t.members then
+        members = {}
+        for k, v in pairs(t.members) do
+            members[k] = S(v)
+        end
+    end
+    local target
+    if t.target then target = S(t.target) end
+    -- Convert trait keys from traits module
+    local schema_traits
+    if t.traits then
+        schema_traits = {}
+        for k, v in pairs(t.traits) do
+            if k then schema_traits[k] = v end
+        end
+    end
+    return schema_mod.new({
+        type = t.type,
+        members = members,
+        target = target,
+        traits = schema_traits,
+    })
+end
 
 local pass_count = 0
 
@@ -216,7 +244,7 @@ end)
 test("deserialize_event: message event with JSON payload", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
 
-    local event_schema = {
+    local event_schema = S({
         type = stype.UNION,
         members = {
             MessageEvent = {
@@ -229,7 +257,7 @@ test("deserialize_event: message event with JSON payload", function()
                 },
             },
         },
-    }
+    })
 
     local frame = {
         headers = {
@@ -250,7 +278,7 @@ end)
 test("deserialize_event: event with @eventHeader binding", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
 
-    local event_schema = {
+    local event_schema = S({
         type = stype.UNION,
         members = {
             HeaderEvent = {
@@ -260,14 +288,14 @@ test("deserialize_event: event with @eventHeader binding", function()
                     members = {
                         sequenceNum = {
                             type = stype.INTEGER,
-                            traits = { [strait.EVENT_HEADER] = true },
+                            traits = { [traits.EVENT_HEADER] = true },
                         },
                         data = { type = stype.STRING },
                     },
                 },
             },
         },
-    }
+    })
 
     local frame = {
         headers = {
@@ -290,7 +318,7 @@ end)
 test("deserialize_event: event with @eventPayload blob", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
 
-    local event_schema = {
+    local event_schema = S({
         type = stype.UNION,
         members = {
             BlobEvent = {
@@ -300,13 +328,13 @@ test("deserialize_event: event with @eventPayload blob", function()
                     members = {
                         data = {
                             type = stype.BLOB,
-                            traits = { [strait.EVENT_PAYLOAD] = true },
+                            traits = { [traits.EVENT_PAYLOAD] = true },
                         },
                     },
                 },
             },
         },
-    }
+    })
 
     local frame = {
         headers = {
@@ -325,7 +353,7 @@ end)
 
 test("deserialize_event: unmodeled error", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
-    local event_schema = { type = stype.UNION, members = {} }
+    local event_schema = S({ type = stype.UNION, members = {} })
 
     local frame = {
         headers = {
@@ -347,7 +375,7 @@ end)
 test("deserialize_event: modeled exception", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
 
-    local event_schema = {
+    local event_schema = S({
         type = stype.UNION,
         members = {
             ValidationError = {
@@ -360,7 +388,7 @@ test("deserialize_event: modeled exception", function()
                 },
             },
         },
-    }
+    })
 
     local frame = {
         headers = {
@@ -381,7 +409,7 @@ end)
 
 test("deserialize_event: unknown event type is skipped", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
-    local event_schema = { type = stype.UNION, members = {} }
+    local event_schema = S({ type = stype.UNION, members = {} })
 
     local frame = {
         headers = {
@@ -400,7 +428,7 @@ end)
 test("stream: events() iterator with multiple events", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
 
-    local event_schema = {
+    local event_schema = S({
         type = stype.UNION,
         members = {
             Msg = {
@@ -413,7 +441,7 @@ test("stream: events() iterator with multiple events", function()
                 },
             },
         },
-    }
+    })
 
     -- Build two event frames
     local frame1 = build_event_frame("Msg", '{"text":"one"}', "application/json")
@@ -442,7 +470,7 @@ end)
 test("stream: initial-response for RPC protocols", function()
     local json_codec = require("smithy.codec.json").new({ use_json_name = false })
 
-    local event_schema = {
+    local event_schema = S({
         type = stype.UNION,
         members = {
             Msg = {
@@ -455,14 +483,14 @@ test("stream: initial-response for RPC protocols", function()
                 },
             },
         },
-    }
+    })
 
-    local output_schema = {
+    local output_schema = S({
         type = stype.STRUCTURE,
         members = {
             sessionId = { type = stype.STRING },
         },
-    }
+    })
 
     -- Build initial-response + one event
     local initial = build_event_frame("initial-response", '{"sessionId":"abc123"}', "application/json")

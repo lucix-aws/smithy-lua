@@ -5,6 +5,7 @@ package.path = "runtime/?.lua;" .. package.path
 
 local client_mod = require("smithy.client")
 local auth = require("smithy.auth")
+local schema = require("smithy.schema")
 
 local pass_count = 0
 local fail_count = 0
@@ -35,7 +36,7 @@ end
 
 -- Mock protocol
 local mock_protocol = {
-    serialize = function(self, input, operation)
+    serialize = function(self, input, service, operation)
         return {
             method = "POST",
             url = "/",
@@ -43,7 +44,7 @@ local mock_protocol = {
             body = nil,
         }, nil
     end,
-    deserialize = function(self, response, operation)
+    deserialize = function(self, response, service, operation)
         return { Result = "ok" }, nil
     end,
 }
@@ -76,21 +77,15 @@ local function make_config(interceptors)
         identity_resolvers = {
             aws_credentials = function() return mock_identity, nil end,
         },
-        auth_scheme_resolver = function(operation)
+        auth_scheme_resolver = function(service, operation, input)
             return { { scheme_id = "aws.auth#sigv4", signer_properties = { signing_name = "test", signing_region = "us-east-1" } } }
         end,
         interceptors = interceptors,
     }
 end
 
-local test_operation = {
-    name = "TestOp",
-    input_schema = { type = "structure", members = {} },
-    output_schema = { type = "structure", members = {} },
-    http_method = "POST",
-    http_path = "/",
-    effective_auth_schemes = { "aws.auth#sigv4" },
-}
+local test_service = schema.service({ id = "test" })
+local test_operation = schema.operation({ id = "TestOp" })
 
 -- ============================================================
 -- Tests
@@ -102,7 +97,7 @@ test("read hooks are called in order", function()
     local i2 = { read_before_execution = function(self, ctx) calls[#calls+1] = "i2" end }
 
     local c = client_mod.new(make_config({i1, i2}))
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(calls[1], "i1")
     assert_eq(calls[2], "i2")
@@ -133,7 +128,7 @@ test("full hook execution order", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(err, nil, "no error")
     assert_eq(result.Result, "ok")
@@ -175,15 +170,15 @@ test("modify_before_serialization can change input", function()
     local serialized_input
     local cfg = make_config({i})
     cfg.protocol = {
-        serialize = function(self, input, op)
+        serialize = function(self, input, svc, op)
             serialized_input = input
             return { method = "POST", url = "/", headers = {}, body = nil }, nil
         end,
-        deserialize = function(self, resp, op) return {}, nil end,
+        deserialize = function(self, resp, svc, op) return {}, nil end,
     }
 
     local c = client_mod.new(cfg)
-    c:invokeOperation({ Name = "original" }, test_operation)
+    c:invokeOperation(test_service, test_operation, { Name = "original" })
 
     assert_eq(serialized_input.Name, "modified")
 end)
@@ -205,7 +200,7 @@ test("modify_before_transmit can add headers", function()
     end
 
     local c = client_mod.new(cfg)
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(transmitted_request.headers["X-Custom"], "intercepted")
 end)
@@ -226,7 +221,7 @@ test("read hook error jumps to modify_before_completion", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(result, nil)
     -- err should be the error string from the hook
@@ -247,7 +242,7 @@ test("modify hook error jumps to modify_before_completion", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(result, nil)
     assert_eq(type(err), "string")
@@ -255,7 +250,7 @@ end)
 
 test("no interceptors: pipeline works unchanged", function()
     local c = client_mod.new(make_config(nil))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(err, nil)
     assert_eq(result.Result, "ok")
@@ -263,7 +258,7 @@ end)
 
 test("empty interceptors list: pipeline works unchanged", function()
     local c = client_mod.new(make_config({}))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(err, nil)
     assert_eq(result.Result, "ok")
@@ -278,10 +273,10 @@ test("context has input and operation in read_before_execution", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    c:invokeOperation({ Foo = "bar" }, test_operation)
+    c:invokeOperation(test_service, test_operation, { Foo = "bar" })
 
     assert_eq(seen_ctx.input.Foo, "bar")
-    assert_eq(seen_ctx.operation.name, "TestOp")
+    assert_eq(seen_ctx.operation.id, "TestOp")
 end)
 
 test("context has request after serialization", function()
@@ -293,7 +288,7 @@ test("context has request after serialization", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(type(seen_request), "table")
     assert_eq(seen_request.method, "POST")
@@ -308,7 +303,7 @@ test("context has response after transmit", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(seen_response.status_code, 200)
 end)
@@ -322,7 +317,7 @@ test("context has output after deserialization", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(seen_output.Result, "ok")
 end)
@@ -337,17 +332,17 @@ test("modify_before_deserialization can swap response", function()
     local deserialized_response
     local cfg = make_config({i})
     cfg.protocol = {
-        serialize = function(self, input, op)
+        serialize = function(self, input, svc, op)
             return { method = "POST", url = "/", headers = {}, body = nil }, nil
         end,
-        deserialize = function(self, resp, op)
+        deserialize = function(self, resp, svc, op)
             deserialized_response = resp
             return { Modified = true }, nil
         end,
     }
 
     local c = client_mod.new(cfg)
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(deserialized_response.headers["x-test"], "yes")
 end)
@@ -360,7 +355,7 @@ test("modify_before_attempt_completion can replace output", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(err, nil)
     assert_eq(result.Replaced, true)
@@ -374,7 +369,7 @@ test("modify_before_completion can replace output", function()
     }
 
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation({}, test_operation)
+    local result, err = c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(err, nil)
     assert_eq(result.Final, "yes")
@@ -388,7 +383,7 @@ test("interceptors added via per-call plugin", function()
 
     local cfg = make_config(nil) -- no interceptors on base config
     local c = client_mod.new(cfg)
-    local result, err = c:invokeOperation({}, test_operation, {
+    local result, err = c:invokeOperation(test_service, test_operation, {}, {
         plugins = {
             function(cfg) cfg.interceptors = {i} end,
         },
@@ -417,15 +412,15 @@ test("multiple interceptors: modify hooks chain", function()
     local serialized_input
     local cfg = make_config({i1, i2})
     cfg.protocol = {
-        serialize = function(self, input, op)
+        serialize = function(self, input, svc, op)
             serialized_input = input
             return { method = "POST", url = "/", headers = {}, body = nil }, nil
         end,
-        deserialize = function(self, resp, op) return {}, nil end,
+        deserialize = function(self, resp, svc, op) return {}, nil end,
     }
 
     local c = client_mod.new(cfg)
-    c:invokeOperation({}, test_operation)
+    c:invokeOperation(test_service, test_operation, {})
 
     assert_eq(serialized_input.step1, true)
     assert_eq(serialized_input.step2, true)
