@@ -29,8 +29,7 @@ can easily test it, and it's accessible for people to read and understand.
 runtime/smithy/
   codec/       -- format-specific codecs (JSON, XML, CBOR)
   crypto/      -- SHA-256, HMAC, ECDSA, P-256 curve math
-  credentials/ -- credential providers (environment) # this should not be here obviously, we'll move that to the SDK
-  endpoint/    -- partition data                     # probably same ^
+  endpoint/    -- endpoint ruleset engine
   http/        -- HTTP client backends (libcurl FFI, curl subprocess)
   json/        -- pure Lua JSON encoder/decoder
   protocol/    -- protocol implementations

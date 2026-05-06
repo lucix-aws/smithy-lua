@@ -497,7 +497,7 @@ function M.new(config)
         sdk_defaults.resolve_identity_resolver(client_config)
     else
         -- Fallback: try environment credential provider directly
-        local cred_ok, env_creds = pcall(require, "smithy.credentials.environment")
+        local cred_ok, env_creds = pcall(require, "aws.credentials.environment")
         if cred_ok then
             local resolver = env_creds.new()
             if not client_config.identity_resolvers then client_config.identity_resolvers = {} end
