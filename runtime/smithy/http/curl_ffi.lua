@@ -272,7 +272,7 @@ function M.new()
       }, nil
    end;
    (jit).off(do_request)
-   return do_request
+   return { is_async = function() return false end, send = function(_, req) return do_request(req) end }
 end
 
 return M

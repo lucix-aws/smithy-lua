@@ -118,6 +118,14 @@ final class TealGenerator {
             writer.write("local types = require(\"$L.types\")", serviceNs);
             writer.write("");
 
+            // Operation record (generic async handle)
+            writer.write("local record Operation<T>");
+            writer.indent();
+            writer.write("await: function(Operation<T>): T, table");
+            writer.dedent();
+            writer.write("end");
+            writer.write("");
+
             // Client record
             writer.write("local record Client");
             writer.indent();
@@ -126,7 +134,7 @@ final class TealGenerator {
                 var inputName = operationIndex.expectInputShape(operation).getId().getName(service);
                 var outputName = operationIndex.expectOutputShape(operation).getId().getName(service);
                 writeDoc(writer, operation);
-                writer.write("$L: function(Client, types.$L): types.$L, table",
+                writer.write("$L: function(Client, types.$L): Operation<types.$L>",
                         opName, inputName, outputName);
             }
             writer.dedent();

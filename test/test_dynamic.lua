@@ -164,7 +164,7 @@ it("call serializes and deserializes via pipeline", function()
     local result, err = client:call("GetItem", {
         TableName = "my-table",
         Key = { id = { S = "123" } },
-    })
+    }):await()
 
     assert.is_truthy(captured_request)
     assert.are.equal("POST", captured_request.method)
@@ -198,7 +198,7 @@ it("REST protocol: HTTP bindings in path and query", function()
     local result, err = client:call("GetThing", {
         thingId = "abc123",
         filter = "active",
-    })
+    }):await()
 
     assert.is_truthy(captured_request)
     assert(captured_request.url:find("abc123"), "URL should contain thingId: " .. captured_request.url)

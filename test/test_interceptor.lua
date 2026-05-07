@@ -71,7 +71,7 @@ it("read hooks are called in order", function()
     local i1 = { read_before_execution = function(self, ctx) calls[#calls+1] = "i1" end }
     local i2 = { read_before_execution = function(self, ctx) calls[#calls+1] = "i2" end }
     local c = client_mod.new(make_config({i1, i2}))
-    c:invokeOperation(test_service, test_operation, {})
+    c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal("i1", calls[1])
     assert.are.equal("i2", calls[2])
 end)
@@ -100,7 +100,7 @@ it("full hook execution order", function()
         read_after_execution = function(self, ctx, err) calls[#calls+1] = "read_after_execution" end,
     }
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, err)
     assert.are.equal("ok", result.Result)
     local expected = {
@@ -134,7 +134,7 @@ it("modify_before_serialization can change input", function()
         deserialize = function(self, resp, svc, op) return {}, nil end,
     }
     local c = client_mod.new(cfg)
-    c:invokeOperation(test_service, test_operation, { Name = "original" })
+    c:invokeOperation(test_service, test_operation, { Name = "original" }):await()
     assert.are.equal("modified", serialized_input.Name)
 end)
 
@@ -153,7 +153,7 @@ it("modify_before_transmit can add headers", function()
         return { status_code = 200, headers = {}, body = nil }, nil
     end
     local c = client_mod.new(cfg)
-    c:invokeOperation(test_service, test_operation, {})
+    c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal("intercepted", transmitted_request.headers["X-Custom"])
 end)
 
@@ -172,7 +172,7 @@ it("read hook error jumps to modify_before_completion", function()
         end,
     }
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, result)
     assert.are.equal("string", type(err))
     assert_contains(calls, "modify_before_completion")
@@ -190,21 +190,21 @@ it("modify hook error jumps to modify_before_completion", function()
         read_after_execution = function(self, ctx, err) end,
     }
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, result)
     assert.are.equal("string", type(err))
 end)
 
 it("no interceptors: pipeline works unchanged", function()
     local c = client_mod.new(make_config(nil))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, err)
     assert.are.equal("ok", result.Result)
 end)
 
 it("empty interceptors list: pipeline works unchanged", function()
     local c = client_mod.new(make_config({}))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, err)
     assert.are.equal("ok", result.Result)
 end)
@@ -288,7 +288,7 @@ it("modify_before_attempt_completion can replace output", function()
         end,
     }
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, err)
     assert.are.equal(true, result.Replaced)
 end)
@@ -300,7 +300,7 @@ it("modify_before_completion can replace output", function()
         end,
     }
     local c = client_mod.new(make_config({i}))
-    local result, err = c:invokeOperation(test_service, test_operation, {})
+    local result, err = c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal(nil, err)
     assert.are.equal("yes", result.Final)
 end)

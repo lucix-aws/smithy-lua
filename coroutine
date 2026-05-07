@@ -1,0 +1,46 @@
+Good question — this is a real design tension in Lua because the language gives you coroutines but no built-in scheduler, so any SDK has to decide how opinionated to be about concurrency.
+Here's the design space, then what I'd actually recommend.
+The core idea: coroutine-aware, coroutine-optional
+You can absolutely build an API that works naturally in both sync and async contexts without callbacks and without forcing users into coroutines. The trick is that every operation returns a "future-like" handle that is also directly awaitable, and the implementation detects its execution context.-- Sync usage (blocking call, no coroutines anywhere)
+local result, err = s3:getObject({ Bucket = "x", Key = "y" })
+
+-- Async usage inside a coroutine
+local op = s3:getObject({ Bucket = "x", Key = "y" })
+local result, err = op:await()  -- yields if not readyThe same getObject call returns the same object type. What differs is how you consume it.
+How the dual mode actually works
+The transport layer is the only place that needs to care. You expose two transport implementations behind a common interface:
+Blocking transport — uses luasocket or lua-http synchronously. The returned operation is already-resolved by the time the user sees it; await() is a no-op that just unwraps the value, and direct unpacking (local r, e = op) works via __call or just by having getObject return the unwrapped pair when the transport is sync.
+Non-blocking transport — uses cqueues, copas, or your own loop. The operation is a pending handle; await() calls coroutine.yield() to hand control back to the scheduler, which resumes when the socket is readable.
+The user picks the transport at client construction:local s3 = aws.s3.new({ transport = "blocking" })   -- or "cqueues", "copas", customThis is essentially what Python's httpx does with its sync/async client split, except in Lua you can make the call sites identical because of how flexible coroutines are.
+The "coroutines optional" part
+The key insight: coroutine.running() tells you whether you're inside one. Your await() can be:function Operation:await()
+  if self.resolved then
+    return self.value, self.err
+  end
+  local co, is_main = coroutine.running()
+  if is_main or not co then
+    -- No coroutine context; run the loop until we resolve
+    self.transport:run_until(self)
+    return self.value, self.err
+  else
+    -- Inside a coroutine; yield to the scheduler
+    return coroutine.yield(self)
+  end
+endThis means a user who never thinks about coroutines just writes straight-line code and it blocks. A user who is inside cqueues or copas gets cooperative concurrency from the same code. No callbacks, no async/await keyword coloring problem in the user-facing API.
+What I'd avoid
+Callback-based APIs as the primary surface. You're right that they suck — they fragment error handling, prevent natural control flow, and compose terribly. If you need them for FFI/C-binding reasons, expose them as a lower layer and build the operation API on top.
+Promises as a separate concept. Lua doesn't have the syntactic support to make them ergonomic. A "future that knows how to await itself" is the same idea with less ceremony.
+Forcing a specific event loop. Pick a transport interface (something like connect, read, write, close plus a run_until(predicate)) and let users plug in cqueues, copas, or a custom one. AWS SDK for JavaScript made the mistake of being deeply coupled to specific runtimes early on; don't repeat that.
+Concrete shape
+Roughly:-- Common interface
+Operation = {
+  await = function(self) ... end,
+  cancel = function(self) ... end,
+  on_complete = function(self, cb) ... end,  -- escape hatch for callback fans
+}
+
+-- Convenience: make `local r, e = client:call(...)` work directly in sync mode
+-- by returning unpacked values when transport is blocking, OR always return
+-- an Operation and require :await(). Pick one — don't do both, that's confusing.I'd lean toward always return an Operation, always require :await(). It's one extra token at every call site but the consistency is worth it. It also makes things like await_all({op1, op2, op3}) natural for parallelism, which is one of the main reasons to want async at all.
+Given your Smithy background, the code generator angle is interesting here: you can generate the typed operation classes once and have them inherit the await/cancel machinery from a base, so the per-operation generated code stays tiny.
+Want me to sketch the transport interface in more detail, or talk through how this interacts with retries and pagination (both of which want to be transparent to the await/sync distinction)?

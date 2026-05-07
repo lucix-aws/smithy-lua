@@ -149,7 +149,7 @@ it("client: no retry_strategy = single attempt (backward compat)", function()
         auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local _, err = c:invokeOperation(test_service, test_op, {})
+    local _, err = c:invokeOperation(test_service, test_op, {}):await()
     assert.are.equal(1, attempt_count)
     assert.are.equal("InternalError", err.code)
 end)
@@ -177,7 +177,7 @@ it("client: retry loop retries transient errors", function()
         auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local output, err = c:invokeOperation(test_service, test_op, {})
+    local output, err = c:invokeOperation(test_service, test_op, {}):await()
     assert(not err, "should succeed: " .. tostring(err and err.message))
     assert.are.equal("ok", output.Result)
     assert.are.equal(3, attempt_count)
@@ -203,7 +203,7 @@ it("client: retry loop stops on non-retryable error", function()
         auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local _, err = c:invokeOperation(test_service, test_op, {})
+    local _, err = c:invokeOperation(test_service, test_op, {}):await()
     assert.are.equal(1, attempt_count)
     assert.are.equal("ValidationError", err.code)
 end)
@@ -228,7 +228,7 @@ it("client: retry loop stops at max attempts", function()
         auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    local _, err = c:invokeOperation(test_service, test_op, {})
+    local _, err = c:invokeOperation(test_service, test_op, {}):await()
     assert.are.equal(2, attempt_count)
     assert.are.equal("InternalError", err.code)
 end)
@@ -260,7 +260,7 @@ it("client: URL rebuilt on each retry attempt", function()
         auth_scheme_resolver = function(svc, op, input) return op.auth_schemes end,
         region = "us-east-1",
     })
-    c:invokeOperation(test_service, test_op_with_path, {})
+    c:invokeOperation(test_service, test_op_with_path, {}):await()
     assert.are.equal("https://example.com/test", urls[1])
     assert.are.equal("https://example.com/test", urls[2])
 end)

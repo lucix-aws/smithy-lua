@@ -89,7 +89,7 @@ describe("client", function()
 it("pipeline calls components in correct order", function()
     calls = {}
     local c = client_mod.new(make_auth_config())
-    local output, err = c:invokeOperation(service, operation, {})
+    local output, err = c:invokeOperation(service, operation, {}):await()
     assert(not err, "unexpected error: " .. tostring(err and err.message))
     assert.are.equal("ok", output.Result)
     assert.are.equal(6, #calls)
@@ -111,7 +111,7 @@ it("endpoint is applied to request URL", function()
             return { status_code = 200, headers = {}, body = nil }, nil
         end,
     }))
-    c:invokeOperation(service, operation, {})
+    c:invokeOperation(service, operation, {}):await()
     assert.are.equal("https://sts.us-west-2.amazonaws.com/", captured_request.url)
 end)
 
@@ -119,7 +119,7 @@ it("signer receives correct identity and signer_properties", function()
     calls = {}
     signer_args = {}
     local c = client_mod.new(make_auth_config())
-    c:invokeOperation(service, operation, {})
+    c:invokeOperation(service, operation, {}):await()
     assert.are.equal("AKID", signer_args.identity.access_key)
     assert.are.equal("sts", signer_args.props.signing_name)
     assert.are.equal("us-east-1", signer_args.props.signing_region)
@@ -138,7 +138,7 @@ it("operation plugins can override config", function()
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
         },
-    })
+    }):await()
     assert.are.equal("https://sts.ap-southeast-1.amazonaws.com/", captured_request.url)
 end)
 
@@ -148,7 +148,7 @@ it("plugins do not mutate original client config", function()
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
         },
-    })
+    }):await()
     assert.are.equal("us-east-1", c.config.region)
 end)
 
@@ -160,7 +160,7 @@ it("serialize error short-circuits pipeline", function()
             deserialize = function(self) error("should not be called") end,
         },
     }))
-    local output, err = c:invokeOperation(service, operation, {})
+    local output, err = c:invokeOperation(service, operation, {}):await()
     assert(output == nil, "output should be nil")
     assert.are.equal("bad input", err.message)
     assert.are.equal(0, #calls)
@@ -173,7 +173,7 @@ it("noAuth scheme skips signing", function()
         { scheme_id = "smithy.api#noAuth" },
     }
     local c = client_mod.new(make_auth_config())
-    local output, err = c:invokeOperation(service, noauth_op, {})
+    local output, err = c:invokeOperation(service, noauth_op, {}):await()
     assert(not err, "unexpected error: " .. tostring(err and err.message))
     local has_identity = false
     local has_sign = false
@@ -200,7 +200,7 @@ it("endpoint authSchemes overrides signer properties", function()
             }, nil
         end,
     }))
-    c:invokeOperation(service, operation, {})
+    c:invokeOperation(service, operation, {}):await()
     assert.are.equal("custom-service", signer_args.props.signing_name)
     assert.are.equal("us-west-2", signer_args.props.signing_region)
 end)
@@ -210,7 +210,7 @@ it("no supported auth scheme returns error", function()
     local c = client_mod.new(make_auth_config({
         auth_schemes = {},
     }))
-    local output, err = c:invokeOperation(service, operation, {})
+    local output, err = c:invokeOperation(service, operation, {}):await()
     assert(output == nil, "output should be nil")
     assert(err.message:find("no auth scheme"), "error should mention no auth scheme: " .. err.message)
 end)

@@ -1,5 +1,6 @@
 
 
+local async = require("smithy.async")
 local auth = require("smithy.auth")
 local eventstream = require("smithy.eventstream")
 local eventstream_signer = require("smithy.eventstream_signer")
@@ -185,7 +186,17 @@ local function do_attempt(config, service, operation, input, request, intercepto
    local http_client = config.http_client
    local response
    local tx_err
-   response, tx_err = http_client(request)
+   local r1, r2
+   if type(http_client) == "table" and http_client.send then
+      r1, r2 = http_client:send(request)
+   else
+      r1, r2 = http_client(request)
+   end
+   if type(r1) == "table" and r1.await then
+      response, tx_err = r1:await()
+   else
+      response, tx_err = r1, r2
+   end
    if tx_err then return nil, tx_err end
    ctx.response = response
 
@@ -237,7 +248,7 @@ local function do_attempt(config, service, operation, input, request, intercepto
    return output, deser_err
 end
 
-function M.invokeOperation(self, service, operation, input, options)
+local function do_invoke(self, service, operation, input, options)
    local self_tbl = self
    local config = shallow_copy(self_tbl.config)
    if options then
@@ -461,6 +472,34 @@ function M.invokeOperation(self, service, operation, input, options)
    end
 
    return result, nil
+end
+
+function M.invokeOperation(self, service, operation, input, options)
+   -- Event stream operations bypass the Operation wrapper
+   local op_schema = operation
+   local trait_fn = op_schema.trait
+   if trait_fn and trait_fn(operation, traits.EVENT_STREAM) then
+      return do_invoke(self, service, operation, input, options)
+   end
+
+   local self_tbl = self
+   local hc = self_tbl.config.http_client
+   local is_async = type(hc) == "table" and hc.is_async and hc:is_async()
+
+   local result_op = async.new_operation()
+
+   if is_async then
+      local co = coroutine.create(function()
+         local result, err = do_invoke(self, service, operation, input, options)
+         result_op:resolve(result, err)
+      end)
+      coroutine.resume(co)
+   else
+      local result, err = do_invoke(self, service, operation, input, options)
+      result_op:resolve(result, err)
+   end
+
+   return result_op
 end
 
 return M

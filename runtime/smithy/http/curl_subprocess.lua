@@ -17,7 +17,7 @@ function M.available()
 end
 
 function M.new()
-   return function(request)
+   local function do_request(request)
 
       local body = ""
       if request.body then
@@ -98,6 +98,7 @@ function M.new()
          body = http.string_reader(resp_body),
       }, nil
    end
+   return { is_async = function() return false end, send = function(_, req) return do_request(req) end }
 end
 
 return M

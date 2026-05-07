@@ -175,7 +175,13 @@ function M.wait(client, operation_fn, input, waiter_config, options)
 
       local cl = client
       local op_fn = cl[operation_fn]
-      local output, err = op_fn(client, input)
+      local r1, r2 = op_fn(client, input)
+      local output, err
+      if type(r1) == "table" and r1.await then
+         output, err = r1:await()
+      else
+         output, err = r1, r2
+      end
 
       local state
       for _, acceptor in ipairs(acceptors) do
