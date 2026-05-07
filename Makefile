@@ -1,9 +1,17 @@
 CODEGEN_TEST_BUILD = codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test
 PROTOCOLTEST_BUILD = codegen/protocol-test-codegen/build/smithyprojections/protocol-test-codegen
 
-.PHONY: generate test test-runtime test-codegen protocol-test unit clean
+.PHONY: generate test test-runtime test-codegen protocol-test unit clean teal-build
 
-unit:
+TL := $(shell command -v tl 2>/dev/null || echo $$HOME/.luarocks/bin/tl)
+
+teal-build:
+	@cd runtime && find smithy -name "*.tl" ! -name "*.d.tl" -print0 | while IFS= read -r -d '' f; do \
+		$(TL) gen --gen-target=5.1 --gen-compat=off "$$f" -o "$${f%.tl}.lua" || exit 1; \
+	done
+	@echo "teal-build: done"
+
+unit: teal-build
 	@for f in test/test_*.lua; do \
 		echo "--- $$f ---"; \
 		LUA_PATH="runtime/?.lua;runtime/?/init.lua;runtime/smithy/?.lua;runtime/smithy/?/init.lua;;" luajit "$$f" || exit 1; \

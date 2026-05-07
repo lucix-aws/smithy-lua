@@ -1,5 +1,4 @@
--- smithy-lua runtime: base client + invokeOperation pipeline
--- See INVOKE_OPERATION.md for the full contract.
+
 
 local auth = require("smithy.auth")
 local eventstream = require("smithy.eventstream")
@@ -9,407 +8,459 @@ local traits = require("smithy.traits")
 
 local M = {}
 
+
+
+
 local function shallow_copy(t)
-    local out = {}
-    for k, v in pairs(t) do
-        out[k] = v
-    end
-    return out
+   local out = {}
+   for k, v in pairs(t) do
+      out[k] = v
+   end
+   return out
 end
 
---- Find the input event stream member in an operation's input schema.
---- Returns the member name and schema, or nil if none.
 local function find_input_event_stream(operation)
-    local input = operation.input
-    if not input then return nil end
-    local members = input:members()
-    if not members then return nil end
-    for name, ms in pairs(members) do
-        if ms:trait(traits.STREAMING) and ms.type == "union" then
-            return name, ms
-        end
-    end
-    return nil
+   local op = operation
+   local input_schema = op.input
+   if not input_schema then return nil, nil end
+   local members_fn = (input_schema).members
+   if not members_fn then return nil, nil end
+   local members = members_fn(input_schema)
+   if not members then return nil, nil end
+   for name, ms in pairs(members) do
+      local schema = ms
+      local trait_fn = schema.trait
+      if trait_fn and trait_fn(ms, traits.STREAMING) and schema.type == "union" then
+         return name, ms
+      end
+   end
+   return nil, nil
 end
 
---- Extract the hex signature from an Authorization header.
 local function extract_signature(auth_header)
-    return auth_header and auth_header:match("Signature=(%x+)")
+   return auth_header and auth_header:match("Signature=(%x+)")
 end
 
---- Create a new base client.
 function M.new(config)
-    return { config = config, invokeOperation = M.invokeOperation }
+   return { config = config, invokeOperation = M.invokeOperation }
 end
 
---- Execute a single attempt.
 local function do_attempt(config, service, operation, input, request, interceptors, ctx)
-    -- read_before_attempt
-    ctx.request = request
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_before_attempt", ctx)
-        if hook_err then return nil, hook_err end
-    end
+   ctx.request = request
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_before_attempt", ctx)
+      if hook_err then return nil, hook_err end
+   end
 
-    -- modify_before_signing
-    if interceptors then
-        local new_req, err = interceptor.run_modify(interceptors, "modify_before_signing", ctx, "request")
-        if err then return nil, err end
-        request = new_req
-    end
+   if interceptors then
+      local new_req, err = interceptor.run_modify(interceptors, "modify_before_signing", ctx, "request")
+      if err then return nil, err end
+      request = new_req
+   end
 
-    -- read_before_signing
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_before_signing", ctx)
-        if hook_err then return nil, hook_err end
-    end
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_before_signing", ctx)
+      if hook_err then return nil, hook_err end
+   end
 
-    -- 1. Resolve auth scheme
-    local resolver = config.auth_scheme_resolver or auth.default_auth_scheme_resolver
-    local options = resolver(service, operation, input)
 
-    local selected, err = auth.select_scheme(options, config.auth_schemes, config.identity_resolvers)
-    if not selected then return nil, { type = "sdk", message = err } end
+   local resolver = (config.auth_scheme_resolver or auth.default_auth_scheme_resolver)
+   local options = resolver(service, operation, input)
 
-    -- 2. Resolve identity
-    local identity
-    identity, err = selected.identity_resolver()
-    if err then return nil, err end
+   local selected
+   local sel_err
+   selected, sel_err = auth.select_scheme(options, config.auth_schemes, config.identity_resolvers)
+   if not selected then return nil, { type = "sdk", message = sel_err } end
 
-    -- 3. Bind endpoint parameters
-    local ep_params = {}
-    if config.region then ep_params.Region = config.region end
-    if config.use_fips ~= nil then ep_params.UseFIPS = config.use_fips end
-    if config.use_dual_stack ~= nil then ep_params.UseDualStack = config.use_dual_stack end
-    if config.endpoint_url then ep_params.Endpoint = config.endpoint_url end
-    if config.disable_s3_express_session_auth then
-        ep_params.DisableS3ExpressSessionAuth = true
-    end
-    local static_ctx = operation:trait(traits.STATIC_CONTEXT_PARAMS)
-    if static_ctx then
-        for param_name, param_def in pairs(static_ctx) do
-            ep_params[param_name] = param_def.value
-        end
-    end
-    local ctx_params = operation:trait(traits.CONTEXT_PARAMS)
-    if ctx_params then
-        for param_name, input_field in pairs(ctx_params) do
-            ep_params[param_name] = input[input_field]
-        end
-    end
 
-    -- 4. Resolve endpoint
-    local endpoint
-    endpoint, err = config.endpoint_provider(ep_params)
-    if err then return nil, err end
+   local identity
+   local id_err
+   identity, id_err = selected.identity_resolver()
+   if id_err then return nil, id_err end
 
-    -- 5. Apply endpoint auth scheme overrides to signer properties
-    local signer_props = shallow_copy(selected.signer_properties)
-    auth.apply_endpoint_auth_overrides(endpoint, selected.scheme.scheme_id, signer_props)
 
-    -- 6. Apply endpoint to request
-    request.url = endpoint.url .. request._path
-    if endpoint.headers then
-        for k, v in pairs(endpoint.headers) do
-            request.headers[k] = v
-        end
-    end
+   local ep_params = {}
+   if config.region then ep_params.Region = config.region end
+   if config.use_fips ~= nil then ep_params.UseFIPS = config.use_fips end
+   if config.use_dual_stack ~= nil then ep_params.UseDualStack = config.use_dual_stack end
+   if config.endpoint_url then ep_params.Endpoint = config.endpoint_url end
+   if config.disable_s3_express_session_auth then
+      ep_params.DisableS3ExpressSessionAuth = true
+   end
 
-    -- 7. Sign (for input event streams, use streaming payload hash)
-    local input_es_name = find_input_event_stream(operation)
-    if input_es_name then
-        request.headers["X-Amz-Content-Sha256"] = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
-        request.headers["Transfer-Encoding"] = "chunked"
-        request.headers["Content-Type"] = "application/vnd.amazon.eventstream"
-    end
+   local op = operation
+   local trait_fn = op.trait
+   local static_ctx = trait_fn(operation, traits.STATIC_CONTEXT_PARAMS)
+   if static_ctx then
+      for param_name, param_def in pairs(static_ctx) do
+         ep_params[param_name] = param_def.value
+      end
+   end
+   local ctx_params = trait_fn(operation, traits.CONTEXT_PARAMS)
+   if ctx_params then
+      local inp = input
+      for param_name, input_field in pairs(ctx_params) do
+         ep_params[param_name] = inp[input_field]
+      end
+   end
 
-    request, err = selected.scheme.signer(request, identity, signer_props)
-    if err then return nil, err end
 
-    -- For input event streams: set up the signing writer as the request body
-    local signing_writer
-    if input_es_name then
-        local seed = extract_signature(request.headers["Authorization"])
-        if not seed then
-            return nil, { type = "sdk", message = "failed to extract signature for event stream signing" }
-        end
-        local es_signer = eventstream_signer.new(identity, signer_props, seed)
-        signing_writer = eventstream.new_signing_writer(es_signer)
-        request.body = signing_writer.body_reader
-        request.streaming = true
-    end
+   local ep_fn = config.endpoint_provider
+   local endpoint
+   local ep_err
+   endpoint, ep_err = ep_fn(ep_params)
+   if ep_err then return nil, ep_err end
 
-    ctx.request = request
 
-    -- read_after_signing
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_after_signing", ctx)
-        if hook_err then return nil, hook_err end
-    end
+   local signer_props = shallow_copy(selected.signer_properties)
+   auth.apply_endpoint_auth_overrides(endpoint, selected.scheme.scheme_id, signer_props)
 
-    -- modify_before_transmit
-    if interceptors then
-        local new_req
-        new_req, err = interceptor.run_modify(interceptors, "modify_before_transmit", ctx, "request")
-        if err then return nil, err end
-        request = new_req
-    end
 
-    -- read_before_transmit
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_before_transmit", ctx)
-        if hook_err then return nil, hook_err end
-    end
+   local ep_tbl = endpoint
+   request.url = (ep_tbl.url) .. (request._path)
+   local ep_headers = ep_tbl.headers
+   if ep_headers then
+      local req_headers = request.headers
+      for k, v in pairs(ep_headers) do
+         req_headers[k] = v
+      end
+   end
 
-    -- 8. Transmit
-    local response
-    response, err = config.http_client(request)
-    if err then return nil, err end
-    ctx.response = response
 
-    -- read_after_transmit
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_after_transmit", ctx)
-        if hook_err then return nil, hook_err end
-    end
+   local input_es_name = find_input_event_stream(operation)
+   if input_es_name then
+      local req_headers = request.headers
+      req_headers["X-Amz-Content-Sha256"] = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+      req_headers["Transfer-Encoding"] = "chunked"
+      req_headers["Content-Type"] = "application/vnd.amazon.eventstream"
+   end
 
-    -- modify_before_deserialization
-    if interceptors then
-        local new_resp
-        new_resp, err = interceptor.run_modify(interceptors, "modify_before_deserialization", ctx, "response")
-        if err then return nil, err end
-        response = new_resp
-    end
+   local sign_fn = selected.scheme.signer
+   local signed_req
+   local sign_err
+   signed_req, sign_err = sign_fn(request, identity, signer_props)
+   if sign_err then return nil, sign_err end
+   request = signed_req
 
-    -- read_before_deserialization
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_before_deserialization", ctx)
-        if hook_err then return nil, hook_err end
-    end
 
-    -- 9. Deserialize
-    local es = operation:trait(traits.EVENT_STREAM)
-    if es then
-        if response.status_code < 200 or response.status_code >= 300 then
-            return config.protocol:deserialize(response, operation)
-        end
-        response._signing_writer = signing_writer
-        response._input_event_stream = input_es_name
-        return response, nil
-    end
+   local signing_writer
+   if input_es_name then
+      local req_headers = request.headers
+      local seed = extract_signature(req_headers["Authorization"])
+      if not seed then
+         return nil, { type = "sdk", message = "failed to extract signature for event stream signing" }
+      end
+      local es_signer_mod = eventstream_signer
+      local es_new = es_signer_mod.new
+      local es_signer = es_new(identity, signer_props, seed)
+      local es_mod = eventstream
+      local new_sw = es_mod.new_signing_writer
+      signing_writer = new_sw(es_signer)
+      local sw = signing_writer
+      request.body = sw.body_reader
+      request.streaming = true
+   end
 
-    local output
-    output, err = config.protocol:deserialize(response, operation)
-    ctx.output = output
+   ctx.request = request
 
-    -- read_after_deserialization
-    if interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_after_deserialization", ctx)
-        if hook_err and not err then err = hook_err end
-    end
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_after_signing", ctx)
+      if hook_err then return nil, hook_err end
+   end
 
-    return output, err
+   if interceptors then
+      local new_req
+      local mod_err
+      new_req, mod_err = interceptor.run_modify(interceptors, "modify_before_transmit", ctx, "request")
+      if mod_err then return nil, mod_err end
+      request = new_req
+   end
+
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_before_transmit", ctx)
+      if hook_err then return nil, hook_err end
+   end
+
+
+   local http_client = config.http_client
+   local response
+   local tx_err
+   response, tx_err = http_client(request)
+   if tx_err then return nil, tx_err end
+   ctx.response = response
+
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_after_transmit", ctx)
+      if hook_err then return nil, hook_err end
+   end
+
+   if interceptors then
+      local new_resp
+      local mod_err
+      new_resp, mod_err = interceptor.run_modify(interceptors, "modify_before_deserialization", ctx, "response")
+      if mod_err then return nil, mod_err end
+      response = new_resp
+   end
+
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_before_deserialization", ctx)
+      if hook_err then return nil, hook_err end
+   end
+
+
+   local es = trait_fn(operation, traits.EVENT_STREAM)
+   if es then
+      local resp = response
+      local status = resp.status_code
+      if status < 200 or status >= 300 then
+         local proto = config.protocol
+         local deser = proto.deserialize
+         return deser(config.protocol, response, operation)
+      end
+      resp._signing_writer = signing_writer
+      resp._input_event_stream = input_es_name
+      return response, nil
+   end
+
+   local proto = config.protocol
+   local deser = proto.deserialize
+   local output
+   local deser_err
+   output, deser_err = deser(config.protocol, response, operation)
+   ctx.output = output
+
+   if interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_after_deserialization", ctx)
+      if hook_err and not deser_err then deser_err = hook_err end
+   end
+
+   return output, deser_err
 end
 
---- The SDK operation pipeline.
 function M.invokeOperation(self, service, operation, input, options)
-    -- 1. Config resolution: copy + apply operation plugins
-    local config = shallow_copy(self.config)
-    if options and options.plugins then
-        for _, plugin in ipairs(options.plugins) do
+   local self_tbl = self
+   local config = shallow_copy(self_tbl.config)
+   if options then
+      local opts = options
+      local plugins = opts.plugins
+      if plugins then
+         for _, plugin in ipairs(plugins) do
             plugin(config)
-        end
-    end
+         end
+      end
+   end
 
-    local interceptors = config.interceptors
-    local has_interceptors = interceptors and #interceptors > 0
+   local interceptors = config.interceptors
+   local has_interceptors = interceptors and #interceptors > 0
 
-    -- Build the interceptor context table
-    local ctx = { input = input, operation = operation }
+   local ctx = { input = input, operation = operation }
 
-    -- read_before_execution
-    if has_interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_before_execution", ctx)
-        if hook_err then
-            ctx.output = nil
-            local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
-            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
-            if err then return nil, err end
-            return output, nil
-        end
-    end
 
-    -- modify_before_serialization
-    if has_interceptors then
-        local new_input, err = interceptor.run_modify(interceptors, "modify_before_serialization", ctx, "input")
-        if err then
-            ctx.output = nil
-            local output
-            output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, err)
-            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
-            if err then return nil, err end
-            return output, nil
-        end
-        input = new_input
-    end
+   if has_interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_before_execution", ctx)
+      if hook_err then
+         ctx.output = nil
+         local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
+         err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+         if err then return nil, err end
+         return output, nil
+      end
+   end
 
-    -- read_before_serialization
-    if has_interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_before_serialization", ctx)
-        if hook_err then
-            ctx.output = nil
-            local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
-            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
-            if err then return nil, err end
-            return output, nil
-        end
-    end
 
-    -- 5. Serialize
-    local request, serialize_err = config.protocol:serialize(input, service, operation)
-    if serialize_err then
-        if not has_interceptors then return nil, serialize_err end
-        ctx.output = nil
-        local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, serialize_err)
-        err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
-        if err then return nil, err end
-        return output, nil
-    end
-    ctx.request = request
+   if has_interceptors then
+      local new_input, err = interceptor.run_modify(interceptors, "modify_before_serialization", ctx, "input")
+      if err then
+         ctx.output = nil
+         local output
+         output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, err)
+         err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+         if err then return nil, err end
+         return output, nil
+      end
+      input = new_input
+   end
 
-    -- read_after_serialization
-    if has_interceptors then
-        local hook_err = interceptor.run_read(interceptors, "read_after_serialization", ctx)
-        if hook_err then
-            ctx.output = nil
-            local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
-            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
-            if err then return nil, err end
-            return output, nil
-        end
-    end
 
-    -- modify_before_retry_loop
-    if has_interceptors then
-        local new_req, err = interceptor.run_modify(interceptors, "modify_before_retry_loop", ctx, "request")
-        if err then
-            ctx.output = nil
-            local output
-            output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, err)
-            err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
-            if err then return nil, err end
-            return output, nil
-        end
-        request = new_req
-    end
+   if has_interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_before_serialization", ctx)
+      if hook_err then
+         ctx.output = nil
+         local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
+         err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+         if err then return nil, err end
+         return output, nil
+      end
+   end
 
-    -- Stash the original path so we can rebuild the URL on each attempt
-    request._path = request.url
 
-    -- 8. Retry loop
-    local retryer = config.retry_strategy
-    local result, attempt_err
+   local proto = config.protocol
+   local ser = proto.serialize
+   local request
+   local serialize_err
+   request, serialize_err = ser(config.protocol, input, service, operation)
+   if serialize_err then
+      if not has_interceptors then return nil, serialize_err end
+      ctx.output = nil
+      local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, serialize_err)
+      err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+      if err then return nil, err end
+      return output, nil
+   end
+   ctx.request = request
 
-    if not retryer then
-        result, attempt_err = do_attempt(config, service, operation, input, request,
+
+   if has_interceptors then
+      local hook_err = interceptor.run_read(interceptors, "read_after_serialization", ctx)
+      if hook_err then
+         ctx.output = nil
+         local output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, hook_err)
+         err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+         if err then return nil, err end
+         return output, nil
+      end
+   end
+
+
+   if has_interceptors then
+      local new_req, err = interceptor.run_modify(interceptors, "modify_before_retry_loop", ctx, "request")
+      if err then
+         ctx.output = nil
+         local output
+         output, err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, err)
+         err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, err)
+         if err then return nil, err end
+         return output, nil
+      end
+      request = new_req
+   end
+
+
+   local req_tbl = request
+   req_tbl._path = req_tbl.url
+
+
+   local retryer = config.retry_strategy
+   local result
+   local attempt_err
+
+   if not retryer then
+      result, attempt_err = do_attempt(config, service, operation, input, req_tbl,
+      has_interceptors and interceptors or nil, ctx)
+
+      if has_interceptors then
+         ctx.output = result
+         result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_attempt_completion", ctx, attempt_err)
+         attempt_err = interceptor.run_read_with_error(interceptors, "read_after_attempt", ctx, attempt_err)
+      end
+   else
+      local retry = retryer
+      local acquire = retry.acquire_token
+      local token
+      token, attempt_err = acquire(retryer)
+      if not attempt_err then
+         while true do
+            result, attempt_err = do_attempt(config, service, operation, input, req_tbl,
             has_interceptors and interceptors or nil, ctx)
 
-        -- modify_before_attempt_completion + read_after_attempt
-        if has_interceptors then
-            ctx.output = result
-            result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_attempt_completion", ctx, attempt_err)
-            attempt_err = interceptor.run_read_with_error(interceptors, "read_after_attempt", ctx, attempt_err)
-        end
-    else
-        local token
-        token, attempt_err = retryer:acquire_token()
-        if not attempt_err then
-            while true do
-                result, attempt_err = do_attempt(config, service, operation, input, request,
-                    has_interceptors and interceptors or nil, ctx)
-
-                -- modify_before_attempt_completion + read_after_attempt
-                if has_interceptors then
-                    ctx.output = result
-                    result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_attempt_completion", ctx, attempt_err)
-                    attempt_err = interceptor.run_read_with_error(interceptors, "read_after_attempt", ctx, attempt_err)
-                end
-
-                if not attempt_err then
-                    retryer:record_success(token)
-                    break
-                end
-
-                local delay
-                delay, attempt_err = retryer:retry_token(token, attempt_err)
-                if not delay then
-                    break
-                end
-
-                if delay > 0 then
-                    local socket_ok, socket = pcall(require, "socket")
-                    if socket_ok and socket.sleep then
-                        socket.sleep(delay)
-                    else
-                        local target = os.clock() + delay
-                        while os.clock() < target do end
-                    end
-                end
-            end
-        end
-    end
-
-    -- modify_before_completion
-    if has_interceptors then
-        ctx.output = result
-        result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, attempt_err)
-    end
-
-    -- read_after_execution
-    if has_interceptors then
-        attempt_err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, attempt_err)
-    end
-
-    if attempt_err then return nil, attempt_err end
-
-    -- For event stream operations, wrap the response in a stream object
-    local es = operation:trait(traits.EVENT_STREAM)
-    if es then
-        local protocol = config.protocol
-        local stream = eventstream.new_stream(
-            result.body,
-            es,
-            protocol.codec,
-            {
-                has_initial_message = protocol.has_event_stream_initial_message,
-                output_schema = operation.output,
-                on_close = result.close,
-            }
-        )
-
-        -- For bidirectional streams, add send capability
-        if result._signing_writer then
-            local sw = result._signing_writer
-            local input_es_name = result._input_event_stream
-            -- Find the input event stream schema
-            local input_members = operation.input:members()
-            local input_es_schema = input_members[input_es_name]._target or input_members[input_es_name]
-
-            function stream:send(event)
-                local frame, err = eventstream.serialize_event(event, input_es_schema, protocol.codec)
-                if err then return nil, { type = "sdk", message = err } end
-                return sw:write(frame)
+            if has_interceptors then
+               ctx.output = result
+               result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_attempt_completion", ctx, attempt_err)
+               attempt_err = interceptor.run_read_with_error(interceptors, "read_after_attempt", ctx, attempt_err)
             end
 
-            function stream:close_input()
-                sw:close()
+            if not attempt_err then
+               local record_success = retry.record_success
+               record_success(retryer, token)
+               break
             end
-        end
 
-        return stream, nil
-    end
+            local retry_token_fn = retry.retry_token
+            local delay
+            delay, attempt_err = retry_token_fn(retryer, token, attempt_err)
+            if not delay then
+               break
+            end
 
-    return result, nil
+            local delay_num = delay
+            if delay_num > 0 then
+               local socket_ok, socket = pcall(require, "socket")
+               if socket_ok and (socket).sleep then
+                  local sleep_fn = (socket).sleep
+                  sleep_fn(delay_num)
+               else
+                  local target = os.clock() + delay_num
+                  while os.clock() < target do end
+               end
+            end
+         end
+      end
+   end
+
+
+   if has_interceptors then
+      ctx.output = result
+      result, attempt_err = interceptor.run_modify_completion(interceptors, "modify_before_completion", ctx, attempt_err)
+   end
+
+
+   if has_interceptors then
+      attempt_err = interceptor.run_read_with_error(interceptors, "read_after_execution", ctx, attempt_err)
+   end
+
+   if attempt_err then return nil, attempt_err end
+
+
+   local op = operation
+   local trait_fn_op = op.trait
+   local es = trait_fn_op(operation, traits.EVENT_STREAM)
+   if es then
+      local protocol = config.protocol
+      local proto_tbl = protocol
+      local result_tbl = result
+      local es_mod = eventstream
+      local new_stream_fn = es_mod.new_stream
+      local stream_opts = {
+         has_initial_message = proto_tbl.has_event_stream_initial_message,
+         output_schema = op.output,
+         on_close = result_tbl.close,
+      }
+      local stream = new_stream_fn(
+      result_tbl.body,
+      es,
+      proto_tbl.codec,
+      stream_opts)
+
+
+
+      if result_tbl._signing_writer then
+         local sw = result_tbl._signing_writer
+         local input_es_name = result_tbl._input_event_stream
+         local input_schema = op.input
+         local members_fn = input_schema.members
+         local input_members = members_fn(op.input)
+         local es_member = input_members[input_es_name]
+         local input_es_schema = es_member._target or es_member
+
+         local stream_tbl = stream
+         stream_tbl.send = function(self_stream, event)
+            local serialize_event = es_mod.serialize_event
+            local frame, err = serialize_event(event, input_es_schema, proto_tbl.codec)
+            if err then return nil, { type = "sdk", message = err } end
+            local write_fn = sw.write
+            return write_fn(sw, frame)
+         end
+
+         stream_tbl.close_input = function(_self_stream)
+            local close_fn = sw.close
+            close_fn(sw)
+         end
+      end
+
+      return stream, nil
+   end
+
+   return result, nil
 end
 
 return M

@@ -1,144 +1,138 @@
--- Pure Lua 256-bit unsigned integer arithmetic for LuaJIT
--- Represented as 10 limbs of 26 bits each (260 bits total, top limb partial)
--- 26-bit limbs ensure products fit in 53-bit doubles exactly.
+
 
 local M = {}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 local LIMBS = 10
-local BASE = 0x4000000 -- 2^26
-local MASK = 0x3FFFFFF -- 2^26 - 1
+local BASE = 0x4000000
 
--- Create a zero bigint
 function M.zero()
-    return {0,0,0,0,0,0,0,0,0,0}
+   return { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 end
 
--- Create bigint from a decimal value (small, fits in double)
 function M.from_int(n)
-    local r = M.zero()
-    r[1] = n % BASE
-    r[2] = math.floor(n / BASE) % BASE
-    return r
+   local r = M.zero()
+   r[1] = n % BASE
+   r[2] = math.floor(n / BASE) % BASE
+   return r
 end
 
--- Create bigint from 32-byte big-endian string
 function M.from_bytes(s)
-    assert(#s == 32, "from_bytes expects 32 bytes")
-    -- Convert to a flat bit stream, pack into 26-bit limbs little-endian
-    local r = M.zero()
-    -- Read bytes big-endian into limbs little-endian
-    -- byte 31 (last) is least significant
-    local bits = 0
-    local acc = 0
-    local li = 1
-    for i = 32, 1, -1 do
-        acc = acc + string.byte(s, i) * (2 ^ bits)
-        bits = bits + 8
-        while bits >= 26 and li <= LIMBS do
-            r[li] = acc % BASE
-            acc = math.floor(acc / BASE)
-            bits = bits - 26
-            li = li + 1
-        end
-    end
-    if li <= LIMBS then r[li] = acc end
-    return r
+   assert(#s == 32, "from_bytes expects 32 bytes")
+   local r = M.zero()
+   local bits = 0
+   local acc = 0
+   local li = 1
+   for i = 32, 1, -1 do
+      acc = acc + string.byte(s, i) * (2 ^ bits)
+      bits = bits + 8
+      while bits >= 26 and li <= LIMBS do
+         r[li] = acc % BASE
+         acc = math.floor(acc / BASE)
+         bits = bits - 26
+         li = li + 1
+      end
+   end
+   if li <= LIMBS then r[li] = acc end
+   return r
 end
 
--- Convert bigint to 32-byte big-endian string
 function M.to_bytes(a)
-    -- Reconstruct 256 bits from limbs
-    local bytes = {}
-    local acc = 0
-    local bits = 0
-    local li = 1
-    for i = 1, 32 do
-        while bits < 8 and li <= LIMBS do
-            acc = acc + a[li] * (2 ^ bits)
-            bits = bits + 26
-            li = li + 1
-        end
-        bytes[i] = acc % 256
-        acc = math.floor(acc / 256)
-        bits = bits - 8
-    end
-    -- bytes[1] is LSB, reverse for big-endian
-    local out = {}
-    for i = 32, 1, -1 do
-        out[#out + 1] = string.char(bytes[i])
-    end
-    return table.concat(out)
+   local bytes = {}
+   local acc = 0
+   local bits = 0
+   local li = 1
+   for _ = 1, 32 do
+      while bits < 8 and li <= LIMBS do
+         acc = acc + a[li] * (2 ^ bits)
+         bits = bits + 26
+         li = li + 1
+      end
+      bytes[#bytes + 1] = acc % 256
+      acc = math.floor(acc / 256)
+      bits = bits - 8
+   end
+   local out = {}
+   for i = 32, 1, -1 do
+      out[#out + 1] = string.char(bytes[i])
+   end
+   return table.concat(out)
 end
 
--- Convert bigint to hex string
 function M.to_hex(a)
-    local s = M.to_bytes(a)
-    local h = {}
-    for i = 1, 32 do
-        h[i] = string.format("%02X", string.byte(s, i))
-    end
-    return table.concat(h)
+   local s = M.to_bytes(a)
+   local h = {}
+   for i = 1, 32 do
+      h[i] = string.format("%02X", string.byte(s, i))
+   end
+   return table.concat(h)
 end
 
--- Create bigint from hex string
 function M.from_hex(h)
-    assert(#h == 64, "from_hex expects 64 hex chars")
-    local bytes = {}
-    for i = 1, 64, 2 do
-        bytes[#bytes + 1] = string.char(tonumber(h:sub(i, i+1), 16))
-    end
-    return M.from_bytes(table.concat(bytes))
+   assert(#h == 64, "from_hex expects 64 hex chars")
+   local bytes = {}
+   for i = 1, 64, 2 do
+      bytes[#bytes + 1] = string.char(tonumber(h:sub(i, i + 1), 16))
+   end
+   return M.from_bytes(table.concat(bytes))
 end
 
--- Compare: returns -1, 0, or 1
 function M.cmp(a, b)
-    for i = LIMBS, 1, -1 do
-        if a[i] > b[i] then return 1 end
-        if a[i] < b[i] then return -1 end
-    end
-    return 0
+   for i = LIMBS, 1, -1 do
+      if a[i] > b[i] then return 1 end
+      if a[i] < b[i] then return -1 end
+   end
+   return 0
 end
 
--- Addition (no modular reduction, caller must handle overflow)
 function M.add(a, b)
-    local r = M.zero()
-    local carry = 0
-    for i = 1, LIMBS do
-        local s = a[i] + b[i] + carry
-        r[i] = s % BASE
-        carry = math.floor(s / BASE)
-    end
-    return r, carry
+   local r = M.zero()
+   local carry = 0
+   for i = 1, LIMBS do
+      local s = a[i] + b[i] + carry
+      r[i] = s % BASE
+      carry = math.floor(s / BASE)
+   end
+   return r, carry
 end
 
--- Subtraction: a - b, assumes a >= b
 function M.sub(a, b)
-    local r = M.zero()
-    local borrow = 0
-    for i = 1, LIMBS do
-        local s = a[i] - b[i] - borrow
-        if s < 0 then
-            s = s + BASE
-            borrow = 1
-        else
-            borrow = 0
-        end
-        r[i] = s
-    end
-    return r, borrow
+   local r = M.zero()
+   local borrow = 0
+   for i = 1, LIMBS do
+      local s = a[i] - b[i] - borrow
+      if s < 0 then
+         s = s + BASE
+         borrow = 1
+      else
+         borrow = 0
+      end
+      r[i] = s
+   end
+   return r, borrow
 end
 
--- Check if zero
 function M.is_zero(a)
-    for i = 1, LIMBS do
-        if a[i] ~= 0 then return false end
-    end
-    return true
+   for i = 1, LIMBS do
+      if a[i] ~= 0 then return false end
+   end
+   return true
 end
 
--- Copy
 function M.copy(a)
-    return {a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10]}
+   return { a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10] }
 end
 
 return M

@@ -1,114 +1,107 @@
--- smithy-lua runtime: awsJson1.0 / awsJson1.1 protocol
--- Implements the ClientProtocol interface (serialize + deserialize).
+
 
 local json_codec = require("smithy.codec.json")
 local http = require("smithy.http")
+local t = require("smithy.traits")
+local schema_mod = require("smithy.schema")
 
 local M = {}
-M.__index = M
 
---- Create a new awsJson protocol instance.
---- @param settings table: { version = "1.0"|"1.1", service_id = string }
---- @return table: protocol with serialize/deserialize
+
+
+
+
+
+
+
+local M_mt = { __index = M }
+
 function M.new(settings)
-    if type(settings) == "string" then settings = { version = settings } end
-    local version = settings and settings.version or "1.0"
-    return setmetatable({
-        content_type = "application/x-amz-json-" .. version,
-        service_id = settings and settings.service_id or "",
-        -- awsJson does NOT use json_name — member names go on the wire as-is
-        codec = json_codec.new({ use_json_name = false }),
-        -- RPC protocols send initial-request/initial-response as event stream messages
-        has_event_stream_initial_message = true,
-    }, M)
+   local s = settings
+   if type(settings) == "string" then
+      s = { version = settings }
+   end
+   local version = s and s.version or "1.0"
+   return setmetatable({
+      content_type = "application/x-amz-json-" .. version,
+      service_id = s and s.service_id or "",
+      codec = json_codec.new({ use_json_name = false }),
+      has_event_stream_initial_message = true,
+   }, M_mt)
 end
 
---- Serialize modeled input into an HTTP request.
---- @param self table: protocol instance
---- @param input table: user input
---- @param service table: service schema
---- @param operation table: operation schema
---- @return table, table: HTTP request, err
-function M.serialize(self, input, service, operation)
-    local body, err = self.codec:serialize(input or {}, operation.input)
-    if err then return nil, err end
+function M:serialize(input, service, operation)
+   local body, err = self.codec:serialize(input or {}, operation.input)
+   if err then return nil, err end
 
-    local http_trait = operation:trait(require("smithy.traits").HTTP)
-    return http.new_request(
-        http_trait and http_trait.method or "POST",
-        http_trait and http_trait.path or "/",
-        {
-            ["Content-Type"] = self.content_type,
-            ["X-Amz-Target"] = service.id.name .. "." .. operation.id.name,
-        },
-        http.string_reader(body)
-    ), nil
+   local http_trait = operation:trait(t.HTTP)
+   local service_id = service.id
+   local op_id = operation.id
+   local target = service_id.name .. "." .. op_id.name
+   local ct = self.content_type
+   local meth = http_trait and http_trait.method or "POST"
+   local path = http_trait and http_trait.path or "/"
+   local hdrs = {}
+   hdrs["Content-Type"] = ct
+   hdrs["X-Amz-Target"] = target
+   return http.new_request(meth, path, hdrs, http.string_reader(body)), nil
 end
 
---- Extract error code from response.
---- Checks x-amzn-errortype header first, then __type in body.
 local function parse_error_code(response, body_table)
-    -- Header takes precedence
-    local header = response.headers and (
-        response.headers["x-amzn-errortype"] or
-        response.headers["X-Amzn-Errortype"]
-    )
-    if header then
-        -- Strip anything after ':' (e.g. "ValidationException:http://...")
-        return header:match("^([^:]+)") or header
-    end
-    -- Fall back to body
-    if body_table then
-        local code = body_table["__type"] or body_table["code"] or body_table["Code"]
-        if code then
-            -- __type may be a full shape ID like "com.amazonaws.sqs#QueueDoesNotExist"
-            return code:match("#(.+)$") or code
-        end
-    end
-    return "UnknownError"
+   local header = response.headers and (
+   response.headers["x-amzn-errortype"] or
+   response.headers["X-Amzn-Errortype"])
+
+   if header then
+      return header:match("^([^:]+)") or header
+   end
+   if body_table then
+      local code = body_table["__type"] or body_table["code"] or body_table["Code"]
+      if code then
+         local s = code
+         return s:match("#(.+)$") or s
+      end
+   end
+   return "UnknownError"
 end
 
---- Deserialize an HTTP response into modeled output or an error.
---- @param self table: protocol instance
---- @param response table: HTTP response
---- @param operation table: codegen operation metadata
---- @return table, table: output, err
-function M.deserialize(self, response, operation)
-    local body_str, read_err = http.read_all(response.body)
-    if read_err then
-        return nil, { type = "http", code = "ResponseReadError", message = read_err }
-    end
+function M:deserialize(response, operation)
+   local body_str, read_err = http.read_all(response.body)
+   if read_err then
+      local e = { type = "http", code = "ResponseReadError", message = read_err }
+      return nil, e
+   end
 
-    -- Error response
-    if response.status_code < 200 or response.status_code >= 300 then
-        local body_table = nil
-        if body_str and #body_str > 0 then
-            -- Parse as raw JSON (no schema) for error fields
-            local raw = require("smithy.json.decoder").decode(body_str)
-            if type(raw) == "table" then body_table = raw end
-        end
+   if response.status_code < 200 or response.status_code >= 300 then
+      local body_table
+      if body_str and #body_str > 0 then
+         local raw = require("smithy.json.decoder").decode(body_str)
+         if type(raw) == "table" then body_table = raw end
+      end
 
-        local code = parse_error_code(response, body_table)
-        local message = ""
-        if body_table then
-            message = body_table["message"] or body_table["Message"]
-                or body_table["errorMessage"] or ""
-        end
+      local code = parse_error_code(response, body_table)
+      local message = ""
+      if body_table then
+         message = (body_table["message"] or body_table["Message"] or
+         body_table["errorMessage"] or "")
+      end
 
-        return nil, {
-            type = "api",
-            code = code,
-            message = message,
-            status_code = response.status_code,
-        }
-    end
+      local e = {
+         type = "api",
+         code = code,
+         message = message,
+         status_code = response.status_code,
+      }
+      return nil, e
+   end
 
-    -- Success: empty body is valid (e.g. DeleteQueue returns nothing)
-    if not body_str or #body_str == 0 then
-        return {}, nil
-    end
+   if not body_str or #body_str == 0 then
+      return {}, nil
+   end
 
-    return self.codec:deserialize(body_str, operation.output)
+   local result, err = self.codec:deserialize(body_str, operation.output)
+   if err then return nil, err end
+   return result, nil
 end
 
 return M
