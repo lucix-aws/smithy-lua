@@ -1,171 +1,7 @@
 -- Test: runtime/smithy/dynamic.lua
--- Run: luajit test/test_dynamic.lua
-
-package.path = "runtime/?.lua;" .. package.path
 
 local dynamic = require("smithy.dynamic")
 local traits = require("smithy.traits")
-
-local pass, fail = 0, 0
-
-local function test(name, fn)
-    local ok, err = pcall(fn)
-    if ok then
-        pass = pass + 1
-        print("PASS: " .. name)
-    else
-        fail = fail + 1
-        print("FAIL: " .. name .. "\n  " .. tostring(err))
-    end
-end
-
-local function assert_eq(a, b, msg)
-    if a ~= b then
-        error((msg or "assert_eq") .. ": expected " .. tostring(b) .. ", got " .. tostring(a), 2)
-    end
-end
-
-local function assert_not_nil(a, msg)
-    if a == nil then error((msg or "assert_not_nil") .. ": got nil", 2) end
-end
-
-local function assert_nil(a, msg)
-    if a ~= nil then error((msg or "assert_nil") .. ": expected nil, got " .. tostring(a), 2) end
-end
-
--- === Model loading ===
-
-test("load_model from file", function()
-    local model, err = dynamic.load_model("test/fixtures/test_service.json")
-    assert_not_nil(model, "model")
-    assert_nil(err)
-    assert_eq(model.smithy, "2.0")
-    assert_not_nil(model.shapes)
-end)
-
-test("load_model from table", function()
-    local input = { smithy = "2.0", shapes = {} }
-    local model = dynamic.load_model(input)
-    assert_eq(model, input)
-end)
-
-test("load_model bad path", function()
-    local model, err = dynamic.load_model("/nonexistent/path.json")
-    assert_nil(model)
-    assert_not_nil(err)
-end)
-
--- === Client creation ===
-
-test("new with model file", function()
-    local client, err = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-    })
-    assert_not_nil(client, "client should not be nil: " .. tostring(err))
-    assert_nil(err)
-end)
-
-test("new auto-detects single service", function()
-    local client, err = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-    })
-    assert_not_nil(client, tostring(err))
-end)
-
-test("new with explicit service", function()
-    local client, err = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        service = "test.example#TestService",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-    })
-    assert_not_nil(client, tostring(err))
-end)
-
-test("new fails with bad service", function()
-    local client, err = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        service = "test.example#NonExistent",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-    })
-    assert_nil(client)
-    assert_not_nil(err)
-end)
-
--- === Operations listing ===
-
-test("operations() lists available ops", function()
-    local client = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-    })
-    local ops = client:operations()
-    assert_eq(#ops, 2)
-    -- sorted
-    assert_eq(ops[1], "GetItem")
-    assert_eq(ops[2], "PutItem")
-end)
-
--- === Schema conversion ===
-
-test("call unknown operation returns error", function()
-    local client = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-    })
-    local result, err = client:call("NonExistent", {})
-    assert_nil(result)
-    assert_eq(err.type, "sdk")
-end)
-
--- === Full call with mock transport ===
-
-test("call serializes and deserializes via pipeline", function()
-    local captured_request = nil
-    local http = require("smithy.http")
-    local mock_http = function(request)
-        captured_request = request
-        return {
-            status_code = 200,
-            headers = { ["content-type"] = "application/x-amz-json-1.0" },
-            body = http.string_reader('{"Item":{"name":{"S":"hello"}}}'),
-        }, nil
-    end
-
-    local client = dynamic.new({
-        model = "test/fixtures/test_service.json",
-        region = "us-east-1",
-        endpoint_url = "https://example.com",
-        http_client = mock_http,
-        -- Skip auth for this test
-        auth_scheme_resolver = function()
-            return { { scheme_id = "smithy.api#noAuth" } }
-        end,
-    })
-
-    local result, err = client:call("GetItem", {
-        TableName = "my-table",
-        Key = { id = { S = "123" } },
-    })
-
-    -- Verify request was made
-    assert_not_nil(captured_request, "request should have been captured")
-    assert_eq(captured_request.method, "POST")
-
-    -- Verify response was deserialized
-    assert_not_nil(result, "result: " .. tostring(err and err.message))
-    assert_not_nil(result.Item)
-    assert_eq(result.Item.name.S, "hello")
-end)
-
--- === REST protocol test ===
 
 local REST_MODEL = {
     smithy = "2.0",
@@ -218,7 +54,126 @@ local REST_MODEL = {
     },
 }
 
-test("REST protocol: HTTP bindings in path and query", function()
+describe("dynamic", function()
+
+it("load_model from file", function()
+    local model, err = dynamic.load_model("test/fixtures/test_service.json")
+    assert.is_truthy(model)
+    assert.is_nil(err)
+    assert.are.equal("2.0", model.smithy)
+    assert.is_truthy(model.shapes)
+end)
+
+it("load_model from table", function()
+    local input = { smithy = "2.0", shapes = {} }
+    local model = dynamic.load_model(input)
+    assert.are.equal(input, model)
+end)
+
+it("load_model bad path", function()
+    local model, err = dynamic.load_model("/nonexistent/path.json")
+    assert.is_nil(model)
+    assert.is_truthy(err)
+end)
+
+it("new with model file", function()
+    local client, err = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+    })
+    assert.is_truthy(client)
+    assert.is_nil(err)
+end)
+
+it("new auto-detects single service", function()
+    local client, err = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+    })
+    assert.is_truthy(client)
+end)
+
+it("new with explicit service", function()
+    local client, err = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        service = "test.example#TestService",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+    })
+    assert.is_truthy(client)
+end)
+
+it("new fails with bad service", function()
+    local client, err = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        service = "test.example#NonExistent",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+    })
+    assert.is_nil(client)
+    assert.is_truthy(err)
+end)
+
+it("operations() lists available ops", function()
+    local client = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+    })
+    local ops = client:operations()
+    assert.are.equal(2, #ops)
+    assert.are.equal("GetItem", ops[1])
+    assert.are.equal("PutItem", ops[2])
+end)
+
+it("call unknown operation returns error", function()
+    local client = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+    })
+    local result, err = client:call("NonExistent", {})
+    assert.is_nil(result)
+    assert.are.equal("sdk", err.type)
+end)
+
+it("call serializes and deserializes via pipeline", function()
+    local captured_request = nil
+    local http = require("smithy.http")
+    local mock_http = function(request)
+        captured_request = request
+        return {
+            status_code = 200,
+            headers = { ["content-type"] = "application/x-amz-json-1.0" },
+            body = http.string_reader('{"Item":{"name":{"S":"hello"}}}'),
+        }, nil
+    end
+
+    local client = dynamic.new({
+        model = "test/fixtures/test_service.json",
+        region = "us-east-1",
+        endpoint_url = "https://example.com",
+        http_client = mock_http,
+        auth_scheme_resolver = function()
+            return { { scheme_id = "smithy.api#noAuth" } }
+        end,
+    })
+
+    local result, err = client:call("GetItem", {
+        TableName = "my-table",
+        Key = { id = { S = "123" } },
+    })
+
+    assert.is_truthy(captured_request)
+    assert.are.equal("POST", captured_request.method)
+    assert.is_truthy(result)
+    assert.is_truthy(result.Item)
+    assert.are.equal("hello", result.Item.name.S)
+end)
+
+it("REST protocol: HTTP bindings in path and query", function()
     local captured_request = nil
     local http = require("smithy.http")
     local mock_http = function(request)
@@ -245,20 +200,13 @@ test("REST protocol: HTTP bindings in path and query", function()
         filter = "active",
     })
 
-    assert_not_nil(captured_request, "request captured")
-    -- Path should have label expanded
+    assert.is_truthy(captured_request)
     assert(captured_request.url:find("abc123"), "URL should contain thingId: " .. captured_request.url)
-    -- Query param
     assert(captured_request.url:find("filter=active"), "URL should contain query: " .. captured_request.url)
-    -- Method
-    assert_eq(captured_request.method, "GET")
-
-    -- Response
-    assert_not_nil(result, "result: " .. tostring(err and err.message))
-    assert_eq(result.name, "widget")
-    assert_eq(result.count, 42)
+    assert.are.equal("GET", captured_request.method)
+    assert.is_truthy(result)
+    assert.are.equal("widget", result.name)
+    assert.are.equal(42, result.count)
 end)
 
--- === Summary ===
-print(string.format("\n%d passed, %d failed", pass, fail))
-if fail > 0 then os.exit(1) end
+end)

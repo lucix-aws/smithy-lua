@@ -1,19 +1,6 @@
 -- Tests for runtime/paginator.lua
 
-package.path = "runtime/?.lua;" .. package.path
-
 local paginator = require("smithy.paginator")
-
-local pass, fail = 0, 0
-local function assert_eq(a, b, msg)
-    if a == b then pass = pass + 1
-    else fail = fail + 1; print("FAIL: " .. msg .. " expected=" .. tostring(b) .. " got=" .. tostring(a)) end
-end
-
-local function assert_nil(a, msg)
-    if a == nil then pass = pass + 1
-    else fail = fail + 1; print("FAIL: " .. msg .. " expected nil, got=" .. tostring(a)) end
-end
 
 -- Helper: mock client that returns pages from a list
 local function mock_client(pages)
@@ -27,16 +14,25 @@ local function mock_client(pages)
     }
 end
 
--- Test: _get_path
-print("--- _get_path ---")
-assert_eq(paginator._get_path({ a = { b = "hello" } }, "a.b"), "hello", "nested path")
-assert_eq(paginator._get_path({ a = "top" }, "a"), "top", "single segment")
-assert_nil(paginator._get_path({ a = 1 }, "a.b"), "non-table intermediate")
-assert_nil(paginator._get_path({}, "x"), "missing key")
+describe("paginator", function()
 
--- Test: pages() with 3 pages
-print("--- pages: 3 pages ---")
-do
+it("_get_path: nested path", function()
+    assert.are.equal("hello", paginator._get_path({ a = { b = "hello" } }, "a.b"))
+end)
+
+it("_get_path: single segment", function()
+    assert.are.equal("top", paginator._get_path({ a = "top" }, "a"))
+end)
+
+it("_get_path: non-table intermediate", function()
+    assert.is_nil(paginator._get_path({ a = 1 }, "a.b"))
+end)
+
+it("_get_path: missing key", function()
+    assert.is_nil(paginator._get_path({}, "x"))
+end)
+
+it("pages: 3 pages returned", function()
     local client = mock_client({
         { Items = { "a", "b" }, NextToken = "tok1" },
         { Items = { "c" }, NextToken = "tok2" },
@@ -47,14 +43,12 @@ do
     for output in paginator.pages(client, "listThings", {}, config) do
         results[#results + 1] = output
     end
-    assert_eq(#results, 3, "3 pages returned")
-    assert_eq(results[1].NextToken, "tok1", "page 1 token")
-    assert_eq(results[3].NextToken, nil, "page 3 no token")
-end
+    assert.are.equal(3, #results)
+    assert.are.equal("tok1", results[1].NextToken)
+    assert.are.equal(nil, results[3].NextToken)
+end)
 
--- Test: pages() stops on empty string token
-print("--- pages: empty string token ---")
-do
+it("pages: stops on empty string token", function()
     local client = mock_client({
         { Items = { "a" }, NextToken = "" },
     })
@@ -63,12 +57,10 @@ do
     for output in paginator.pages(client, "listThings", {}, config) do
         results[#results + 1] = output
     end
-    assert_eq(#results, 1, "stops on empty token")
-end
+    assert.are.equal(1, #results)
+end)
 
--- Test: pages() stops on duplicate token
-print("--- pages: duplicate token ---")
-do
+it("pages: stops on duplicate token", function()
     local call_count = 0
     local client = {
         listThings = function(self, input)
@@ -81,15 +73,10 @@ do
     for output in paginator.pages(client, "listThings", {}, config) do
         results[#results + 1] = output
     end
-    -- First call: token="same", prev=nil -> continue. Second call: token="same", prev="same" -> stop.
-    assert_eq(#results, 2, "stops on duplicate token")
-end
+    assert.are.equal(2, #results)
+end)
 
--- Test: pages() propagates error
--- The iterator returns nil,err — a generic for loop stops on nil first return,
--- so callers must use a while loop or check the second return after the loop.
-print("--- pages: error propagation ---")
-do
+it("pages: error propagation", function()
     local client = {
         listThings = function(self, input)
             return nil, { type = "api", code = "Boom", message = "exploded" }
@@ -98,13 +85,11 @@ do
     local config = { input_token = "NextToken", output_token = "NextToken" }
     local iter = paginator.pages(client, "listThings", {}, config)
     local output, err = iter()
-    assert_nil(output, "nil output on error")
-    assert_eq(err.code, "Boom", "error code propagated")
-end
+    assert.is_nil(output)
+    assert.are.equal("Boom", err.code)
+end)
 
--- Test: pages() passes input_token to next call
-print("--- pages: input token injection ---")
-do
+it("pages: input token injection", function()
     local captured_inputs = {}
     local call_count = 0
     local client = {
@@ -120,15 +105,13 @@ do
     }
     local config = { input_token = "NextToken", output_token = "NextToken" }
     for _ in paginator.pages(client, "listThings", { Filter = "active" }, config) do end
-    assert_eq(call_count, 2, "two calls made")
-    assert_nil(captured_inputs[1].NextToken, "first call has no token")
-    assert_eq(captured_inputs[2].NextToken, "page2", "second call has token")
-    assert_eq(captured_inputs[2].Filter, "active", "original params preserved")
-end
+    assert.are.equal(2, call_count)
+    assert.is_nil(captured_inputs[1].NextToken)
+    assert.are.equal("page2", captured_inputs[2].NextToken)
+    assert.are.equal("active", captured_inputs[2].Filter)
+end)
 
--- Test: pages() does not mutate original input
-print("--- pages: no input mutation ---")
-do
+it("pages: no input mutation", function()
     local original = { Filter = "x" }
     local client = mock_client({
         { NextToken = "t1" },
@@ -136,12 +119,10 @@ do
     })
     local config = { input_token = "NextToken", output_token = "NextToken" }
     for _ in paginator.pages(client, "listThings", original, config) do end
-    assert_nil(original.NextToken, "original input not mutated")
-end
+    assert.is_nil(original.NextToken)
+end)
 
--- Test: items() flattens across pages
-print("--- items: flatten across pages ---")
-do
+it("items: flatten across pages", function()
     local client = mock_client({
         { Items = { "a", "b" }, NextToken = "tok1" },
         { Items = { "c" }, NextToken = "tok2" },
@@ -152,14 +133,12 @@ do
     for item in paginator.items(client, "listThings", {}, config) do
         all[#all + 1] = item
     end
-    assert_eq(#all, 5, "5 items total")
-    assert_eq(all[1], "a", "first item")
-    assert_eq(all[5], "e", "last item")
-end
+    assert.are.equal(5, #all)
+    assert.are.equal("a", all[1])
+    assert.are.equal("e", all[5])
+end)
 
--- Test: items() with nested items path
-print("--- items: nested path ---")
-do
+it("items: nested path", function()
     local client = mock_client({
         { result = { things = { "x", "y" } }, NextToken = "t1" },
         { result = { things = { "z" } }, NextToken = nil },
@@ -169,13 +148,11 @@ do
     for item in paginator.items(client, "listThings", {}, config) do
         all[#all + 1] = item
     end
-    assert_eq(#all, 3, "3 items from nested path")
-    assert_eq(all[1], "x", "first nested item")
-end
+    assert.are.equal(3, #all)
+    assert.are.equal("x", all[1])
+end)
 
--- Test: items() with empty page
-print("--- items: empty page ---")
-do
+it("items: empty page", function()
     local client = mock_client({
         { Items = {}, NextToken = "t1" },
         { Items = { "a" }, NextToken = nil },
@@ -185,13 +162,11 @@ do
     for item in paginator.items(client, "listThings", {}, config) do
         all[#all + 1] = item
     end
-    assert_eq(#all, 1, "skips empty page")
-    assert_eq(all[1], "a", "gets item from second page")
-end
+    assert.are.equal(1, #all)
+    assert.are.equal("a", all[1])
+end)
 
--- Test: pages() with nested output token
-print("--- pages: nested output token ---")
-do
+it("pages: nested output token", function()
     local captured_inputs = {}
     local call_count = 0
     local client = {
@@ -207,10 +182,8 @@ do
     }
     local config = { input_token = "Cursor", output_token = "pagination.cursor" }
     for _ in paginator.pages(client, "listThings", {}, config) do end
-    assert_eq(call_count, 2, "two calls with nested token")
-    assert_eq(captured_inputs[2].Cursor, "abc", "nested token extracted and injected")
-end
+    assert.are.equal(2, call_count)
+    assert.are.equal("abc", captured_inputs[2].Cursor)
+end)
 
--- Summary
-print(string.format("\n%d passed, %d failed", pass, fail))
-if fail > 0 then os.exit(1) end
+end)

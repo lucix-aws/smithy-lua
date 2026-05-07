@@ -1,41 +1,14 @@
 -- Test: runtime/endpoint.lua
--- Run: luajit test/test_endpoint.lua
-
-package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
 
 local endpoint = require("smithy.endpoint")
 
-local pass, fail = 0, 0
-local function test(name, fn)
-    local ok, err = pcall(fn)
-    if ok then
-        pass = pass + 1
-        print("PASS: " .. name)
-    else
-        fail = fail + 1
-        print("FAIL: " .. name .. "\n  " .. tostring(err))
-    end
-end
-
-local function assert_eq(a, b, msg)
-    if a ~= b then
-        error((msg or "assert_eq") .. ": expected " .. tostring(b) .. ", got " .. tostring(a), 2)
-    end
-end
-
-local function assert_truthy(a, msg)
-    if not a then error((msg or "assert_truthy") .. ": got falsy", 2) end
-end
-
-local function assert_nil(a, msg)
-    if a ~= nil then error((msg or "assert_nil") .. ": expected nil, got " .. tostring(a), 2) end
-end
+describe("endpoint", function()
 
 ---------------------------------------------------------------------------
 -- Basic resolve: simple endpoint rule
 ---------------------------------------------------------------------------
 
-test("resolve: simple endpoint", function()
+it("resolve: simple endpoint", function()
     local ruleset = {
         parameters = {
             Region = { type = "string", required = true },
@@ -49,11 +22,11 @@ test("resolve: simple endpoint", function()
         },
     }
     local result, err = endpoint.resolve(ruleset, { Region = "us-east-1" })
-    assert_nil(err)
-    assert_eq(result.url, "https://us-east-1.example.com")
+    assert.is_nil(err)
+    assert.are.equal("https://us-east-1.example.com", result.url)
 end)
 
-test("resolve: missing required param", function()
+it("resolve: missing required param", function()
     local ruleset = {
         parameters = {
             Region = { type = "string", required = true },
@@ -61,11 +34,11 @@ test("resolve: missing required param", function()
         rules = {},
     }
     local result, err = endpoint.resolve(ruleset, {})
-    assert_nil(result)
-    assert_truthy(err:find("required"), err)
+    assert.is_nil(result)
+    assert.is_truthy(err:find("required"))
 end)
 
-test("resolve: default param value", function()
+it("resolve: default param value", function()
     local ruleset = {
         parameters = {
             Region = { type = "string", required = true, default = "us-west-2" },
@@ -79,14 +52,14 @@ test("resolve: default param value", function()
         },
     }
     local result = endpoint.resolve(ruleset, {})
-    assert_eq(result.url, "https://us-west-2.example.com")
+    assert.are.equal("https://us-west-2.example.com", result.url)
 end)
 
 ---------------------------------------------------------------------------
 -- Error rules
 ---------------------------------------------------------------------------
 
-test("resolve: error rule", function()
+it("resolve: error rule", function()
     local ruleset = {
         parameters = {},
         rules = {
@@ -98,11 +71,11 @@ test("resolve: error rule", function()
         },
     }
     local result, err = endpoint.resolve(ruleset, {})
-    assert_nil(result)
-    assert_eq(err, "this service is not available")
+    assert.is_nil(result)
+    assert.are.equal("this service is not available", err)
 end)
 
-test("resolve: error rule with template", function()
+it("resolve: error rule with template", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -114,14 +87,14 @@ test("resolve: error rule with template", function()
         },
     }
     local _, err = endpoint.resolve(ruleset, { Region = "mars-1" })
-    assert_eq(err, "no endpoint for mars-1")
+    assert.are.equal("no endpoint for mars-1", err)
 end)
 
 ---------------------------------------------------------------------------
 -- Tree rules
 ---------------------------------------------------------------------------
 
-test("resolve: tree rule", function()
+it("resolve: tree rule", function()
     local ruleset = {
         parameters = {
             Region = { type = "string", required = true },
@@ -149,17 +122,17 @@ test("resolve: tree rule", function()
         },
     }
     local r1 = endpoint.resolve(ruleset, { Region = "us-east-1", UseFIPS = true })
-    assert_eq(r1.url, "https://us-east-1.fips.example.com")
+    assert.are.equal("https://us-east-1.fips.example.com", r1.url)
 
     local r2 = endpoint.resolve(ruleset, { Region = "us-east-1", UseFIPS = false })
-    assert_eq(r2.url, "https://us-east-1.example.com")
+    assert.are.equal("https://us-east-1.example.com", r2.url)
 end)
 
 ---------------------------------------------------------------------------
 -- Condition assign
 ---------------------------------------------------------------------------
 
-test("resolve: condition assign", function()
+it("resolve: condition assign", function()
     local ruleset = {
         parameters = {
             Endpoint = { type = "string" },
@@ -181,17 +154,17 @@ test("resolve: condition assign", function()
         },
     }
     local r1 = endpoint.resolve(ruleset, { Endpoint = "https://my.host:8443/base" })
-    assert_eq(r1.url, "https://my.host:8443/custom")
+    assert.are.equal("https://my.host:8443/custom", r1.url)
 
     local r2 = endpoint.resolve(ruleset, {})
-    assert_eq(r2.url, "https://default.example.com")
+    assert.are.equal("https://default.example.com", r2.url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: isSet
 ---------------------------------------------------------------------------
 
-test("fn: isSet true", function()
+it("fn: isSet true", function()
     local ruleset = {
         parameters = { Foo = { type = "string" } },
         rules = {
@@ -200,15 +173,15 @@ test("fn: isSet true", function()
             { type = "endpoint", conditions = {}, endpoint = { url = "https://no.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Foo = "bar" }).url, "https://yes.com")
-    assert_eq(endpoint.resolve(ruleset, {}).url, "https://no.com")
+    assert.are.equal("https://yes.com", endpoint.resolve(ruleset, { Foo = "bar" }).url)
+    assert.are.equal("https://no.com", endpoint.resolve(ruleset, {}).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: stringEquals, booleanEquals, not
 ---------------------------------------------------------------------------
 
-test("fn: stringEquals", function()
+it("fn: stringEquals", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -218,11 +191,11 @@ test("fn: stringEquals", function()
             { type = "endpoint", conditions = {}, endpoint = { url = "https://default.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Region = "us-east-1" }).url, "https://special.com")
-    assert_eq(endpoint.resolve(ruleset, { Region = "eu-west-1" }).url, "https://default.com")
+    assert.are.equal("https://special.com", endpoint.resolve(ruleset, { Region = "us-east-1" }).url)
+    assert.are.equal("https://default.com", endpoint.resolve(ruleset, { Region = "eu-west-1" }).url)
 end)
 
-test("fn: not", function()
+it("fn: not", function()
     local ruleset = {
         parameters = { UseFIPS = { type = "boolean", required = true, default = false } },
         rules = {
@@ -232,15 +205,15 @@ test("fn: not", function()
             { type = "endpoint", conditions = {}, endpoint = { url = "https://fips.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { UseFIPS = false }).url, "https://normal.com")
-    assert_eq(endpoint.resolve(ruleset, { UseFIPS = true }).url, "https://fips.com")
+    assert.are.equal("https://normal.com", endpoint.resolve(ruleset, { UseFIPS = false }).url)
+    assert.are.equal("https://fips.com", endpoint.resolve(ruleset, { UseFIPS = true }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: getAttr
 ---------------------------------------------------------------------------
 
-test("fn: getAttr nested", function()
+it("fn: getAttr nested", function()
     local ruleset = {
         parameters = { Endpoint = { type = "string" } },
         rules = {
@@ -253,14 +226,14 @@ test("fn: getAttr nested", function()
             { type = "endpoint", conditions = {}, endpoint = { url = "https://fallback" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Endpoint = "http://foo.com" }).url, "http://custom")
+    assert.are.equal("http://custom", endpoint.resolve(ruleset, { Endpoint = "http://foo.com" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: isValidHostLabel
 ---------------------------------------------------------------------------
 
-test("fn: isValidHostLabel", function()
+it("fn: isValidHostLabel", function()
     local ruleset = {
         parameters = { Bucket = { type = "string", required = true } },
         rules = {
@@ -271,17 +244,17 @@ test("fn: isValidHostLabel", function()
               endpoint = { url = "https://s3.amazonaws.com/{Bucket}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Bucket = "my-bucket" }).url,
-        "https://my-bucket.s3.amazonaws.com")
-    assert_eq(endpoint.resolve(ruleset, { Bucket = "INVALID..bucket" }).url,
-        "https://s3.amazonaws.com/INVALID..bucket")
+    assert.are.equal("https://my-bucket.s3.amazonaws.com",
+        endpoint.resolve(ruleset, { Bucket = "my-bucket" }).url)
+    assert.are.equal("https://s3.amazonaws.com/INVALID..bucket",
+        endpoint.resolve(ruleset, { Bucket = "INVALID..bucket" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: parseURL
 ---------------------------------------------------------------------------
 
-test("fn: parseURL basic", function()
+it("fn: parseURL basic", function()
     local ruleset = {
         parameters = { Endpoint = { type = "string", required = true } },
         rules = {
@@ -293,10 +266,10 @@ test("fn: parseURL basic", function()
         },
     }
     local r = endpoint.resolve(ruleset, { Endpoint = "https://example.com:8443/base" })
-    assert_eq(r.url, "https://example.com:8443/base/svc")
+    assert.are.equal("https://example.com:8443/base/svc", r.url)
 end)
 
-test("fn: parseURL rejects query", function()
+it("fn: parseURL rejects query", function()
     local ruleset = {
         parameters = { Endpoint = { type = "string", required = true } },
         rules = {
@@ -309,10 +282,10 @@ test("fn: parseURL rejects query", function()
         },
     }
     local _, err = endpoint.resolve(ruleset, { Endpoint = "https://example.com?q=1" })
-    assert_eq(err, "bad url")
+    assert.are.equal("bad url", err)
 end)
 
-test("fn: parseURL isIp", function()
+it("fn: parseURL isIp", function()
     local ruleset = {
         parameters = { Endpoint = { type = "string", required = true } },
         rules = {
@@ -325,15 +298,15 @@ test("fn: parseURL isIp", function()
             { type = "endpoint", conditions = {}, endpoint = { url = "https://host-endpoint" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Endpoint = "https://127.0.0.1" }).url, "https://ip-endpoint")
-    assert_eq(endpoint.resolve(ruleset, { Endpoint = "https://example.com" }).url, "https://host-endpoint")
+    assert.are.equal("https://ip-endpoint", endpoint.resolve(ruleset, { Endpoint = "https://127.0.0.1" }).url)
+    assert.are.equal("https://host-endpoint", endpoint.resolve(ruleset, { Endpoint = "https://example.com" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: substring
 ---------------------------------------------------------------------------
 
-test("fn: substring forward", function()
+it("fn: substring forward", function()
     local ruleset = {
         parameters = { Input = { type = "string", required = true } },
         rules = {
@@ -345,10 +318,10 @@ test("fn: substring forward", function()
             { type = "error", conditions = {}, error = "substring failed" },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Input = "abcdefgh" }).url, "https://abcd.example.com")
+    assert.are.equal("https://abcd.example.com", endpoint.resolve(ruleset, { Input = "abcdefgh" }).url)
 end)
 
-test("fn: substring reverse", function()
+it("fn: substring reverse", function()
     local ruleset = {
         parameters = { Input = { type = "string", required = true } },
         rules = {
@@ -360,10 +333,10 @@ test("fn: substring reverse", function()
             { type = "error", conditions = {}, error = "substring failed" },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Input = "abcdefgh" }).url, "https://efgh.example.com")
+    assert.are.equal("https://efgh.example.com", endpoint.resolve(ruleset, { Input = "abcdefgh" }).url)
 end)
 
-test("fn: substring too short returns nil", function()
+it("fn: substring too short returns nil", function()
     local ruleset = {
         parameters = { Input = { type = "string", required = true } },
         rules = {
@@ -376,14 +349,14 @@ test("fn: substring too short returns nil", function()
         },
     }
     local _, err = endpoint.resolve(ruleset, { Input = "abc" })
-    assert_eq(err, "too short")
+    assert.are.equal("too short", err)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: uriEncode
 ---------------------------------------------------------------------------
 
-test("fn: uriEncode", function()
+it("fn: uriEncode", function()
     local ruleset = {
         parameters = { Key = { type = "string", required = true } },
         rules = {
@@ -394,15 +367,15 @@ test("fn: uriEncode", function()
               endpoint = { url = "https://s3.amazonaws.com/{encoded}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Key = "hello world/file" }).url,
-        "https://s3.amazonaws.com/hello%20world%2Ffile")
+    assert.are.equal("https://s3.amazonaws.com/hello%20world%2Ffile",
+        endpoint.resolve(ruleset, { Key = "hello world/file" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: split
 ---------------------------------------------------------------------------
 
-test("fn: split unlimited", function()
+it("fn: split unlimited", function()
     local ruleset = {
         parameters = { Name = { type = "string", required = true } },
         rules = {
@@ -413,10 +386,10 @@ test("fn: split unlimited", function()
               endpoint = { url = "https://{parts#[0]}.example.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Name = "a--b--c" }).url, "https://a.example.com")
+    assert.are.equal("https://a.example.com", endpoint.resolve(ruleset, { Name = "a--b--c" }).url)
 end)
 
-test("fn: split with limit", function()
+it("fn: split with limit", function()
     local ruleset = {
         parameters = { Name = { type = "string", required = true } },
         rules = {
@@ -427,14 +400,14 @@ test("fn: split with limit", function()
               endpoint = { url = "https://{parts#[1]}.example.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Name = "a--b--c" }).url, "https://b--c.example.com")
+    assert.are.equal("https://b--c.example.com", endpoint.resolve(ruleset, { Name = "a--b--c" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: coalesce
 ---------------------------------------------------------------------------
 
-test("fn: coalesce picks first set", function()
+it("fn: coalesce picks first set", function()
     local ruleset = {
         parameters = {
             Custom = { type = "string" },
@@ -448,15 +421,15 @@ test("fn: coalesce picks first set", function()
               endpoint = { url = "https://{ep}.example.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Custom = "override" }).url, "https://override.example.com")
-    assert_eq(endpoint.resolve(ruleset, {}).url, "https://fallback.example.com")
+    assert.are.equal("https://override.example.com", endpoint.resolve(ruleset, { Custom = "override" }).url)
+    assert.are.equal("https://fallback.example.com", endpoint.resolve(ruleset, {}).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Standard library: ite
 ---------------------------------------------------------------------------
 
-test("fn: ite", function()
+it("fn: ite", function()
     local ruleset = {
         parameters = {
             UseFIPS = { type = "boolean", required = true, default = false },
@@ -469,15 +442,15 @@ test("fn: ite", function()
               endpoint = { url = "https://svc{suffix}.example.com" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { UseFIPS = true }).url, "https://svc-fips.example.com")
-    assert_eq(endpoint.resolve(ruleset, { UseFIPS = false }).url, "https://svc.example.com")
+    assert.are.equal("https://svc-fips.example.com", endpoint.resolve(ruleset, { UseFIPS = true }).url)
+    assert.are.equal("https://svc.example.com", endpoint.resolve(ruleset, { UseFIPS = false }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- AWS: aws.partition
 ---------------------------------------------------------------------------
 
-test("fn: aws.partition us-east-1", function()
+it("fn: aws.partition us-east-1", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -488,11 +461,11 @@ test("fn: aws.partition us-east-1", function()
               endpoint = { url = "https://svc.{Region}.{p#dnsSuffix}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Region = "us-east-1" }).url,
-        "https://svc.us-east-1.amazonaws.com")
+    assert.are.equal("https://svc.us-east-1.amazonaws.com",
+        endpoint.resolve(ruleset, { Region = "us-east-1" }).url)
 end)
 
-test("fn: aws.partition cn region", function()
+it("fn: aws.partition cn region", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -503,11 +476,11 @@ test("fn: aws.partition cn region", function()
               endpoint = { url = "https://svc.{Region}.{p#dnsSuffix}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Region = "cn-north-1" }).url,
-        "https://svc.cn-north-1.amazonaws.com.cn")
+    assert.are.equal("https://svc.cn-north-1.amazonaws.com.cn",
+        endpoint.resolve(ruleset, { Region = "cn-north-1" }).url)
 end)
 
-test("fn: aws.partition gov region", function()
+it("fn: aws.partition gov region", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -518,11 +491,11 @@ test("fn: aws.partition gov region", function()
               endpoint = { url = "https://svc.{Region}.{p#dnsSuffix}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Region = "us-gov-west-1" }).url,
-        "https://svc.us-gov-west-1.amazonaws.com")
+    assert.are.equal("https://svc.us-gov-west-1.amazonaws.com",
+        endpoint.resolve(ruleset, { Region = "us-gov-west-1" }).url)
 end)
 
-test("fn: aws.partition unknown region defaults to aws", function()
+it("fn: aws.partition unknown region defaults to aws", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -533,15 +506,15 @@ test("fn: aws.partition unknown region defaults to aws", function()
               endpoint = { url = "https://svc.{Region}.{p#dnsSuffix}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Region = "us-newregion-1" }).url,
-        "https://svc.us-newregion-1.amazonaws.com")
+    assert.are.equal("https://svc.us-newregion-1.amazonaws.com",
+        endpoint.resolve(ruleset, { Region = "us-newregion-1" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- AWS: aws.parseArn
 ---------------------------------------------------------------------------
 
-test("fn: aws.parseArn valid", function()
+it("fn: aws.parseArn valid", function()
     local ruleset = {
         parameters = { Arn = { type = "string", required = true } },
         rules = {
@@ -553,12 +526,11 @@ test("fn: aws.parseArn valid", function()
             { type = "error", conditions = {}, error = "invalid arn" },
         },
     }
-    assert_eq(endpoint.resolve(ruleset,
-        { Arn = "arn:aws:s3:us-west-2:123456789012:bucket/my-bucket" }).url,
-        "https://s3.us-west-2.amazonaws.com")
+    assert.are.equal("https://s3.us-west-2.amazonaws.com",
+        endpoint.resolve(ruleset, { Arn = "arn:aws:s3:us-west-2:123456789012:bucket/my-bucket" }).url)
 end)
 
-test("fn: aws.parseArn invalid", function()
+it("fn: aws.parseArn invalid", function()
     local ruleset = {
         parameters = { Arn = { type = "string", required = true } },
         rules = {
@@ -571,14 +543,14 @@ test("fn: aws.parseArn invalid", function()
         },
     }
     local _, err = endpoint.resolve(ruleset, { Arn = "not-an-arn" })
-    assert_eq(err, "invalid arn")
+    assert.are.equal("invalid arn", err)
 end)
 
 ---------------------------------------------------------------------------
 -- AWS: aws.isVirtualHostableS3Bucket
 ---------------------------------------------------------------------------
 
-test("fn: aws.isVirtualHostableS3Bucket valid", function()
+it("fn: aws.isVirtualHostableS3Bucket valid", function()
     local ruleset = {
         parameters = { Bucket = { type = "string", required = true } },
         rules = {
@@ -591,11 +563,11 @@ test("fn: aws.isVirtualHostableS3Bucket valid", function()
               endpoint = { url = "https://s3.amazonaws.com/{Bucket}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Bucket = "my-bucket" }).url,
-        "https://my-bucket.s3.amazonaws.com")
+    assert.are.equal("https://my-bucket.s3.amazonaws.com",
+        endpoint.resolve(ruleset, { Bucket = "my-bucket" }).url)
 end)
 
-test("fn: aws.isVirtualHostableS3Bucket invalid (uppercase)", function()
+it("fn: aws.isVirtualHostableS3Bucket invalid (uppercase)", function()
     local ruleset = {
         parameters = { Bucket = { type = "string", required = true } },
         rules = {
@@ -608,15 +580,15 @@ test("fn: aws.isVirtualHostableS3Bucket invalid (uppercase)", function()
               endpoint = { url = "https://s3.amazonaws.com/{Bucket}" } },
         },
     }
-    assert_eq(endpoint.resolve(ruleset, { Bucket = "MyBucket" }).url,
-        "https://s3.amazonaws.com/MyBucket")
+    assert.are.equal("https://s3.amazonaws.com/MyBucket",
+        endpoint.resolve(ruleset, { Bucket = "MyBucket" }).url)
 end)
 
 ---------------------------------------------------------------------------
 -- Endpoint headers
 ---------------------------------------------------------------------------
 
-test("resolve: endpoint with headers", function()
+it("resolve: endpoint with headers", function()
     local ruleset = {
         parameters = { Region = { type = "string", required = true } },
         rules = {
@@ -628,14 +600,14 @@ test("resolve: endpoint with headers", function()
         },
     }
     local r = endpoint.resolve(ruleset, { Region = "us-east-1" })
-    assert_eq(r.headers["x-amz-region"][1], "us-east-1")
+    assert.are.equal("us-east-1", r.headers["x-amz-region"][1])
 end)
 
 ---------------------------------------------------------------------------
 -- STS-like integration test
 ---------------------------------------------------------------------------
 
-test("integration: STS-like ruleset", function()
+it("integration: STS-like ruleset", function()
     local ruleset = {
         parameters = {
             Region = { type = "string", required = true },
@@ -644,7 +616,6 @@ test("integration: STS-like ruleset", function()
             Endpoint = { type = "string" },
         },
         rules = {
-            -- Custom endpoint override
             {
                 type = "tree",
                 conditions = {
@@ -655,14 +626,12 @@ test("integration: STS-like ruleset", function()
                       endpoint = { url = "{Endpoint}" } },
                 },
             },
-            -- Standard resolution
             {
                 type = "tree",
                 conditions = {
                     { fn = "aws.partition", argv = { { ref = "Region" } }, assign = "partResult" },
                 },
                 rules = {
-                    -- FIPS + DualStack
                     {
                         type = "endpoint",
                         conditions = {
@@ -673,7 +642,6 @@ test("integration: STS-like ruleset", function()
                             url = "https://sts-fips.{Region}.{partResult#dualStackDnsSuffix}",
                         },
                     },
-                    -- FIPS only
                     {
                         type = "endpoint",
                         conditions = {
@@ -683,7 +651,6 @@ test("integration: STS-like ruleset", function()
                             url = "https://sts-fips.{Region}.{partResult#dnsSuffix}",
                         },
                     },
-                    -- DualStack only
                     {
                         type = "endpoint",
                         conditions = {
@@ -693,7 +660,6 @@ test("integration: STS-like ruleset", function()
                             url = "https://sts.{Region}.{partResult#dualStackDnsSuffix}",
                         },
                     },
-                    -- Normal
                     {
                         type = "endpoint",
                         conditions = {},
@@ -706,40 +672,33 @@ test("integration: STS-like ruleset", function()
         },
     }
 
-    -- Normal
     local r = endpoint.resolve(ruleset, { Region = "us-east-1" })
-    assert_eq(r.url, "https://sts.us-east-1.amazonaws.com")
+    assert.are.equal("https://sts.us-east-1.amazonaws.com", r.url)
 
-    -- FIPS
     r = endpoint.resolve(ruleset, { Region = "us-east-1", UseFIPS = true })
-    assert_eq(r.url, "https://sts-fips.us-east-1.amazonaws.com")
+    assert.are.equal("https://sts-fips.us-east-1.amazonaws.com", r.url)
 
-    -- DualStack
     r = endpoint.resolve(ruleset, { Region = "us-east-1", UseDualStack = true })
-    assert_eq(r.url, "https://sts.us-east-1.api.aws")
+    assert.are.equal("https://sts.us-east-1.api.aws", r.url)
 
-    -- FIPS + DualStack
     r = endpoint.resolve(ruleset, { Region = "us-east-1", UseFIPS = true, UseDualStack = true })
-    assert_eq(r.url, "https://sts-fips.us-east-1.api.aws")
+    assert.are.equal("https://sts-fips.us-east-1.api.aws", r.url)
 
-    -- Custom endpoint
     r = endpoint.resolve(ruleset, { Region = "us-east-1", Endpoint = "https://custom.local" })
-    assert_eq(r.url, "https://custom.local")
+    assert.are.equal("https://custom.local", r.url)
 
-    -- China region
     r = endpoint.resolve(ruleset, { Region = "cn-north-1" })
-    assert_eq(r.url, "https://sts.cn-north-1.amazonaws.com.cn")
+    assert.are.equal("https://sts.cn-north-1.amazonaws.com.cn", r.url)
 
-    -- GovCloud
     r = endpoint.resolve(ruleset, { Region = "us-gov-west-1" })
-    assert_eq(r.url, "https://sts.us-gov-west-1.amazonaws.com")
+    assert.are.equal("https://sts.us-gov-west-1.amazonaws.com", r.url)
 end)
 
 ---------------------------------------------------------------------------
 -- Rules exhaustion
 ---------------------------------------------------------------------------
 
-test("resolve: rules exhausted", function()
+it("resolve: rules exhausted", function()
     local ruleset = {
         parameters = {},
         rules = {
@@ -749,13 +708,8 @@ test("resolve: rules exhausted", function()
         },
     }
     local result, err = endpoint.resolve(ruleset, {})
-    assert_nil(result)
-    assert_truthy(err:find("exhausted"), err)
+    assert.is_nil(result)
+    assert.is_truthy(err:find("exhausted"))
 end)
 
----------------------------------------------------------------------------
--- Summary
----------------------------------------------------------------------------
-
-print(string.format("\n%d passed, %d failed", pass, fail))
-if fail > 0 then os.exit(1) end
+end)

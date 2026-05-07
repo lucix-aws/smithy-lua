@@ -1,27 +1,8 @@
 -- Test: runtime/client.lua pipeline wiring with SRA auth resolution
--- Run: luajit test/test_client.lua
-
-package.path = "runtime/?.lua;" .. package.path
 
 local client_mod = require("smithy.client")
 local auth = require("smithy.auth")
 local schema = require("smithy.schema")
-
-local function test(name, fn)
-    local ok, err = pcall(fn)
-    if ok then
-        print("PASS: " .. name)
-    else
-        print("FAIL: " .. name .. "\n  " .. tostring(err))
-        os.exit(1)
-    end
-end
-
-local function assert_eq(a, b, msg)
-    if a ~= b then
-        error((msg or "assert_eq") .. ": expected " .. tostring(b) .. ", got " .. tostring(a), 2)
-    end
-end
 
 -- Track call order across all mocks
 local calls = {}
@@ -103,26 +84,24 @@ operation.auth_schemes = {
     { scheme_id = "aws.auth#sigv4", signer_properties = { signing_name = "sts", signing_region = "us-east-1" } },
 }
 
--- === Tests ===
+describe("client", function()
 
-test("pipeline calls components in correct order", function()
+it("pipeline calls components in correct order", function()
     calls = {}
     local c = client_mod.new(make_auth_config())
     local output, err = c:invokeOperation(service, operation, {})
     assert(not err, "unexpected error: " .. tostring(err and err.message))
-    assert_eq(output.Result, "ok", "output")
-
-    -- Verify order: serialize -> identity -> endpoint -> sign -> transmit -> deserialize
-    assert_eq(#calls, 6, "call count")
-    assert_eq(calls[1], "serialize", "step 1")
-    assert_eq(calls[2], "identity", "step 2")
-    assert_eq(calls[3], "endpoint", "step 3")
-    assert_eq(calls[4], "sign", "step 4")
-    assert_eq(calls[5], "transmit", "step 5")
-    assert_eq(calls[6], "deserialize", "step 6")
+    assert.are.equal("ok", output.Result)
+    assert.are.equal(6, #calls)
+    assert.are.equal("serialize", calls[1])
+    assert.are.equal("identity", calls[2])
+    assert.are.equal("endpoint", calls[3])
+    assert.are.equal("sign", calls[4])
+    assert.are.equal("transmit", calls[5])
+    assert.are.equal("deserialize", calls[6])
 end)
 
-test("endpoint is applied to request URL", function()
+it("endpoint is applied to request URL", function()
     calls = {}
     local captured_request
     local c = client_mod.new(make_auth_config({
@@ -132,22 +111,21 @@ test("endpoint is applied to request URL", function()
             return { status_code = 200, headers = {}, body = nil }, nil
         end,
     }))
-
     c:invokeOperation(service, operation, {})
-    assert_eq(captured_request.url, "https://sts.us-west-2.amazonaws.com/", "url")
+    assert.are.equal("https://sts.us-west-2.amazonaws.com/", captured_request.url)
 end)
 
-test("signer receives correct identity and signer_properties", function()
+it("signer receives correct identity and signer_properties", function()
     calls = {}
     signer_args = {}
     local c = client_mod.new(make_auth_config())
     c:invokeOperation(service, operation, {})
-    assert_eq(signer_args.identity.access_key, "AKID", "access_key")
-    assert_eq(signer_args.props.signing_name, "sts", "signing_name")
-    assert_eq(signer_args.props.signing_region, "us-east-1", "signing_region")
+    assert.are.equal("AKID", signer_args.identity.access_key)
+    assert.are.equal("sts", signer_args.props.signing_name)
+    assert.are.equal("us-east-1", signer_args.props.signing_region)
 end)
 
-test("operation plugins can override config", function()
+it("operation plugins can override config", function()
     calls = {}
     local captured_request
     local c = client_mod.new(make_auth_config({
@@ -156,26 +134,25 @@ test("operation plugins can override config", function()
             return { status_code = 200, headers = {}, body = nil }, nil
         end,
     }))
-
     c:invokeOperation(service, operation, {}, {
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
         },
     })
-    assert_eq(captured_request.url, "https://sts.ap-southeast-1.amazonaws.com/", "plugin override url")
+    assert.are.equal("https://sts.ap-southeast-1.amazonaws.com/", captured_request.url)
 end)
 
-test("plugins do not mutate original client config", function()
+it("plugins do not mutate original client config", function()
     local c = client_mod.new(make_auth_config())
     c:invokeOperation(service, operation, {}, {
         plugins = {
             function(cfg) cfg.region = "ap-southeast-1" end,
         },
     })
-    assert_eq(c.config.region, "us-east-1", "original config unchanged")
+    assert.are.equal("us-east-1", c.config.region)
 end)
 
-test("serialize error short-circuits pipeline", function()
+it("serialize error short-circuits pipeline", function()
     calls = {}
     local c = client_mod.new(make_auth_config({
         protocol = {
@@ -183,14 +160,13 @@ test("serialize error short-circuits pipeline", function()
             deserialize = function(self) error("should not be called") end,
         },
     }))
-
     local output, err = c:invokeOperation(service, operation, {})
     assert(output == nil, "output should be nil")
-    assert_eq(err.message, "bad input", "error message")
-    assert_eq(#calls, 0, "no further calls after serialize error")
+    assert.are.equal("bad input", err.message)
+    assert.are.equal(0, #calls)
 end)
 
-test("noAuth scheme skips signing", function()
+it("noAuth scheme skips signing", function()
     calls = {}
     local noauth_op = schema.operation({ id = "AssumeRoleWithWebIdentity" })
     noauth_op.auth_schemes = {
@@ -199,7 +175,6 @@ test("noAuth scheme skips signing", function()
     local c = client_mod.new(make_auth_config())
     local output, err = c:invokeOperation(service, noauth_op, {})
     assert(not err, "unexpected error: " .. tostring(err and err.message))
-    -- Should not call identity resolver or signer
     local has_identity = false
     local has_sign = false
     for _, call in ipairs(calls) do
@@ -210,7 +185,7 @@ test("noAuth scheme skips signing", function()
     assert(not has_sign, "should not sign for noAuth")
 end)
 
-test("endpoint authSchemes overrides signer properties", function()
+it("endpoint authSchemes overrides signer properties", function()
     calls = {}
     signer_args = {}
     local c = client_mod.new(make_auth_config({
@@ -225,21 +200,19 @@ test("endpoint authSchemes overrides signer properties", function()
             }, nil
         end,
     }))
-
     c:invokeOperation(service, operation, {})
-    assert_eq(signer_args.props.signing_name, "custom-service", "overridden signing_name")
-    assert_eq(signer_args.props.signing_region, "us-west-2", "overridden signing_region")
+    assert.are.equal("custom-service", signer_args.props.signing_name)
+    assert.are.equal("us-west-2", signer_args.props.signing_region)
 end)
 
-test("no supported auth scheme returns error", function()
+it("no supported auth scheme returns error", function()
     calls = {}
     local c = client_mod.new(make_auth_config({
-        auth_schemes = {}, -- no schemes supported
+        auth_schemes = {},
     }))
-
     local output, err = c:invokeOperation(service, operation, {})
     assert(output == nil, "output should be nil")
     assert(err.message:find("no auth scheme"), "error should mention no auth scheme: " .. err.message)
 end)
 
-print("\nAll tests passed.")
+end)

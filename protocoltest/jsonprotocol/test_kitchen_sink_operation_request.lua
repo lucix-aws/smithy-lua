@@ -3,14 +3,12 @@
 -- Generated protocol test file — do not edit
 -- Protocol: awsJson1_1
 
-package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
-
 local types = require("jsonprotocol.schemas")
 local schema = require("smithy.schema")
 local shape_id = require("smithy.shape_id")
 local traits = require("smithy.traits")
 local http = require("smithy.http")
-local json_decoder = require("smithy.json.decoder")
+local h = require("smithy.testing")
 local protocol_mod = require("smithy.protocol.awsjson")
 local protocol = protocol_mod.new({ version = "1.1" })
 
@@ -20,912 +18,710 @@ local service = schema.service({
     traits = {},
 })
 
-local pass_count = 0
-local skip_count = 0
-
-local function test(name, fn)
-    if not protocol then
-        skip_count = skip_count + 1
-        print("SKIP: " .. name .. " (no protocol)")
-        return
-    end
-    local ok, err = pcall(fn)
-    if ok then
-        pass_count = pass_count + 1
-        print("PASS: " .. name)
-    else
-        print("FAIL: " .. name .. "\n  " .. tostring(err))
-        os.exit(1)
-    end
-end
-
-local function assert_eq(a, b, msg)
-    if a ~= b then
-        error((msg or "assert_eq") .. ": expected " .. tostring(b) .. ", got " .. tostring(a), 2)
-    end
-end
-
-local function assert_header(request, key, expected)
-    local val = request.headers[key]
-    if not val then
-        for k, v in pairs(request.headers) do
-            if k:lower() == key:lower() then val = v; break end
-        end
-    end
-    assert(val ~= nil, "missing header: " .. key)
-    assert_eq(val, expected, "header " .. key)
-end
-
-local function assert_no_header(request, key)
-    for k, _ in pairs(request.headers) do
-        if k:lower() == key:lower() then error("unexpected header: " .. key, 2) end
-    end
-end
-
-local function get_url_path(url)
-    return url:match("^([^?]*)") or url
-end
-
-local function get_query_params(url)
-    local qs = url:match("?(.*)$")
-    if not qs then return {} end
-    if not qs then return {} end
-    local params = {}
-    for pair in qs:gmatch("[^&]+") do
-        params[#params + 1] = pair
-    end
-    return params
-end
-
-local function assert_url_path(url, expected)
-    local path = get_url_path(url)
-    assert_eq(path, expected, "url path")
-end
-
-local function assert_query_param(url, expected_pair)
-    local params = get_query_params(url)
-    for _, p in ipairs(params) do
-        if p == expected_pair then return end
-    end
-    error("missing query param: " .. expected_pair .. " in " .. url, 2)
-end
-
-local function assert_no_query_param(url, forbidden_pair)
-    local params = get_query_params(url)
-    for _, p in ipairs(params) do
-        if p == forbidden_pair then error("unexpected query param: " .. forbidden_pair, 2) end
-    end
-end
-
-local function assert_has_query_key(url, key)
-    local params = get_query_params(url)
-    for _, p in ipairs(params) do
-        if p:match("^([^=]*)") == key then return end
-    end
-    error("missing query key: " .. key .. " in " .. url, 2)
-end
-
-local function read_body(reader)
-    if not reader then return "" end
-    local chunks = {}
-    while true do
-        local chunk = reader()
-        if not chunk then break end
-        chunks[#chunks + 1] = chunk
-    end
-    return table.concat(chunks)
-end
-
-local function deep_eq(a, b)
-    if type(a) ~= type(b) then return false end
-    if type(a) == "number" and a ~= a and b ~= b then return true end
-    if type(a) ~= "table" then return a == b end
-    for k, v in pairs(a) do if not deep_eq(v, b[k]) then return false end end
-    for k, _ in pairs(b) do if a[k] == nil then return false end end
-    return true
-end
-
-local function assert_json_eq(actual_str, expected_str)
-    local actual = json_decoder.decode(actual_str)
-    local expected = json_decoder.decode(expected_str)
-    if not deep_eq(actual, expected) then
-        error("JSON mismatch:\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-    end
-end
-
-local function assert_form_eq(actual_str, expected_str)
-    local function parse_params(s)
-        local t = {}
-        for p in s:gmatch("[^&]+") do t[#t+1] = p end
-        table.sort(t)
-        return t
-    end
-    local actual_params = parse_params(actual_str)
-    local expected_params = parse_params(expected_str)
-    if #actual_params ~= #expected_params then
-        error("form body param count mismatch: expected " .. #expected_params .. ", got " .. #actual_params .. "\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-    end
-    for i = 1, #expected_params do
-        if actual_params[i] ~= expected_params[i] then
-            error("form body mismatch at param " .. i .. ": expected " .. expected_params[i] .. ", got " .. actual_params[i] .. "\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-        end
-    end
-end
-
-local xml_codec = require("smithy.codec.xml")
-local function normalize_xml(node)
-    if type(node) ~= "table" then return node end
-    local children = {}
-    for i, c in ipairs(node.children or {}) do children[#children+1] = { idx = i, node = normalize_xml(c) } end
-    table.sort(children, function(a, b)
-        local at, bt = a.node.tag or "", b.node.tag or ""
-        if at ~= bt then return at < bt end
-        local ac = a.node.children or {}
-        local bc = b.node.children or {}
-        local atxt = (ac[1] and ac[1].text) or a.node.text or ""
-        local btxt = (bc[1] and bc[1].text) or b.node.text or ""
-        if atxt ~= btxt then return atxt < btxt end
-        return a.idx < b.idx
+describe("KitchenSinkOperation request", function()
+    it("serializes_string_shapes", function()
+        local input = {
+            String = "abc xyz",
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"String":"abc xyz"}]])
     end)
-    local sorted = {} for _, c in ipairs(children) do sorted[#sorted+1] = c.node end
-    return { tag = node.tag, attrs = node.attrs, children = sorted, text = (node.text or ""):match("^%s*(.-)%s*$") }
-end
-local function xml_nodes_eq(a, b)
-    if not a and not b then return true end
-    if not a or not b then return false end
-    if a.tag ~= b.tag then return false end
-    if (a.text or "") ~= (b.text or "") then return false end
-    local aa, ba = a.attrs or {}, b.attrs or {}
-    for k, v in pairs(aa) do if ba[k] ~= v then return false end end
-    for k, v in pairs(ba) do if aa[k] ~= v then return false end end
-    if #(a.children or {}) ~= #(b.children or {}) then return false end
-    for i, ac in ipairs(a.children or {}) do
-        if not xml_nodes_eq(ac, (b.children or {})[i]) then return false end
-    end
-    return true
-end
-local function assert_xml_eq(actual_str, expected_str)
-    local a = normalize_xml(xml_codec.parse_xml(actual_str))
-    local b = normalize_xml(xml_codec.parse_xml(expected_str))
-    if not xml_nodes_eq(a, b) then
-        error("XML mismatch:\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-    end
-end
 
-local function assert_deep_eq(actual, expected, path)
-    path = path or ""
-    if type(expected) == "table" then
-        assert(type(actual) == "table", path .. ": expected table, got " .. type(actual))
-        for k, v in pairs(expected) do
-            assert_deep_eq(actual[k], v, path .. "." .. tostring(k))
-        end
-    else
-        if type(expected) == "number" and type(actual) == "number" and expected ~= expected then
-            assert(actual ~= actual, path .. ": expected NaN")
-            return
-        end
-        assert_eq(actual, expected, path)
-    end
-end
+    it("serializes_string_shapes_with_jsonvalue_trait", function()
+        local input = {
+            JsonValue = "{\"string\":\"value\",\"number\":1234.5,\"boolTrue\":true,\"boolFalse\":false,\"array\":[1,2,3,4],\"object\":{\"key\":\"value\"},\"null\":null}",
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"JsonValue":"{\"string\":\"value\",\"number\":1234.5,\"boolTrue\":true,\"boolFalse\":false,\"array\":[1,2,3,4],\"object\":{\"key\":\"value\"},\"null\":null}"}]])
+    end)
 
-local base64 = require("smithy.base64")
-local base64_encode = base64.encode
-local base64_decode = base64.decode
-local cbor_codec = require("smithy.codec.cbor")
+    it("serializes_integer_shapes", function()
+        local input = {
+            Integer = 1234,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Integer":1234}]])
+    end)
 
-local function assert_cbor_eq(actual_bytes, expected_bytes)
-    local ok1, actual = pcall(cbor_codec.decode_item, actual_bytes, 1)
-    assert(ok1, "failed to decode actual CBOR: " .. tostring(actual))
-    local ok2, expected = pcall(cbor_codec.decode_item, expected_bytes, 1)
-    assert(ok2, "failed to decode expected CBOR: " .. tostring(expected))
-    if not deep_eq(actual, expected) then
-        error("CBOR mismatch:\n  expected: " .. tostring(expected) .. "\n  actual:   " .. tostring(actual), 2)
-    end
-end
+    it("serializes_long_shapes", function()
+        local input = {
+            Long = 999999999999,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Long":999999999999}]])
+    end)
 
-test("serializes_string_shapes", function()
-    local input = {
-        String = "abc xyz",
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_float_shapes", function()
+        local input = {
+            Float = 1234.5,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Float":1234.5}]])
+    end)
+
+    it("serializes_double_shapes", function()
+        local input = {
+            Double = 1234.5,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Double":1234.5}]])
+    end)
+
+    it("serializes_blob_shapes", function()
+        local input = {
+            Blob = "binary-value",
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Blob":"YmluYXJ5LXZhbHVl"}]])
+    end)
+
+    it("serializes_boolean_shapes_true", function()
+        local input = {
+            Boolean = true,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Boolean":true}]])
+    end)
+
+    it("serializes_boolean_shapes_false", function()
+        local input = {
+            Boolean = false,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Boolean":false}]])
+    end)
+
+    it("serializes_timestamp_shapes", function()
+        local input = {
+            Timestamp = 946845296,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Timestamp":946845296}]])
+    end)
+
+    it("serializes_timestamp_shapes_with_iso8601_timestampformat", function()
+        local input = {
+            Iso8601Timestamp = 946845296,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"Iso8601Timestamp":"2000-01-02T20:34:56Z"}]])
+    end)
+
+    it("serializes_timestamp_shapes_with_httpdate_timestampformat", function()
+        local input = {
+            HttpdateTimestamp = 946845296,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"HttpdateTimestamp":"Sun, 02 Jan 2000 20:34:56 GMT"}]])
+    end)
+
+    it("serializes_timestamp_shapes_with_unixtimestamp_timestampformat", function()
+        local input = {
+            UnixTimestamp = 946845296,
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"UnixTimestamp":946845296}]])
+    end)
+
+    it("serializes_list_shapes", function()
+        local input = {
+            ListOfStrings = {
+            "abc",
+            "mno",
+            "xyz",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"String":"abc xyz"}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"ListOfStrings":["abc","mno","xyz"]}]])
+    end)
 
-test("serializes_string_shapes_with_jsonvalue_trait", function()
-    local input = {
-        JsonValue = "{\"string\":\"value\",\"number\":1234.5,\"boolTrue\":true,\"boolFalse\":false,\"array\":[1,2,3,4],\"object\":{\"key\":\"value\"},\"null\":null}",
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_empty_list_shapes", function()
+        local input = {
+            ListOfStrings = {},
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"ListOfStrings":[]}]])
+    end)
+
+    it("serializes_list_of_map_shapes", function()
+        local input = {
+            ListOfMapsOfStrings = {
+            {
+            foo = "bar",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"JsonValue":"{\"string\":\"value\",\"number\":1234.5,\"boolTrue\":true,\"boolFalse\":false,\"array\":[1,2,3,4],\"object\":{\"key\":\"value\"},\"null\":null}"}]])
-end)
-
-test("serializes_integer_shapes", function()
-    local input = {
-        Integer = 1234,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+            {
+            abc = "xyz",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Integer":1234}]])
-end)
-
-test("serializes_long_shapes", function()
-    local input = {
-        Long = 999999999999,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+            {
+            red = "blue",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Long":999999999999}]])
-end)
-
-test("serializes_float_shapes", function()
-    local input = {
-        Float = 1234.5,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Float":1234.5}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"ListOfMapsOfStrings":[{"foo":"bar"},{"abc":"xyz"},{"red":"blue"}]}]])
+    end)
 
-test("serializes_double_shapes", function()
-    local input = {
-        Double = 1234.5,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_list_of_structure_shapes", function()
+        local input = {
+            ListOfStructs = {
+            {
+            Value = "abc",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Double":1234.5}]])
-end)
-
-test("serializes_blob_shapes", function()
-    local input = {
-        Blob = "binary-value",
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+            {
+            Value = "mno",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Blob":"YmluYXJ5LXZhbHVl"}]])
-end)
-
-test("serializes_boolean_shapes_true", function()
-    local input = {
-        Boolean = true,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+            {
+            Value = "xyz",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Boolean":true}]])
-end)
-
-test("serializes_boolean_shapes_false", function()
-    local input = {
-        Boolean = false,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Boolean":false}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"ListOfStructs":[{"Value":"abc"},{"Value":"mno"},{"Value":"xyz"}]}]])
+    end)
 
-test("serializes_timestamp_shapes", function()
-    local input = {
-        Timestamp = 946845296,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_list_of_recursive_structure_shapes", function()
+        local input = {
+            RecursiveList = {
+            {
+            RecursiveList = {
+            {
+            RecursiveList = {
+            {
+            Integer = 123,
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Timestamp":946845296}]])
-end)
-
-test("serializes_timestamp_shapes_with_iso8601_timestampformat", function()
-    local input = {
-        Iso8601Timestamp = 946845296,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"Iso8601Timestamp":"2000-01-02T20:34:56Z"}]])
-end)
-
-test("serializes_timestamp_shapes_with_httpdate_timestampformat", function()
-    local input = {
-        HttpdateTimestamp = 946845296,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"HttpdateTimestamp":"Sun, 02 Jan 2000 20:34:56 GMT"}]])
-end)
-
-test("serializes_timestamp_shapes_with_unixtimestamp_timestampformat", function()
-    local input = {
-        UnixTimestamp = 946845296,
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"UnixTimestamp":946845296}]])
-end)
-
-test("serializes_list_shapes", function()
-    local input = {
-        ListOfStrings = {
-        "abc",
-        "mno",
-        "xyz",
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"ListOfStrings":["abc","mno","xyz"]}]])
-end)
-
-test("serializes_empty_list_shapes", function()
-    local input = {
-        ListOfStrings = {},
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"ListOfStrings":[]}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"RecursiveList":[{"RecursiveList":[{"RecursiveList":[{"Integer":123}]}]}]}]])
+    end)
 
-test("serializes_list_of_map_shapes", function()
-    local input = {
-        ListOfMapsOfStrings = {
-        {
-        foo = "bar",
-    },
-        {
-        abc = "xyz",
-    },
-        {
-        red = "blue",
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_map_shapes", function()
+        local input = {
+            MapOfStrings = {
+            abc = "xyz",
+            mno = "hjk",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"ListOfMapsOfStrings":[{"foo":"bar"},{"abc":"xyz"},{"red":"blue"}]}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"MapOfStrings":{"abc":"xyz","mno":"hjk"}}]])
+    end)
 
-test("serializes_list_of_structure_shapes", function()
-    local input = {
-        ListOfStructs = {
-        {
-        Value = "abc",
-    },
-        {
-        Value = "mno",
-    },
-        {
-        Value = "xyz",
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_empty_map_shapes", function()
+        local input = {
+            MapOfStrings = {},
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"MapOfStrings":{}}]])
+    end)
+
+    it("serializes_map_of_list_shapes", function()
+        local input = {
+            MapOfListsOfStrings = {
+            abc = {
+            "abc",
+            "xyz",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"ListOfStructs":[{"Value":"abc"},{"Value":"mno"},{"Value":"xyz"}]}]])
-end)
-
-test("serializes_list_of_recursive_structure_shapes", function()
-    local input = {
-        RecursiveList = {
-        {
-        RecursiveList = {
-        {
-        RecursiveList = {
-        {
-        Integer = 123,
-    },
-    },
-    },
-    },
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+            mno = {
+            "xyz",
+            "abc",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"RecursiveList":[{"RecursiveList":[{"RecursiveList":[{"Integer":123}]}]}]}]])
-end)
-
-test("serializes_map_shapes", function()
-    local input = {
-        MapOfStrings = {
-        abc = "xyz",
-        mno = "hjk",
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"MapOfStrings":{"abc":"xyz","mno":"hjk"}}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"MapOfListsOfStrings":{"abc":["abc","xyz"],"mno":["xyz","abc"]}}]])
+    end)
 
-test("serializes_empty_map_shapes", function()
-    local input = {
-        MapOfStrings = {},
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_map_of_structure_shapes", function()
+        local input = {
+            MapOfStructs = {
+            key1 = {
+            Value = "value-1",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"MapOfStrings":{}}]])
-end)
-
-test("serializes_map_of_list_shapes", function()
-    local input = {
-        MapOfListsOfStrings = {
-        abc = {
-        "abc",
-        "xyz",
-    },
-        mno = {
-        "xyz",
-        "abc",
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+            key2 = {
+            Value = "value-2",
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"MapOfListsOfStrings":{"abc":["abc","xyz"],"mno":["xyz","abc"]}}]])
-end)
-
-test("serializes_map_of_structure_shapes", function()
-    local input = {
-        MapOfStructs = {
-        key1 = {
-        Value = "value-1",
-    },
-        key2 = {
-        Value = "value-2",
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"MapOfStructs":{"key1":{"Value":"value-1"},"key2":{"Value":"value-2"}}}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"MapOfStructs":{"key1":{"Value":"value-1"},"key2":{"Value":"value-2"}}}]])
+    end)
 
-test("serializes_map_of_recursive_structure_shapes", function()
-    local input = {
-        RecursiveMap = {
-        key1 = {
-        RecursiveMap = {
-        key2 = {
-        RecursiveMap = {
-        key3 = {
-        Boolean = false,
-    },
-    },
-    },
-    },
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
+    it("serializes_map_of_recursive_structure_shapes", function()
+        local input = {
+            RecursiveMap = {
+            key1 = {
+            RecursiveMap = {
+            key2 = {
+            RecursiveMap = {
+            key3 = {
+            Boolean = false,
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"RecursiveMap":{"key1":{"RecursiveMap":{"key2":{"RecursiveMap":{"key3":{"Boolean":false}}}}}}}]])
-end)
-
-test("serializes_structure_shapes", function()
-    local input = {
-        SimpleStruct = {
-        Value = "abc",
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"SimpleStruct":{"Value":"abc"}}]])
-end)
-
-test("serializes_structure_members_with_locationname_traits", function()
-    local input = {
-        StructWithJsonName = {
-        Value = "some-value",
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"StructWithJsonName":{"Value":"some-value"}}]])
-end)
-
-test("serializes_empty_structure_shapes", function()
-    local input = {
-        SimpleStruct = {},
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"SimpleStruct":{}}]])
-end)
-
-test("serializes_structure_which_have_no_members", function()
-    local input = {
-        EmptyStruct = {},
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"EmptyStruct":{}}]])
-end)
-
-test("serializes_recursive_structure_shapes", function()
-    local input = {
-        String = "top-value",
-        Boolean = false,
-        RecursiveStruct = {
-        String = "nested-value",
-        Boolean = true,
-        RecursiveList = {
-        {
-        String = "string-only",
-    },
-        {
-        RecursiveStruct = {
-        MapOfStrings = {
-        color = "red",
-        size = "large",
-    },
-    },
-    },
-    },
-    },
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = types.KitchenSinkOperationInput,
-        output = schema.new({ type = "structure" }),
-        traits = {
-            [traits.HTTP] = { method = "POST", path = "/" },
         },
-    })
-    local request, err = protocol:serialize(input, service, operation)
-    assert(not err, "serialize error: " .. tostring(err))
-    assert_eq(request.method, "POST", "method")
-    assert_url_path(request.url, "/")
-    assert_header(request, "Content-Type", "application/x-amz-json-1.1")
-    assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
-    local body_str = read_body(request.body)
-    assert_json_eq(body_str, [[{"String":"top-value","Boolean":false,"RecursiveStruct":{"String":"nested-value","Boolean":true,"RecursiveList":[{"String":"string-only"},{"RecursiveStruct":{"MapOfStrings":{"color":"red","size":"large"}}}]}}]])
-end)
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"RecursiveMap":{"key1":{"RecursiveMap":{"key2":{"RecursiveMap":{"key3":{"Boolean":false}}}}}}}]])
+    end)
 
-print(string.format("\n%d passed, %d skipped", pass_count, skip_count))
+    it("serializes_structure_shapes", function()
+        local input = {
+            SimpleStruct = {
+            Value = "abc",
+        },
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"SimpleStruct":{"Value":"abc"}}]])
+    end)
+
+    it("serializes_structure_members_with_locationname_traits", function()
+        local input = {
+            StructWithJsonName = {
+            Value = "some-value",
+        },
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"StructWithJsonName":{"Value":"some-value"}}]])
+    end)
+
+    it("serializes_empty_structure_shapes", function()
+        local input = {
+            SimpleStruct = {},
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"SimpleStruct":{}}]])
+    end)
+
+    it("serializes_structure_which_have_no_members", function()
+        local input = {
+            EmptyStruct = {},
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"EmptyStruct":{}}]])
+    end)
+
+    it("serializes_recursive_structure_shapes", function()
+        local input = {
+            String = "top-value",
+            Boolean = false,
+            RecursiveStruct = {
+            String = "nested-value",
+            Boolean = true,
+            RecursiveList = {
+            {
+            String = "string-only",
+        },
+            {
+            RecursiveStruct = {
+            MapOfStrings = {
+            color = "red",
+            size = "large",
+        },
+        },
+        },
+        },
+        },
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = types.KitchenSinkOperationInput,
+            output = schema.new({ type = "structure" }),
+            traits = {
+                [traits.HTTP] = { method = "POST", path = "/" },
+            },
+        })
+        local request, err = protocol:serialize(input, service, operation)
+        assert.is_nil(err, "serialize error: " .. tostring(err))
+        assert.are.equal("POST", request.method)
+        h.assert_url_path(request.url, "/")
+        h.assert_header(request, "Content-Type", "application/x-amz-json-1.1")
+        h.assert_header(request, "X-Amz-Target", "JsonProtocol.KitchenSinkOperation")
+        local body_str = h.read_body(request.body)
+        h.assert_json_eq(body_str, [[{"String":"top-value","Boolean":false,"RecursiveStruct":{"String":"nested-value","Boolean":true,"RecursiveList":[{"String":"string-only"},{"RecursiveStruct":{"MapOfStrings":{"color":"red","size":"large"}}}]}}]])
+    end)
+
+end)

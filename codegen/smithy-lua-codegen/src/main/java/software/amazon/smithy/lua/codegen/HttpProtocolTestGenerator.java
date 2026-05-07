@@ -112,17 +112,18 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             String opName, StructureShape inputShape, List<HttpRequestTestCase> cases, String proto,
             OperationShape operation) {
         writePreamble(w, ns, proto, svc);
-        // Get the full URI template from @http trait (includes constant query params)
         var httpTrait = operation.getTrait(HttpTrait.class).orElse(null);
         var fullUriTemplate = httpTrait != null ? httpTrait.getUri().toString() : null;
         w.write("");
+        w.write("describe($S, function()", opName + " request");
+        w.indent();
         for (var tc : cases) {
             if (SKIP_TESTS.contains(tc.getId())) {
-                w.write("test($S, function() end) -- SKIP: not implemented", tc.getId());
+                w.write("pending($S, function() end)", tc.getId());
                 w.write("");
                 continue;
             }
-            w.write("test($S, function()", tc.getId());
+            w.write("it($S, function()", tc.getId());
             w.indent();
             w.write("local input = $L", nodesToLua(tc.getParams()));
             w.write("local operation = schema.operation({");
@@ -139,40 +140,40 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.dedent();
             w.write("})");
             w.write("local request, err = protocol:serialize(input, service, operation)");
-            w.write("assert(not err, \"serialize error: \" .. tostring(err))");
-            w.write("assert_eq(request.method, $S, \"method\")", tc.getMethod());
-            w.write("assert_url_path(request.url, $S)", tc.getUri());
+            w.write("assert.is_nil(err, \"serialize error: \" .. tostring(err))");
+            w.write("assert.are.equal($S, request.method)", tc.getMethod());
+            w.write("h.assert_url_path(request.url, $S)", tc.getUri());
             for (var qp : tc.getQueryParams()) {
-                w.write("assert_query_param(request.url, $S)", qp);
+                w.write("h.assert_query_param(request.url, $S)", qp);
             }
             for (var fqp : tc.getForbidQueryParams()) {
-                w.write("assert_no_query_param(request.url, $S)", fqp);
+                w.write("h.assert_no_query_param(request.url, $S)", fqp);
             }
             for (var rqp : tc.getRequireQueryParams()) {
-                w.write("assert_has_query_key(request.url, $S)", rqp);
+                w.write("h.assert_has_query_key(request.url, $S)", rqp);
             }
             for (var e : tc.getHeaders().entrySet()) {
-                w.write("assert_header(request, $S, $S)", e.getKey(), e.getValue());
+                w.write("h.assert_header(request, $S, $S)", e.getKey(), e.getValue());
             }
             for (var h : tc.getForbidHeaders()) {
-                w.write("assert_no_header(request, $S)", h);
+                w.write("h.assert_no_header(request, $S)", h);
             }
             tc.getBody().ifPresent(body -> {
-                w.write("local body_str = read_body(request.body)");
+                w.write("local body_str = h.read_body(request.body)");
                 if (body.isEmpty()) {
-                    w.write("assert(body_str == \"\" or body_str == nil, \"expected empty body, got: \" .. tostring(body_str))");
+                    w.write("assert.is_true(body_str == \"\" or body_str == nil, \"expected empty body\")");
                 } else {
                     var mediaType = tc.getBodyMediaType().orElse("");
                     if (mediaType.contains("json")) {
-                        w.write("assert_json_eq(body_str, $L)", luaLongString(body));
+                        w.write("h.assert_json_eq(body_str, $L)", luaLongString(body));
                     } else if (mediaType.contains("xml") || proto.contains("restXml")) {
-                        w.write("assert_xml_eq(body_str, $L)", luaLongString(body));
+                        w.write("h.assert_xml_eq(body_str, $L)", luaLongString(body));
                     } else if (mediaType.contains("x-www-form-urlencoded") || proto.contains("Query")) {
-                        w.write("assert_form_eq(body_str, $L)", luaLongString(body));
+                        w.write("h.assert_form_eq(body_str, $L)", luaLongString(body));
                     } else if (mediaType.contains("cbor") || proto.contains("rpcv2Cbor")) {
-                        w.write("assert_cbor_eq(body_str, base64_decode($L))", luaLongString(body));
+                        w.write("h.assert_cbor_eq(body_str, h.base64_decode($L))", luaLongString(body));
                     } else {
-                        w.write("assert_eq(body_str, $L, \"body\")", luaLongString(body));
+                        w.write("assert.are.equal($L, body_str)", luaLongString(body));
                     }
                 }
             });
@@ -180,7 +181,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("end)");
             w.write("");
         }
-        writeFooter(w);
+        w.dedent();
+        w.write("end)");
     }
 
     private void writeResponseTests(LuaWriter w, String ns, ServiceShape svc,
@@ -189,7 +191,6 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         writePreamble(w, ns, proto, svc);
         w.write("");
 
-        // Find streaming blob payload member name if any
         String streamingMember = null;
         for (var member : outputShape.members()) {
             if (member.hasTrait(HttpPayloadTrait.class)) {
@@ -200,13 +201,15 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             }
         }
 
+        w.write("describe($S, function()", opName + " response");
+        w.indent();
         for (var tc : cases) {
             if (SKIP_TESTS.contains(tc.getId())) {
-                w.write("test($S, function() end) -- SKIP: not implemented", tc.getId());
+                w.write("pending($S, function() end)", tc.getId());
                 w.write("");
                 continue;
             }
-            w.write("test($S, function()", tc.getId());
+            w.write("it($S, function()", tc.getId());
             w.indent();
             writeMockResponse(w, tc, proto);
             w.write("local operation = schema.operation({");
@@ -218,9 +221,9 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.dedent();
             w.write("})");
             w.write("local output, err = protocol:deserialize(response, operation)");
-            w.write("assert(not err, \"deserialize error: \" .. tostring(err and err.message or err))");
+            w.write("assert.is_nil(err, \"deserialize error: \" .. tostring(err and err.message or err))");
             if (streamingMember != null) {
-                w.write("if output.$L then output.$L = read_body(output.$L) end",
+                w.write("if output.$L then output.$L = h.read_body(output.$L) end",
                         streamingMember, streamingMember, streamingMember);
             }
             writeParamAssertions(w, "output", tc.getParams());
@@ -228,7 +231,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("end)");
             w.write("");
         }
-        writeFooter(w);
+        w.dedent();
+        w.write("end)");
     }
 
     private void writeErrorTests(LuaWriter w, String ns, ServiceShape svc,
@@ -236,13 +240,15 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             List<HttpResponseTestCase> cases, String proto) {
         writePreamble(w, ns, proto, svc);
         w.write("");
+        w.write("describe($S, function()", opName + " " + errorName + " error");
+        w.indent();
         for (var tc : cases) {
             if (SKIP_TESTS.contains(tc.getId())) {
-                w.write("test($S, function() end) -- SKIP: not implemented", tc.getId());
+                w.write("pending($S, function() end)", tc.getId());
                 w.write("");
                 continue;
             }
-            w.write("test($S, function()", tc.getId());
+            w.write("it($S, function()", tc.getId());
             w.indent();
             writeMockResponse(w, tc, proto);
             w.write("local operation = schema.operation({");
@@ -254,10 +260,10 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.dedent();
             w.write("})");
             w.write("local output, err = protocol:deserialize(response, operation)");
-            w.write("assert(output == nil, \"expected nil output for error response\")");
-            w.write("assert(err ~= nil, \"expected error\")");
-            w.write("assert_eq(err.type, \"api\", \"error type\")");
-            w.write("assert(err.code == $S or (err.code and err.code:find($S, 1, true)),",
+            w.write("assert.is_nil(output, \"expected nil output for error response\")");
+            w.write("assert.is_not_nil(err, \"expected error\")");
+            w.write("assert.are.equal(\"api\", err.type)");
+            w.write("assert.is_true(err.code == $S or (err.code and err.code:find($S, 1, true) ~= nil),",
                     errorName, errorName);
             w.write("    \"error code: expected $L, got: \" .. tostring(err.code))", errorName);
             writeErrorParamAssertions(w, "err", tc.getParams());
@@ -265,7 +271,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("end)");
             w.write("");
         }
-        writeFooter(w);
+        w.dedent();
+        w.write("end)");
     }
 
     // --- Preamble with test helpers (no block() for if/else) ---
@@ -274,14 +281,12 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("-- Generated protocol test file — do not edit");
         w.write("-- Protocol: $L", proto);
         w.write("");
-        w.write("package.path = \"runtime/?.lua;runtime/?/init.lua;\" .. package.path");
-        w.write("");
         w.write("local types = require($S)", ns + ".schemas");
         w.write("local schema = require(\"smithy.schema\")");
         w.write("local shape_id = require(\"smithy.shape_id\")");
         w.write("local traits = require(\"smithy.traits\")");
         w.write("local http = require(\"smithy.http\")");
-        w.write("local json_decoder = require(\"smithy.json.decoder\")");
+        w.write("local h = require(\"smithy.testing\")");
 
         var serviceName = svc.getId().getName();
         var serviceNs = svc.getId().getNamespace();
@@ -318,241 +323,12 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
             w.write("local protocol = nil");
         }
 
-        // Service schema for protocol tests
         w.write("");
         w.write("local service = schema.service({");
         w.write("    id = shape_id.from($S, $S),", serviceNs, serviceName);
         w.write("    version = $S,", svc.getVersion());
         w.write("    traits = {},");
         w.write("})");
-
-        w.write("");
-        w.write("local pass_count = 0");
-        w.write("local skip_count = 0");
-        w.write("");
-
-        // test() — write if/else manually to avoid block() end issues
-        w.write("local function test(name, fn)");
-        w.write("    if not protocol then");
-        w.write("        skip_count = skip_count + 1");
-        w.write("        print(\"SKIP: \" .. name .. \" (no protocol)\")");
-        w.write("        return");
-        w.write("    end");
-        w.write("    local ok, err = pcall(fn)");
-        w.write("    if ok then");
-        w.write("        pass_count = pass_count + 1");
-        w.write("        print(\"PASS: \" .. name)");
-        w.write("    else");
-        w.write("        print(\"FAIL: \" .. name .. \"\\n  \" .. tostring(err))");
-        w.write("        os.exit(1)");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-
-        // assert_eq
-        w.write("local function assert_eq(a, b, msg)");
-        w.write("    if a ~= b then");
-        w.write("        error((msg or \"assert_eq\") .. \": expected \" .. tostring(b) .. \", got \" .. tostring(a), 2)");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-
-        // assert_header (case-insensitive)
-        w.write("local function assert_header(request, key, expected)");
-        w.write("    local val = request.headers[key]");
-        w.write("    if not val then");
-        w.write("        for k, v in pairs(request.headers) do");
-        w.write("            if k:lower() == key:lower() then val = v; break end");
-        w.write("        end");
-        w.write("    end");
-        w.write("    assert(val ~= nil, \"missing header: \" .. key)");
-        w.write("    assert_eq(val, expected, \"header \" .. key)");
-        w.write("end");
-        w.write("");
-
-        // assert_no_header
-        w.write("local function assert_no_header(request, key)");
-        w.write("    for k, _ in pairs(request.headers) do");
-        w.write("        if k:lower() == key:lower() then error(\"unexpected header: \" .. key, 2) end");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-
-        // URL path and query param helpers
-        w.write("local function get_url_path(url)");
-        w.write("    return url:match(\"^([^?]*)\") or url");
-        w.write("end");
-        w.write("");
-        w.write("local function get_query_params(url)");
-        w.writeWithNoFormatting("    local qs = url:match(\"?(.*)$\")");
-        w.write("    if not qs then return {} end");
-        w.write("    if not qs then return {} end");
-        w.write("    local params = {}");
-        w.write("    for pair in qs:gmatch(\"[^&]+\") do");
-        w.write("        params[#params + 1] = pair");
-        w.write("    end");
-        w.write("    return params");
-        w.write("end");
-        w.write("");
-        w.write("local function assert_url_path(url, expected)");
-        w.write("    local path = get_url_path(url)");
-        w.write("    assert_eq(path, expected, \"url path\")");
-        w.write("end");
-        w.write("");
-        w.write("local function assert_query_param(url, expected_pair)");
-        w.write("    local params = get_query_params(url)");
-        w.write("    for _, p in ipairs(params) do");
-        w.write("        if p == expected_pair then return end");
-        w.write("    end");
-        w.write("    error(\"missing query param: \" .. expected_pair .. \" in \" .. url, 2)");
-        w.write("end");
-        w.write("");
-        w.write("local function assert_no_query_param(url, forbidden_pair)");
-        w.write("    local params = get_query_params(url)");
-        w.write("    for _, p in ipairs(params) do");
-        w.write("        if p == forbidden_pair then error(\"unexpected query param: \" .. forbidden_pair, 2) end");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-        w.write("local function assert_has_query_key(url, key)");
-        w.write("    local params = get_query_params(url)");
-        w.write("    for _, p in ipairs(params) do");
-        w.write("        if p:match(\"^([^=]*)\") == key then return end");
-        w.write("    end");
-        w.write("    error(\"missing query key: \" .. key .. \" in \" .. url, 2)");
-        w.write("end");
-        w.write("");
-
-        // read_body
-        w.write("local function read_body(reader)");
-        w.write("    if not reader then return \"\" end");
-        w.write("    local chunks = {}");
-        w.write("    while true do");
-        w.write("        local chunk = reader()");
-        w.write("        if not chunk then break end");
-        w.write("        chunks[#chunks + 1] = chunk");
-        w.write("    end");
-        w.write("    return table.concat(chunks)");
-        w.write("end");
-        w.write("");
-
-        // deep_eq
-        w.write("local function deep_eq(a, b)");
-        w.write("    if type(a) ~= type(b) then return false end");
-        w.write("    if type(a) == \"number\" and a ~= a and b ~= b then return true end");
-        w.write("    if type(a) ~= \"table\" then return a == b end");
-        w.write("    for k, v in pairs(a) do if not deep_eq(v, b[k]) then return false end end");
-        w.write("    for k, _ in pairs(b) do if a[k] == nil then return false end end");
-        w.write("    return true");
-        w.write("end");
-        w.write("");
-
-        // assert_json_eq
-        w.write("local function assert_json_eq(actual_str, expected_str)");
-        w.write("    local actual = json_decoder.decode(actual_str)");
-        w.write("    local expected = json_decoder.decode(expected_str)");
-        w.write("    if not deep_eq(actual, expected) then");
-        w.write("        error(\"JSON mismatch:\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-
-        // assert_form_eq — order-independent form-urlencoded comparison
-        w.write("local function assert_form_eq(actual_str, expected_str)");
-        w.write("    local function parse_params(s)");
-        w.write("        local t = {}");
-        w.write("        for p in s:gmatch(\"[^&]+\") do t[#t+1] = p end");
-        w.write("        table.sort(t)");
-        w.write("        return t");
-        w.write("    end");
-        w.write("    local actual_params = parse_params(actual_str)");
-        w.write("    local expected_params = parse_params(expected_str)");
-        w.write("    if #actual_params ~= #expected_params then");
-        w.write("        error(\"form body param count mismatch: expected \" .. #expected_params .. \", got \" .. #actual_params .. \"\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
-        w.write("    end");
-        w.write("    for i = 1, #expected_params do");
-        w.write("        if actual_params[i] ~= expected_params[i] then");
-        w.write("            error(\"form body mismatch at param \" .. i .. \": expected \" .. expected_params[i] .. \", got \" .. actual_params[i] .. \"\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
-        w.write("        end");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-
-        // assert_xml_eq — semantic XML comparison
-        w.write("local xml_codec = require(\"smithy.codec.xml\")");
-        w.write("local function normalize_xml(node)");
-        w.write("    if type(node) ~= \"table\" then return node end");
-        w.write("    local children = {}");
-        w.write("    for i, c in ipairs(node.children or {}) do children[#children+1] = { idx = i, node = normalize_xml(c) } end");
-        w.write("    table.sort(children, function(a, b)");
-        w.write("        local at, bt = a.node.tag or \"\", b.node.tag or \"\"");
-        w.write("        if at ~= bt then return at < bt end");
-        w.write("        local ac = a.node.children or {}");
-        w.write("        local bc = b.node.children or {}");
-        w.write("        local atxt = (ac[1] and ac[1].text) or a.node.text or \"\"");
-        w.write("        local btxt = (bc[1] and bc[1].text) or b.node.text or \"\"");
-        w.write("        if atxt ~= btxt then return atxt < btxt end");
-        w.write("        return a.idx < b.idx");
-        w.write("    end)");
-        w.write("    local sorted = {} for _, c in ipairs(children) do sorted[#sorted+1] = c.node end");
-        w.writeWithNoFormatting("    return { tag = node.tag, attrs = node.attrs, children = sorted, text = (node.text or \"\"):match(\"^%s*(.-)%s*$\") }");
-        w.write("end");
-        w.write("local function xml_nodes_eq(a, b)");
-        w.write("    if not a and not b then return true end");
-        w.write("    if not a or not b then return false end");
-        w.write("    if a.tag ~= b.tag then return false end");
-        w.write("    if (a.text or \"\") ~= (b.text or \"\") then return false end");
-        w.write("    local aa, ba = a.attrs or {}, b.attrs or {}");
-        w.write("    for k, v in pairs(aa) do if ba[k] ~= v then return false end end");
-        w.write("    for k, v in pairs(ba) do if aa[k] ~= v then return false end end");
-        w.write("    if #(a.children or {}) ~= #(b.children or {}) then return false end");
-        w.write("    for i, ac in ipairs(a.children or {}) do");
-        w.write("        if not xml_nodes_eq(ac, (b.children or {})[i]) then return false end");
-        w.write("    end");
-        w.write("    return true");
-        w.write("end");
-        w.write("local function assert_xml_eq(actual_str, expected_str)");
-        w.write("    local a = normalize_xml(xml_codec.parse_xml(actual_str))");
-        w.write("    local b = normalize_xml(xml_codec.parse_xml(expected_str))");
-        w.write("    if not xml_nodes_eq(a, b) then");
-        w.write("        error(\"XML mismatch:\\n  expected: \" .. expected_str .. \"\\n  actual:   \" .. actual_str, 2)");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-
-        // assert_deep_eq
-        w.write("local function assert_deep_eq(actual, expected, path)");
-        w.write("    path = path or \"\"");
-        w.write("    if type(expected) == \"table\" then");
-        w.write("        assert(type(actual) == \"table\", path .. \": expected table, got \" .. type(actual))");
-        w.write("        for k, v in pairs(expected) do");
-        w.write("            assert_deep_eq(actual[k], v, path .. \".\" .. tostring(k))");
-        w.write("        end");
-        w.write("    else");
-        w.write("        if type(expected) == \"number\" and type(actual) == \"number\" and expected ~= expected then");
-        w.write("            assert(actual ~= actual, path .. \": expected NaN\")");
-        w.write("            return");
-        w.write("        end");
-        w.write("        assert_eq(actual, expected, path)");
-        w.write("    end");
-        w.write("end");
-
-        // base64 + CBOR comparison helpers
-        w.write("");
-        w.write("local base64 = require(\"smithy.base64\")");
-        w.write("local base64_encode = base64.encode");
-        w.write("local base64_decode = base64.decode");
-        w.write("local cbor_codec = require(\"smithy.codec.cbor\")");
-        w.write("");
-        w.write("local function assert_cbor_eq(actual_bytes, expected_bytes)");
-        w.write("    local ok1, actual = pcall(cbor_codec.decode_item, actual_bytes, 1)");
-        w.write("    assert(ok1, \"failed to decode actual CBOR: \" .. tostring(actual))");
-        w.write("    local ok2, expected = pcall(cbor_codec.decode_item, expected_bytes, 1)");
-        w.write("    assert(ok2, \"failed to decode expected CBOR: \" .. tostring(expected))");
-        w.write("    if not deep_eq(actual, expected) then");
-        w.write("        error(\"CBOR mismatch:\\n  expected: \" .. tostring(expected) .. \"\\n  actual:   \" .. tostring(actual), 2)");
-        w.write("    end");
-        w.write("end");
     }
 
     private void writeMockResponse(LuaWriter w, HttpResponseTestCase tc, String proto) {
@@ -568,7 +344,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("},");
         var body = tc.getBody().orElse("");
         if (proto.contains("rpcv2Cbor") && !body.isEmpty()) {
-            w.write("body = http.string_reader(base64_decode($L)),", luaLongString(body));
+            w.write("body = http.string_reader(h.base64_decode($L)),", luaLongString(body));
         } else {
             w.write("body = http.string_reader($L),", luaLongString(body));
         }
@@ -579,7 +355,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
     private void writeParamAssertions(LuaWriter w, String var, ObjectNode params) {
         if (params.isEmpty()) return;
         w.write("local expected = $L", nodesToLua(params));
-        w.write("assert_deep_eq($L, expected, \"output\")", var);
+        w.write("h.assert_deep_eq($L, expected, \"output\")", var);
     }
 
     private void writeErrorParamAssertions(LuaWriter w, String var, ObjectNode params) {
@@ -587,13 +363,9 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         for (var e : params.getMembers().entrySet()) {
             var key = e.getKey().getValue();
             if (key.equals("Message") || key.equals("message")) {
-                w.write("assert_eq($L.message, $L, \"error message\")", var, nodeToLua(e.getValue()));
+                w.write("assert.are.equal($L, $L.message)", nodeToLua(e.getValue()), var);
             }
         }
-    }
-
-    private void writeFooter(LuaWriter w) {
-        w.write("print(string.format(\"\\n%d passed, %d skipped\", pass_count, skip_count))");
     }
 
     // --- Protocol detection ---

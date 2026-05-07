@@ -1,0 +1,17 @@
+return {
+    default = {
+        lpath = "runtime/?.lua;runtime/?/init.lua",
+        pattern = "test_",
+        ROOT = {"test/"},
+    },
+    protocol = {
+        lpath = "protocoltest/?.lua;runtime/?.lua;runtime/?/init.lua",
+        pattern = "test_",
+        ROOT = {"protocoltest/"},
+    },
+    endpoint = {
+        lpath = "build/?.lua;build/?/init.lua;runtime/?.lua;runtime/?/init.lua",
+        pattern = "test_",
+        ROOT = {"build/sqs/"},
+    },
+}

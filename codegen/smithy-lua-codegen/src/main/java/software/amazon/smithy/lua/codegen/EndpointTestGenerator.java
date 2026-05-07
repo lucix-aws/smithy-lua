@@ -34,83 +34,56 @@ public final class EndpointTestGenerator implements LuaIntegration {
 
         context.writerDelegator().useFileWriter(filePath, serviceNs, writer -> {
             writePreamble(writer, serviceNs);
+            writer.write("describe(\"endpoint rules\", function()");
+            writer.indent();
             for (int i = 0; i < cases.size(); i++) {
                 writeTestCase(writer, cases.get(i), i + 1);
             }
-            writeFooter(writer);
+            writer.dedent();
+            writer.write("end)");
         });
     }
 
     private void writePreamble(LuaWriter w, String ns) {
         w.write("-- Generated endpoint ruleset tests — do not edit");
         w.write("");
-        w.write("package.path = \"runtime/?.lua;runtime/?/init.lua;\" .. package.path");
-        w.write("");
         w.write("local endpoint = require(\"smithy.endpoint\")");
         w.write("local ruleset = require($S)", ns + ".endpoint_rules");
-        w.write("");
-        w.write("local pass_count = 0");
-        w.write("local fail_count = 0");
-        w.write("");
-        w.write("local function test(name, fn)");
-        w.write("    local ok, err = pcall(fn)");
-        w.write("    if ok then");
-        w.write("        pass_count = pass_count + 1");
-        w.write("        print(\"PASS: \" .. name)");
-        w.write("    else");
-        w.write("        fail_count = fail_count + 1");
-        w.write("        print(\"FAIL: \" .. name .. \"\\n  \" .. tostring(err))");
-        w.write("    end");
-        w.write("end");
-        w.write("");
-        w.write("local function assert_eq(a, b, msg)");
-        w.write("    if a ~= b then");
-        w.write("        error((msg or \"assert_eq\") .. \": expected \" .. tostring(b) .. \", got \" .. tostring(a), 2)");
-        w.write("    end");
-        w.write("end");
         w.write("");
     }
 
     private void writeTestCase(LuaWriter w, EndpointTestCase tc, int index) {
         var doc = tc.getDocumentation().orElse("test case " + index);
-        w.write("test($S, function()", doc);
+        w.write("it($S, function()", doc);
         w.indent();
 
-        // Emit params
         w.write("local params = $L", nodeToLua(tc.getParams()));
-
-        // Call resolver
         w.write("local result, err = endpoint.resolve(ruleset, params)");
 
         var expect = tc.getExpect();
         if (expect.getError().isPresent()) {
-            // Error expectation
             var expectedErr = expect.getError().get();
-            w.write("assert(result == nil, \"expected error but got result\")");
-            w.write("assert(err ~= nil, \"expected error but got nil\")");
-            w.write("assert_eq(err, $S, \"error message\")", expectedErr);
+            w.write("assert.is_nil(result, \"expected error but got result\")");
+            w.write("assert.is_not_nil(err, \"expected error but got nil\")");
+            w.write("assert.are.equal($S, err)", expectedErr);
         } else if (expect.getEndpoint().isPresent()) {
-            // Endpoint expectation
             var ep = expect.getEndpoint().get();
-            w.write("assert(result ~= nil, \"expected endpoint but got error: \" .. tostring(err))");
-            w.write("assert_eq(result.url, $S, \"url\")", ep.getUrl());
+            w.write("assert.is_not_nil(result, \"expected endpoint but got error: \" .. tostring(err))");
+            w.write("assert.are.equal($S, result.url)", ep.getUrl());
 
-            // Assert headers
             for (var entry : ep.getHeaders().entrySet()) {
                 var headerName = entry.getKey();
                 var headerValues = entry.getValue();
                 for (int i = 0; i < headerValues.size(); i++) {
-                    w.write("assert(result.headers and result.headers[$S], \"missing header: $L\")",
+                    w.write("assert.is_not_nil(result.headers and result.headers[$S], \"missing header: $L\")",
                             headerName, headerName);
-                    w.write("assert_eq(result.headers[$S][$L], $S, \"header $L\")",
-                            headerName, i + 1, headerValues.get(i), headerName);
+                    w.write("assert.are.equal($S, result.headers[$S][$L])",
+                            headerValues.get(i), headerName, i + 1);
                 }
             }
 
-            // Assert properties (authSchemes etc.)
             if (!ep.getProperties().isEmpty()) {
-                w.write("assert(result.properties ~= nil, \"missing properties\")");
-                // Deep-compare properties as Lua tables
+                w.write("assert.is_not_nil(result.properties, \"missing properties\")");
                 w.write("local expected_props = $L", nodeToLua(objectNodeFromProperties(ep.getProperties())));
                 w.write("local function deep_eq(a, b)");
                 w.write("    if type(a) ~= type(b) then return false end");
@@ -119,18 +92,13 @@ public final class EndpointTestGenerator implements LuaIntegration {
                 w.write("    for k, _ in pairs(b) do if a[k] == nil then return false end end");
                 w.write("    return true");
                 w.write("end");
-                w.write("assert(deep_eq(result.properties, expected_props), \"properties mismatch\")");
+                w.write("assert.is_true(deep_eq(result.properties, expected_props), \"properties mismatch\")");
             }
         }
 
         w.dedent();
         w.write("end)");
         w.write("");
-    }
-
-    private void writeFooter(LuaWriter w) {
-        w.write("print(string.format(\"\\n%d passed, %d failed\", pass_count, fail_count))");
-        w.write("if fail_count > 0 then os.exit(1) end");
     }
 
     /** Convert the properties map back to an ObjectNode for nodeToLua. */

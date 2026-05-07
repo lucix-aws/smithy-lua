@@ -3,14 +3,12 @@
 -- Generated protocol test file — do not edit
 -- Protocol: awsJson1_1
 
-package.path = "runtime/?.lua;runtime/?/init.lua;" .. package.path
-
 local types = require("jsonprotocol.schemas")
 local schema = require("smithy.schema")
 local shape_id = require("smithy.shape_id")
 local traits = require("smithy.traits")
 local http = require("smithy.http")
-local json_decoder = require("smithy.json.decoder")
+local h = require("smithy.testing")
 local protocol_mod = require("smithy.protocol.awsjson")
 local protocol = protocol_mod.new({ version = "1.1" })
 
@@ -20,787 +18,585 @@ local service = schema.service({
     traits = {},
 })
 
-local pass_count = 0
-local skip_count = 0
-
-local function test(name, fn)
-    if not protocol then
-        skip_count = skip_count + 1
-        print("SKIP: " .. name .. " (no protocol)")
-        return
-    end
-    local ok, err = pcall(fn)
-    if ok then
-        pass_count = pass_count + 1
-        print("PASS: " .. name)
-    else
-        print("FAIL: " .. name .. "\n  " .. tostring(err))
-        os.exit(1)
-    end
-end
-
-local function assert_eq(a, b, msg)
-    if a ~= b then
-        error((msg or "assert_eq") .. ": expected " .. tostring(b) .. ", got " .. tostring(a), 2)
-    end
-end
-
-local function assert_header(request, key, expected)
-    local val = request.headers[key]
-    if not val then
-        for k, v in pairs(request.headers) do
-            if k:lower() == key:lower() then val = v; break end
-        end
-    end
-    assert(val ~= nil, "missing header: " .. key)
-    assert_eq(val, expected, "header " .. key)
-end
-
-local function assert_no_header(request, key)
-    for k, _ in pairs(request.headers) do
-        if k:lower() == key:lower() then error("unexpected header: " .. key, 2) end
-    end
-end
-
-local function get_url_path(url)
-    return url:match("^([^?]*)") or url
-end
-
-local function get_query_params(url)
-    local qs = url:match("?(.*)$")
-    if not qs then return {} end
-    if not qs then return {} end
-    local params = {}
-    for pair in qs:gmatch("[^&]+") do
-        params[#params + 1] = pair
-    end
-    return params
-end
-
-local function assert_url_path(url, expected)
-    local path = get_url_path(url)
-    assert_eq(path, expected, "url path")
-end
-
-local function assert_query_param(url, expected_pair)
-    local params = get_query_params(url)
-    for _, p in ipairs(params) do
-        if p == expected_pair then return end
-    end
-    error("missing query param: " .. expected_pair .. " in " .. url, 2)
-end
-
-local function assert_no_query_param(url, forbidden_pair)
-    local params = get_query_params(url)
-    for _, p in ipairs(params) do
-        if p == forbidden_pair then error("unexpected query param: " .. forbidden_pair, 2) end
-    end
-end
-
-local function assert_has_query_key(url, key)
-    local params = get_query_params(url)
-    for _, p in ipairs(params) do
-        if p:match("^([^=]*)") == key then return end
-    end
-    error("missing query key: " .. key .. " in " .. url, 2)
-end
-
-local function read_body(reader)
-    if not reader then return "" end
-    local chunks = {}
-    while true do
-        local chunk = reader()
-        if not chunk then break end
-        chunks[#chunks + 1] = chunk
-    end
-    return table.concat(chunks)
-end
-
-local function deep_eq(a, b)
-    if type(a) ~= type(b) then return false end
-    if type(a) == "number" and a ~= a and b ~= b then return true end
-    if type(a) ~= "table" then return a == b end
-    for k, v in pairs(a) do if not deep_eq(v, b[k]) then return false end end
-    for k, _ in pairs(b) do if a[k] == nil then return false end end
-    return true
-end
-
-local function assert_json_eq(actual_str, expected_str)
-    local actual = json_decoder.decode(actual_str)
-    local expected = json_decoder.decode(expected_str)
-    if not deep_eq(actual, expected) then
-        error("JSON mismatch:\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-    end
-end
-
-local function assert_form_eq(actual_str, expected_str)
-    local function parse_params(s)
-        local t = {}
-        for p in s:gmatch("[^&]+") do t[#t+1] = p end
-        table.sort(t)
-        return t
-    end
-    local actual_params = parse_params(actual_str)
-    local expected_params = parse_params(expected_str)
-    if #actual_params ~= #expected_params then
-        error("form body param count mismatch: expected " .. #expected_params .. ", got " .. #actual_params .. "\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-    end
-    for i = 1, #expected_params do
-        if actual_params[i] ~= expected_params[i] then
-            error("form body mismatch at param " .. i .. ": expected " .. expected_params[i] .. ", got " .. actual_params[i] .. "\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-        end
-    end
-end
-
-local xml_codec = require("smithy.codec.xml")
-local function normalize_xml(node)
-    if type(node) ~= "table" then return node end
-    local children = {}
-    for i, c in ipairs(node.children or {}) do children[#children+1] = { idx = i, node = normalize_xml(c) } end
-    table.sort(children, function(a, b)
-        local at, bt = a.node.tag or "", b.node.tag or ""
-        if at ~= bt then return at < bt end
-        local ac = a.node.children or {}
-        local bc = b.node.children or {}
-        local atxt = (ac[1] and ac[1].text) or a.node.text or ""
-        local btxt = (bc[1] and bc[1].text) or b.node.text or ""
-        if atxt ~= btxt then return atxt < btxt end
-        return a.idx < b.idx
+describe("KitchenSinkOperation response", function()
+    it("parses_operations_with_empty_json_bodies", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
     end)
-    local sorted = {} for _, c in ipairs(children) do sorted[#sorted+1] = c.node end
-    return { tag = node.tag, attrs = node.attrs, children = sorted, text = (node.text or ""):match("^%s*(.-)%s*$") }
-end
-local function xml_nodes_eq(a, b)
-    if not a and not b then return true end
-    if not a or not b then return false end
-    if a.tag ~= b.tag then return false end
-    if (a.text or "") ~= (b.text or "") then return false end
-    local aa, ba = a.attrs or {}, b.attrs or {}
-    for k, v in pairs(aa) do if ba[k] ~= v then return false end end
-    for k, v in pairs(ba) do if aa[k] ~= v then return false end end
-    if #(a.children or {}) ~= #(b.children or {}) then return false end
-    for i, ac in ipairs(a.children or {}) do
-        if not xml_nodes_eq(ac, (b.children or {})[i]) then return false end
-    end
-    return true
-end
-local function assert_xml_eq(actual_str, expected_str)
-    local a = normalize_xml(xml_codec.parse_xml(actual_str))
-    local b = normalize_xml(xml_codec.parse_xml(expected_str))
-    if not xml_nodes_eq(a, b) then
-        error("XML mismatch:\n  expected: " .. expected_str .. "\n  actual:   " .. actual_str, 2)
-    end
-end
 
-local function assert_deep_eq(actual, expected, path)
-    path = path or ""
-    if type(expected) == "table" then
-        assert(type(actual) == "table", path .. ": expected table, got " .. type(actual))
-        for k, v in pairs(expected) do
-            assert_deep_eq(actual[k], v, path .. "." .. tostring(k))
-        end
-    else
-        if type(expected) == "number" and type(actual) == "number" and expected ~= expected then
-            assert(actual ~= actual, path .. ": expected NaN")
-            return
-        end
-        assert_eq(actual, expected, path)
-    end
-end
+    it("parses_string_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"String":"string-value"}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            String = "string-value",
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-local base64 = require("smithy.base64")
-local base64_encode = base64.encode
-local base64_decode = base64.decode
-local cbor_codec = require("smithy.codec.cbor")
+    it("parses_integer_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Integer":1234}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Integer = 1234,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-local function assert_cbor_eq(actual_bytes, expected_bytes)
-    local ok1, actual = pcall(cbor_codec.decode_item, actual_bytes, 1)
-    assert(ok1, "failed to decode actual CBOR: " .. tostring(actual))
-    local ok2, expected = pcall(cbor_codec.decode_item, expected_bytes, 1)
-    assert(ok2, "failed to decode expected CBOR: " .. tostring(expected))
-    if not deep_eq(actual, expected) then
-        error("CBOR mismatch:\n  expected: " .. tostring(expected) .. "\n  actual:   " .. tostring(actual), 2)
-    end
-end
+    it("parses_long_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Long":1234567890123456789}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Long = 1234567890123456789,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_operations_with_empty_json_bodies", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_float_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Float":1234.5}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Float = 1234.5,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_double_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Double":123456789.12345679}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Double = 1.2345678912345679E8,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_boolean_shapes_true", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Boolean":true}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Boolean = true,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_boolean_false", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Boolean":false}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Boolean = false,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_blob_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Blob":"YmluYXJ5LXZhbHVl"}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Blob = "binary-value",
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_timestamp_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Timestamp":946845296}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Timestamp = 946845296,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_iso8601_timestamps", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"Iso8601Timestamp":"2000-01-02T20:34:56Z"}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            Iso8601Timestamp = 946845296,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_httpdate_timestamps", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"HttpdateTimestamp":"Sun, 02 Jan 2000 20:34:56 GMT"}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            HttpdateTimestamp = 946845296,
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_list_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"ListOfStrings":["abc","mno","xyz"]}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            ListOfStrings = {
+            "abc",
+            "mno",
+            "xyz",
         },
-        body = http.string_reader([[{}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_string_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_list_of_map_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"ListOfMapsOfStrings":[{"size":"large"},{"color":"red"}]}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            ListOfMapsOfStrings = {
+            {
+            size = "large",
         },
-        body = http.string_reader([[{"String":"string-value"}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        String = "string-value",
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_integer_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+            {
+            color = "red",
         },
-        body = http.string_reader([[{"Integer":1234}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Integer = 1234,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_long_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"Long":1234567890123456789}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Long = 1234567890123456789,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_float_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_list_of_list_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([=[{"ListOfLists":[["abc","mno","xyz"],["hjk","qrs","tuv"]]}]=]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            ListOfLists = {
+            {
+            "abc",
+            "mno",
+            "xyz",
         },
-        body = http.string_reader([[{"Float":1234.5}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Float = 1234.5,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_double_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+            {
+            "hjk",
+            "qrs",
+            "tuv",
         },
-        body = http.string_reader([[{"Double":123456789.12345679}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Double = 1.2345678912345679E8,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_boolean_shapes_true", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"Boolean":true}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Boolean = true,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_boolean_false", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_list_of_structure_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"ListOfStructs":[{"Value":"value-1"},{"Value":"value-2"}]}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            ListOfStructs = {
+            {
+            Value = "value-1",
         },
-        body = http.string_reader([[{"Boolean":false}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Boolean = false,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_blob_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+            {
+            Value = "value-2",
         },
-        body = http.string_reader([[{"Blob":"YmluYXJ5LXZhbHVl"}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Blob = "binary-value",
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_timestamp_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"Timestamp":946845296}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Timestamp = 946845296,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_iso8601_timestamps", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_list_of_recursive_structure_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"RecursiveList":[{"RecursiveList":[{"RecursiveList":[{"String":"value"}]}]}]}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            RecursiveList = {
+            {
+            RecursiveList = {
+            {
+            RecursiveList = {
+            {
+            String = "value",
         },
-        body = http.string_reader([[{"Iso8601Timestamp":"2000-01-02T20:34:56Z"}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        Iso8601Timestamp = 946845296,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_httpdate_timestamps", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"HttpdateTimestamp":"Sun, 02 Jan 2000 20:34:56 GMT"}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        HttpdateTimestamp = 946845296,
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_list_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"ListOfStrings":["abc","mno","xyz"]}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        ListOfStrings = {
-        "abc",
-        "mno",
-        "xyz",
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_list_of_map_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"ListOfMapsOfStrings":[{"size":"large"},{"color":"red"}]}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        ListOfMapsOfStrings = {
-        {
-        size = "large",
-    },
-        {
-        color = "red",
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_list_of_list_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([=[{"ListOfLists":[["abc","mno","xyz"],["hjk","qrs","tuv"]]}]=]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        ListOfLists = {
-        {
-        "abc",
-        "mno",
-        "xyz",
-    },
-        {
-        "hjk",
-        "qrs",
-        "tuv",
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_list_of_structure_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"ListOfStructs":[{"Value":"value-1"},{"Value":"value-2"}]}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        ListOfStructs = {
-        {
-        Value = "value-1",
-    },
-        {
-        Value = "value-2",
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_list_of_recursive_structure_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_map_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"MapOfStrings":{"size":"large","color":"red"}}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            MapOfStrings = {
+            size = "large",
+            color = "red",
         },
-        body = http.string_reader([[{"RecursiveList":[{"RecursiveList":[{"RecursiveList":[{"String":"value"}]}]}]}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        RecursiveList = {
-        {
-        RecursiveList = {
-        {
-        RecursiveList = {
-        {
-        String = "value",
-    },
-    },
-    },
-    },
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_map_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_map_of_list_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"MapOfListsOfStrings":{"sizes":["large","small"],"colors":["red","green"]}}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            MapOfListsOfStrings = {
+            sizes = {
+            "large",
+            "small",
         },
-        body = http.string_reader([[{"MapOfStrings":{"size":"large","color":"red"}}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        MapOfStrings = {
-        size = "large",
-        color = "red",
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_map_of_list_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+            colors = {
+            "red",
+            "green",
         },
-        body = http.string_reader([[{"MapOfListsOfStrings":{"sizes":["large","small"],"colors":["red","green"]}}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        MapOfListsOfStrings = {
-        sizes = {
-        "large",
-        "small",
-    },
-        colors = {
-        "red",
-        "green",
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_map_of_map_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
         },
-        body = http.string_reader([[{"MapOfMaps":{"sizes":{"large":"L","medium":"M"},"colors":{"red":"R","blue":"B"}}}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        MapOfMaps = {
-        sizes = {
-        large = "L",
-        medium = "M",
-    },
-        colors = {
-        red = "R",
-        blue = "B",
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-test("parses_map_of_structure_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+    it("parses_map_of_map_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"MapOfMaps":{"sizes":{"large":"L","medium":"M"},"colors":{"red":"R","blue":"B"}}}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            MapOfMaps = {
+            sizes = {
+            large = "L",
+            medium = "M",
         },
-        body = http.string_reader([[{"MapOfStructs":{"size":{"Value":"small"},"color":{"Value":"red"}}}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        MapOfStructs = {
-        size = {
-        Value = "small",
-    },
-        color = {
-        Value = "red",
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_map_of_recursive_structure_shapes", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
+            colors = {
+            red = "R",
+            blue = "B",
         },
-        body = http.string_reader([[{"RecursiveMap":{"key-1":{"RecursiveMap":{"key-2":{"RecursiveMap":{"key-3":{"String":"value"}}}}}}}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-    local expected = {
-        RecursiveMap = {
-        ["key-1"] = {
-        RecursiveMap = {
-        ["key-2"] = {
-        RecursiveMap = {
-        ["key-3"] = {
-        String = "value",
-    },
-    },
-    },
-    },
-    },
-    },
-    }
-    assert_deep_eq(output, expected, "output")
-end)
-
-test("parses_the_request_id_from_the_response", function()
-    local response = {
-        status_code = 200,
-        headers = {
-            ["Content-Type"] = "application/x-amz-json-1.1",
-            ["X-Amzn-Requestid"] = "amazon-uniq-request-id",
         },
-        body = http.string_reader([[{}]]),
-    }
-    local operation = schema.operation({
-        id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
-        input = schema.new({ type = "structure" }),
-        output = types.KitchenSinkOperationOutput,
-        traits = {},
-    })
-    local output, err = protocol:deserialize(response, operation)
-    assert(not err, "deserialize error: " .. tostring(err and err.message or err))
-end)
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
 
-print(string.format("\n%d passed, %d skipped", pass_count, skip_count))
+    it("parses_map_of_structure_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"MapOfStructs":{"size":{"Value":"small"},"color":{"Value":"red"}}}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            MapOfStructs = {
+            size = {
+            Value = "small",
+        },
+            color = {
+            Value = "red",
+        },
+        },
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_map_of_recursive_structure_shapes", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+            },
+            body = http.string_reader([[{"RecursiveMap":{"key-1":{"RecursiveMap":{"key-2":{"RecursiveMap":{"key-3":{"String":"value"}}}}}}}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+        local expected = {
+            RecursiveMap = {
+            ["key-1"] = {
+            RecursiveMap = {
+            ["key-2"] = {
+            RecursiveMap = {
+            ["key-3"] = {
+            String = "value",
+        },
+        },
+        },
+        },
+        },
+        },
+        }
+        h.assert_deep_eq(output, expected, "output")
+    end)
+
+    it("parses_the_request_id_from_the_response", function()
+        local response = {
+            status_code = 200,
+            headers = {
+                ["Content-Type"] = "application/x-amz-json-1.1",
+                ["X-Amzn-Requestid"] = "amazon-uniq-request-id",
+            },
+            body = http.string_reader([[{}]]),
+        }
+        local operation = schema.operation({
+            id = shape_id.from("aws.protocoltests.json", "KitchenSinkOperation"),
+            input = schema.new({ type = "structure" }),
+            output = types.KitchenSinkOperationOutput,
+            traits = {},
+        })
+        local output, err = protocol:deserialize(response, operation)
+        assert.is_nil(err, "deserialize error: " .. tostring(err and err.message or err))
+    end)
+
+end)
