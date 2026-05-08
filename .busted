@@ -1,18 +1,21 @@
 return {
     default = {
-        loaders = {"teal", "lua"},
+        helper = "test/helper.lua",
+        loaders = {"teal"},
         lpath = "runtime/?.lua;runtime/?/init.lua",
         pattern = "test_",
         ROOT = {"test/"},
     },
     protocol = {
-        loaders = {"teal", "lua"},
+        helper = "test/helper.lua",
+        loaders = {"teal"},
         lpath = "protocoltest/?.lua;runtime/?.lua;runtime/?/init.lua",
         pattern = "test_",
         ROOT = {"protocoltest/"},
     },
     endpoint = {
-        loaders = {"teal", "lua"},
+        helper = "test/helper.lua",
+        loaders = {"teal"},
         lpath = "build/?.lua;build/?/init.lua;runtime/?.lua;runtime/?/init.lua",
         pattern = "test_",
         ROOT = {"build/sqs/"},
