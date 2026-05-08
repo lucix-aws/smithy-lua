@@ -1,10 +1,19 @@
 -- Test: runtime/retry.lua + runtime/retry/standard.lua + client.lua retry loop
 
+local async = require("smithy.async")
 local retry = require("smithy.retry")
 local standard = require("smithy.retry.standard")
 local error_mod = require("smithy.error")
 local client_mod = require("smithy.client")
 local schema = require("smithy.schema")
+
+local function wrap_http(fn)
+    return { roundtrip = function(_, req)
+        local op = async.new_operation()
+        op:resolve(fn(req))
+        return op
+    end }
+end
 
 describe("retry", function()
 
@@ -142,7 +151,7 @@ it("client: no retry_strategy = single attempt (backward compat)", function()
                 return nil, error_mod.new_api_error("InternalError", "fail", 500)
             end,
         },
-        http_client = function() return { status_code = 500, headers = {} } end,
+        http_client = wrap_http(function() return { status_code = 500, headers = {} } end),
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
@@ -170,7 +179,7 @@ it("client: retry loop retries transient errors", function()
                 return { Result = "ok" }
             end,
         },
-        http_client = function() return { status_code = 200, headers = {} } end,
+        http_client = wrap_http(function() return { status_code = 200, headers = {} } end),
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
@@ -196,7 +205,7 @@ it("client: retry loop stops on non-retryable error", function()
                 return nil, error_mod.new_api_error("ValidationError", "bad", 400)
             end,
         },
-        http_client = function() return { status_code = 400, headers = {} } end,
+        http_client = wrap_http(function() return { status_code = 400, headers = {} } end),
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
@@ -221,7 +230,7 @@ it("client: retry loop stops at max attempts", function()
                 return nil, error_mod.new_api_error("InternalError", "fail", 500)
             end,
         },
-        http_client = function() return { status_code = 500, headers = {} } end,
+        http_client = wrap_http(function() return { status_code = 500, headers = {} } end),
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },
@@ -250,10 +259,10 @@ it("client: URL rebuilt on each retry attempt", function()
                 return { Result = "ok" }
             end,
         },
-        http_client = function(req)
+        http_client = wrap_http(function(req)
             urls[#urls + 1] = req.url
             return { status_code = 200, headers = {} }
-        end,
+        end),
         endpoint_provider = function() return { url = "https://example.com" } end,
         auth_schemes = { ["aws.auth#sigv4"] = { scheme_id = "aws.auth#sigv4", identity_type = "aws_credentials", signer = function(req) return req end, identity_resolver = function(self, ir) return ir.aws_credentials end } },
         identity_resolvers = { aws_credentials = function() return {} end },

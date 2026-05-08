@@ -1,6 +1,7 @@
 -- HTTP client using libcurl via LuaJIT FFI (curl_multi for streaming).
--- Conforms to: function(request) -> response, err
+-- Conforms to: HttpClient interface (roundtrip method returns Operation)
 
+local async = require("smithy.async")
 local ffi = require("ffi")
 local http = require("smithy.http")
 
@@ -272,7 +273,12 @@ function M.new(): http.HttpClient
         } as http.Response, nil
     end
     ;(jit as any).off(do_request)
-    return do_request as http.HttpClient
+    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation
+        local op = async.new_operation()
+        local result, err = do_request(req as StreamingRequest)
+        op:resolve(result, err)
+        return op
+    end } as http.HttpClient
 end
 
 return M

@@ -89,7 +89,7 @@ describe("Loop + curl_async integration", function()
             url = "https://httpbin.org/get",
             headers = {},
         }
-        local op = http:send(request)
+        local op = http:roundtrip(request)
         local response, err = op:await()
         assert(response, "expected response, got error: " .. tostring(err and err.message))
         assert.are.equal(200, response.status_code)
@@ -99,7 +99,7 @@ describe("Loop + curl_async integration", function()
         local http = curl_async.new()
         local ops = {}
         for i = 1, 3 do
-            ops[i] = http:send({
+            ops[i] = http:roundtrip({
                 method = "GET",
                 url = "https://httpbin.org/get?n=" .. i,
                 headers = {},
@@ -115,7 +115,7 @@ describe("Loop + curl_async integration", function()
     it("POST with body", function()
         local http = curl_async.new()
         local smithy_http = require("smithy.http")
-        local op = http:send({
+        local op = http:roundtrip({
             method = "POST",
             url = "https://httpbin.org/post",
             headers = { ["content-type"] = "application/json" },

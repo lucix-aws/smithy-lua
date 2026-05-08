@@ -1,8 +1,10 @@
 -- smithy-lua runtime: base client + invokeOperation pipeline
 
+local async = require("smithy.async")
 local auth = require("smithy.auth")
 local eventstream = require("smithy.eventstream")
 local eventstream_signer = require("smithy.eventstream_signer")
+local http = require("smithy.http")
 local interceptor = require("smithy.interceptor")
 local traits = require("smithy.traits")
 
@@ -182,10 +184,11 @@ local function do_attempt(config: {string:any}, service: any, operation: any, in
     end
 
     -- Transmit
-    local http_client = config.http_client as function(any): any, any
+    local http_client = config.http_client as http.HttpClient
     local response: any
     local tx_err: any
-    response, tx_err = http_client(request)
+    local tx_op = http_client:roundtrip(request as http.Request)
+    response, tx_err = tx_op:await()
     if tx_err then return nil, tx_err end
     ctx.response = response
 
@@ -238,6 +241,13 @@ local function do_attempt(config: {string:any}, service: any, operation: any, in
 end
 
 function M.invokeOperation(self: any, service: any, operation: any, input: any, options: any): any, any
+    local op = async.new_operation() as any
+    local result, err = M._doInvoke(self, service, operation, input, options)
+    op:resolve(result, err)
+    return op
+end
+
+function M._doInvoke(self: any, service: any, operation: any, input: any, options: any): any, any
     local self_tbl = self as {string:any}
     local config = shallow_copy(self_tbl.config as {string:any})
     if options then

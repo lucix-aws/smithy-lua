@@ -1,6 +1,7 @@
 -- HTTP client using curl subprocess fallback.
--- Conforms to: function(request) -> response, err
+-- Conforms to: HttpClient interface (roundtrip method returns Operation)
 
+local async = require("smithy.async")
 local http = require("smithy.http")
 
 local record M
@@ -17,7 +18,7 @@ function M.available(): boolean
 end
 
 function M.new(): http.HttpClient
-    return function(request: http.Request): http.Response, http.Error
+    local function do_request(request: http.Request): http.Response, http.Error
         -- Read body
         local body = ""
         if request.body then
@@ -98,6 +99,13 @@ function M.new(): http.HttpClient
             body = http.string_reader(resp_body),
         }, nil
     end
+
+    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation
+        local op = async.new_operation()
+        local result, err = do_request(req)
+        op:resolve(result, err)
+        return op
+    end } as http.HttpClient
 end
 
 return M

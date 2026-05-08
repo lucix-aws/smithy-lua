@@ -1,8 +1,17 @@
 -- Test: runtime/smithy/interceptor.lua + client.lua interceptor integration
 
+local async = require("smithy.async")
 local client_mod = require("smithy.client")
 local auth = require("smithy.auth")
 local schema = require("smithy.schema")
+
+local function wrap_http(fn)
+    return { roundtrip = function(_, req)
+        local op = async.new_operation()
+        op:resolve(fn(req))
+        return op
+    end }
+end
 
 local function assert_contains(tbl, value, msg)
     for _, v in ipairs(tbl) do
@@ -34,9 +43,9 @@ local function make_config(interceptors)
     return {
         service_id = "test",
         protocol = mock_protocol,
-        http_client = function(request)
+        http_client = wrap_http(function(request)
             return { status_code = 200, headers = {}, body = nil }, nil
-        end,
+        end),
         endpoint_provider = function(params)
             return { url = "https://test.us-east-1.amazonaws.com" }, nil
         end,
@@ -148,10 +157,10 @@ it("modify_before_transmit can add headers", function()
     }
     local transmitted_request
     local cfg = make_config({i})
-    cfg.http_client = function(request)
+    cfg.http_client = wrap_http(function(request)
         transmitted_request = request
         return { status_code = 200, headers = {}, body = nil }, nil
-    end
+    end)
     local c = client_mod.new(cfg)
     c:invokeOperation(test_service, test_operation, {}):await()
     assert.are.equal("intercepted", transmitted_request.headers["X-Custom"])

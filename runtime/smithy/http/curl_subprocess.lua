@@ -1,6 +1,7 @@
 
 
 
+local async = require("smithy.async")
 local http = require("smithy.http")
 
 local M = {}
@@ -98,7 +99,13 @@ function M.new()
          body = http.string_reader(resp_body),
       }, nil
    end
-   return { is_async = function() return false end, send = function(_, req) return do_request(req) end }
+
+   return { roundtrip = function(_self, req)
+      local op = async.new_operation()
+      local result, err = do_request(req)
+      op:resolve(result, err)
+      return op
+   end, }
 end
 
 return M

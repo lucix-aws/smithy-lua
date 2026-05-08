@@ -1,8 +1,13 @@
 -- smithy-lua runtime: HTTP types and helpers
 
+local async = require("smithy.async")
+
 local record M
     type Reader = function(): string, M.Error
-    type HttpClient = function(request: M.Request): M.Response, M.Error
+
+    record HttpClient
+        roundtrip: function(HttpClient, M.Request): async.Operation
+    end
 
     record Error
         type: string

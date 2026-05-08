@@ -20,6 +20,7 @@ local M = { ResolveError = {} }
 
 local backends = {
    { name = "crt", mod = "aws_crt.http" },
+   { name = "curl_async", mod = "smithy.http.curl_async" },
    { name = "curl_ffi", mod = "smithy.http.curl_ffi" },
    { name = "curl_subprocess", mod = "smithy.http.curl_subprocess" },
 }

@@ -1,7 +1,16 @@
 -- Test: runtime/smithy/dynamic.lua
 
+local async = require("smithy.async")
 local dynamic = require("smithy.dynamic")
 local traits = require("smithy.traits")
+
+local function wrap_http(fn)
+    return { roundtrip = function(_, req)
+        local op = async.new_operation()
+        op:resolve(fn(req))
+        return op
+    end }
+end
 
 local REST_MODEL = {
     smithy = "2.0",
@@ -155,7 +164,7 @@ it("call serializes and deserializes via pipeline", function()
         model = "test/fixtures/test_service.json",
         region = "us-east-1",
         endpoint_url = "https://example.com",
-        http_client = mock_http,
+        http_client = wrap_http(mock_http),
         auth_scheme_resolver = function()
             return { { scheme_id = "smithy.api#noAuth" } }
         end,
@@ -189,7 +198,7 @@ it("REST protocol: HTTP bindings in path and query", function()
         model = REST_MODEL,
         region = "us-east-1",
         endpoint_url = "https://example.com",
-        http_client = mock_http,
+        http_client = wrap_http(mock_http),
         auth_scheme_resolver = function()
             return { { scheme_id = "smithy.api#noAuth" } }
         end,

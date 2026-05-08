@@ -1,6 +1,7 @@
 
 
 
+local async = require("smithy.async")
 local ffi = require("ffi")
 local http = require("smithy.http")
 
@@ -272,7 +273,12 @@ function M.new()
       }, nil
    end;
    (jit).off(do_request)
-   return { is_async = function() return false end, send = function(_, req) return do_request(req) end }
+   return { roundtrip = function(_self, req)
+      local op = async.new_operation()
+      local result, err = do_request(req)
+      op:resolve(result, err)
+      return op
+   end, }
 end
 
 return M

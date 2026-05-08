@@ -1,5 +1,5 @@
 -- HTTP client resolver: probes available backends and returns the best one.
--- Resolution order: CRT > libcurl FFI > curl subprocess
+-- Resolution order: CRT > curl_async > curl_ffi > curl subprocess
 
 local http = require("smithy.http")
 
@@ -20,6 +20,7 @@ end
 
 local backends: {Backend} = {
     { name = "crt",             mod = "aws_crt.http" },
+    { name = "curl_async",      mod = "smithy.http.curl_async" },
     { name = "curl_ffi",        mod = "smithy.http.curl_ffi" },
     { name = "curl_subprocess", mod = "smithy.http.curl_subprocess" },
 }

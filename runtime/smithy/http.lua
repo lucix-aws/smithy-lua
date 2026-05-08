@@ -1,6 +1,11 @@
 
 
-local M = { Error = {}, Request = {}, Response = {} }
+local async = require("smithy.async")
+
+local M = { HttpClient = {}, Error = {}, Request = {}, Response = {} }
+
+
+
 
 
 

@@ -37,13 +37,7 @@ function M.pages(client, op_name, input, config)
 
       local cl = client
       local op_fn = cl[op_name]
-      local r1, r2 = op_fn(client, input)
-      local output, err
-      if type(r1) == "table" and r1.await then
-         output, err = r1:await()
-      else
-         output, err = r1, r2
-      end
+      local output, err = op_fn(client, input)
       if err then
          done = true
          return nil, err

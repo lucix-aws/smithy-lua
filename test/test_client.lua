@@ -1,8 +1,17 @@
 -- Test: runtime/client.lua pipeline wiring with SRA auth resolution
 
+local async = require("smithy.async")
 local client_mod = require("smithy.client")
 local auth = require("smithy.auth")
 local schema = require("smithy.schema")
+
+local function wrap_http(fn)
+    return { roundtrip = function(_, req)
+        local op = async.new_operation()
+        op:resolve(fn(req))
+        return op
+    end }
+end
 
 -- Track call order across all mocks
 local calls = {}
@@ -58,7 +67,7 @@ local function make_auth_config(overrides)
     local cfg = {
         service_id = "sts",
         protocol = mock_protocol,
-        http_client = mock_http_client,
+        http_client = wrap_http(mock_http_client),
         endpoint_provider = mock_endpoint_provider,
         region = "us-east-1",
         auth_schemes = {
@@ -106,10 +115,10 @@ it("endpoint is applied to request URL", function()
     local captured_request
     local c = client_mod.new(make_auth_config({
         region = "us-west-2",
-        http_client = function(req)
+        http_client = wrap_http(function(req)
             captured_request = req
             return { status_code = 200, headers = {}, body = nil }, nil
-        end,
+        end),
     }))
     c:invokeOperation(service, operation, {}):await()
     assert.are.equal("https://sts.us-west-2.amazonaws.com/", captured_request.url)
@@ -129,10 +138,10 @@ it("operation plugins can override config", function()
     calls = {}
     local captured_request
     local c = client_mod.new(make_auth_config({
-        http_client = function(req)
+        http_client = wrap_http(function(req)
             captured_request = req
             return { status_code = 200, headers = {}, body = nil }, nil
-        end,
+        end),
     }))
     c:invokeOperation(service, operation, {}, {
         plugins = {
