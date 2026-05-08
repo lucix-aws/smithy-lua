@@ -1,8 +1,8 @@
 package software.amazon.smithy.lua.codegen;
 
 import software.amazon.smithy.model.shapes.EnumShape;
-import software.amazon.smithy.model.shapes.IntEnumShape;
 import software.amazon.smithy.model.shapes.Shape;
+import software.amazon.smithy.model.traits.EnumTrait;
 
 /**
  * Generates enum type definitions into types.tl.
@@ -10,12 +10,20 @@ import software.amazon.smithy.model.shapes.Shape;
 final class EnumGenerator {
 
     static void writeEnum(LuaWriter writer, Shape shape, LuaContext context) {
-        var enumShape = (EnumShape) shape;
-        var name = enumShape.getId().getName(context.service());
+        var name = shape.getId().getName(context.service());
         writer.write("enum $L", name);
         writer.indent();
-        for (var v : enumShape.getEnumValues().values()) {
-            writer.write("\"$L\"", v);
+        if (shape instanceof EnumShape enumShape) {
+            for (var v : enumShape.getEnumValues().values()) {
+                writer.write("\"$L\"", v);
+            }
+        } else {
+            // Smithy 1.0 string shape with @enum trait
+            shape.getTrait(EnumTrait.class).ifPresent(t -> {
+                for (var def : t.getValues()) {
+                    writer.write("\"$L\"", def.getValue());
+                }
+            });
         }
         writer.dedent();
         writer.write("end");
