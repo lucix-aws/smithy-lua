@@ -528,7 +528,7 @@ local function decode_node(node: M.XmlNode, schema: schema_mod.Schema, codec: M)
     end
 end
 
-function M.deserialize(self: M, bytes: string, schema: schema_mod.Schema, _root_name: string): any, {string:string}
+function M.deserialize(self: M, bytes: string, schema: schema_mod.Schema, _root_name?: string): any, {string:string}
     if not bytes or #bytes == 0 then return {}, nil end
     local ok, node = pcall(parse_xml, bytes)
     if not ok then

@@ -4,8 +4,13 @@ local http = require("smithy.http")
 local prelude = require("smithy.prelude")
 local schema_mod = require("smithy.schema")
 
+local record Codec
+    serialize: function(Codec, input: {string:any}, schema: schema_mod.Schema): string, any
+    deserialize: function(Codec, bytes: string, schema: schema_mod.Schema): any, any
+end
+
 local record M
-    codec: any
+    codec: Codec
     protocol_id: string
     content_type: string
     service_name: string
@@ -16,7 +21,7 @@ end
 
 local M_mt: metatable<M> = { __index = M }
 
-local function new(codec: any, protocol_id: string, content_type: string, settings: {string:any}): M
+local function new(codec: Codec, protocol_id: string, content_type: string, settings: {string:any}): M
     settings = settings or {}
     return setmetatable({
         codec = codec,
@@ -29,12 +34,12 @@ end
 
 function M.new_cbor(settings: {string:any}): M
     local cbor_codec = require("smithy.codec.cbor")
-    return new(cbor_codec.new(), "rpc-v2-cbor", "application/cbor", settings)
+    return new(cbor_codec.new() as Codec, "rpc-v2-cbor", "application/cbor", settings)
 end
 
 function M.new_json(settings: {string:any}): M
     local json_codec = require("smithy.codec.json")
-    return new(json_codec.new(), "rpc-v2-json", "application/json", settings)
+    return new(json_codec.new() as Codec, "rpc-v2-json", "application/json", settings)
 end
 
 function M:serialize(input: {string:any}, service: schema_mod.ServiceSchema, operation: schema_mod.OperationSchema): http.Request, http.Error
@@ -53,7 +58,7 @@ function M:serialize(input: {string:any}, service: schema_mod.ServiceSchema, ope
     end
 
     headers["Content-Type"] = self.content_type
-    local body_str, err = (self.codec as json_codec):serialize(input, schema)
+    local body_str, err = self.codec:serialize(input, schema)
     if err then return nil, err as http.Error end
 
     return http.new_request("POST", path, headers, http.string_reader(body_str)), nil
@@ -82,7 +87,7 @@ function M:deserialize(response: http.Response, operation: schema_mod.OperationS
     if response.status_code < 200 or response.status_code >= 300 then
         local code, message = "UnknownError", ""
         if body_str and #body_str > 0 then
-            local raw = (self.codec as json_codec):deserialize(body_str, nil)
+            local raw = self.codec:deserialize(body_str, nil as schema_mod.Schema)
             if type(raw) == "table" then
                 local tbl = raw as {string:any}
                 local rt = (tbl["__type"] or "") as string
@@ -102,7 +107,7 @@ function M:deserialize(response: http.Response, operation: schema_mod.OperationS
 
     if not body_str or #body_str == 0 then return {}, nil end
 
-    local result, err = (self.codec as json_codec):deserialize(body_str, operation.output)
+    local result, err = self.codec:deserialize(body_str, operation.output)
     if err then return nil, err as http.Error end
     return result as {string:any}, nil
 end

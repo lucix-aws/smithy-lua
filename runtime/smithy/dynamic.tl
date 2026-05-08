@@ -92,6 +92,8 @@ local function Converter_new(shapes: {string:any}): Converter
     return setmetatable({ shapes = shapes, cache = {} } as Converter, Converter_mt)
 end
 
+local Converter_convert: function(Converter, string): any
+
 local function Converter_get_schema(self: Converter, shape_id_str: string): any
     local cached = self.cache[shape_id_str]
     if cached then return cached end
@@ -200,7 +202,7 @@ local function Converter_convert_aggregate(self: Converter, shape_id_str: string
     } as {string:any})
 end
 
-function Converter_convert(self: Converter, shape_id_str: string): any
+Converter_convert = function(self: Converter, shape_id_str: string): any
     local shape = self.shapes[shape_id_str] as {string:any}
     if not shape then return nil end
 
@@ -213,7 +215,7 @@ function Converter_convert(self: Converter, shape_id_str: string): any
         self.cache[shape_id_str] = placeholder
         local s = Converter_convert_aggregate(self, shape_id_str, shape, sid, stype)
         for k, v in pairs(s as {string:any}) do placeholder[k] = v end
-        setmetatable(placeholder, getmetatable(s as any))
+        setmetatable(placeholder, getmetatable(s as any) as metatable<{string:any}>)
         return placeholder
     end
 
@@ -469,7 +471,7 @@ function M.new(config: {string:any}): M.DynamicClient, string
         if rules_trait then
             local endpoint_engine = require("smithy.endpoint")
             client_config.endpoint_provider = function(params: any): any, any
-                return endpoint_engine.resolve(rules_trait, params)
+                return endpoint_engine.resolve(rules_trait as table, params as {string:any})
             end
         else
             return nil, "no endpoint_url or endpoint rules for service " .. service_id_str
@@ -482,7 +484,8 @@ function M.new(config: {string:any}): M.DynamicClient, string
     defaults.resolve_http_client(client_config)
     defaults.resolve_retry_strategy(client_config)
 
-    local ok, sdk_defaults = pcall(require, "aws.sdk_defaults") as (boolean, any)
+    local req_fn = require as function(string): any
+    local ok, sdk_defaults = pcall(req_fn, "aws.sdk_defaults") as (boolean, any)
     if ok and sdk_defaults then
         local sd = sdk_defaults as {string:any}
         if sd.resolve_identity_resolver then
@@ -490,7 +493,7 @@ function M.new(config: {string:any}): M.DynamicClient, string
             resolve_fn(client_config)
         end
     else
-        local cred_ok, env_creds = pcall(require, "aws.credentials.environment") as (boolean, any)
+        local cred_ok, env_creds = pcall(req_fn, "aws.credentials.environment") as (boolean, any)
         if cred_ok then
             local ec = env_creds as {string:any}
             local new_fn = ec.new as function(): any
@@ -512,7 +515,7 @@ function M.new(config: {string:any}): M.DynamicClient, string
         traits = svc_traits,
     } as {string:any})
 
-    local client = base_client.new(client_config) as M.DynamicClient
+    local client = base_client.new(client_config as base_client.ClientConfig) as M.DynamicClient
 
     local op_cache: {string:any} = {}
 

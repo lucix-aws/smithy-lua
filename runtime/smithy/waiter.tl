@@ -145,7 +145,8 @@ function M.compute_delay(attempt: number, min_delay: number, max_delay: number):
 end
 
 local function sleep(seconds: number)
-    local ok, socket = pcall(require, "socket") as (boolean, any)
+    local req_fn = require as function(string): any
+    local ok, socket = pcall(req_fn, "socket") as (boolean, any)
     if ok and (socket as {string:any}).sleep then
         local sleep_fn = (socket as {string:any}).sleep as function(number)
         sleep_fn(seconds)

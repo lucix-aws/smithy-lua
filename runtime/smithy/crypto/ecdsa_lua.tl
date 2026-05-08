@@ -44,7 +44,7 @@ function M.sign(d: bigint.BigInt, hash_bytes: string): string
             if not bigint.is_zero(r) then
                 local k_inv = field.inv_n(k)
                 local rd = field.mul_mod_n(r, d)
-                local zrd = field.mod_n(bigint.add(z, rd))
+                local zrd = field.mod_n((bigint.add(z, rd)))
                 local s = field.mul_mod_n(k_inv, zrd)
                 if not bigint.is_zero(s) then
                     return M.der_encode(r, s)

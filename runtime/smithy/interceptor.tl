@@ -13,7 +13,7 @@ local function run_read(interceptors: {any}, hook_name: string, context: {string
         local ic = interceptors[i] as {string:any}
         local hook = ic[hook_name] as function(any, any)
         if hook then
-            local ok, err = pcall(hook, interceptors[i], context)
+            local ok, err = pcall(hook, interceptors[i], context) as (boolean, any)
             if not ok then
                 last_err = err
             end
@@ -68,7 +68,7 @@ local function run_read_with_error(interceptors: {any}, hook_name: string, conte
         local ic = interceptors[i] as {string:any}
         local hook = ic[hook_name] as function(any, any, any)
         if hook then
-            local ok, new_err = pcall(hook, interceptors[i], context, err)
+            local ok, new_err = pcall(hook, interceptors[i], context, err) as (boolean, any)
             if not ok then
                 err = new_err
             end

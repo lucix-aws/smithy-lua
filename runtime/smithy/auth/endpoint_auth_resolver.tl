@@ -21,13 +21,15 @@ function M.new(config: {string:any}): function(any, any, any): {any}
         if config.disable_s3_express_session_auth then
             ep_params.DisableS3ExpressSessionAuth = true
         end
-        local static_ctx = operation:trait(traits.STATIC_CONTEXT_PARAMS)
+        local op_trait = (operation as {string:any}).trait as function(any, any): any
+        local svc_trait = (service as {string:any}).trait as function(any, any): any
+        local static_ctx = op_trait(operation, traits.STATIC_CONTEXT_PARAMS)
         if static_ctx then
             for param_name, param_def in pairs(static_ctx as {string:{string:any}}) do
                 ep_params[param_name] = param_def.value
             end
         end
-        local ctx_params = operation:trait(traits.CONTEXT_PARAMS)
+        local ctx_params = op_trait(operation, traits.CONTEXT_PARAMS)
         if ctx_params and input then
             for param_name, input_field in pairs(ctx_params as {string:string}) do
                 ep_params[param_name] = input[input_field]
@@ -37,14 +39,14 @@ function M.new(config: {string:any}): function(any, any, any): {any}
         local endpoint_provider = config.endpoint_provider as function({string:any}): {string:any}, string
         local endpoint, err = endpoint_provider(ep_params)
         if err then
-            local auth_trait = operation:trait(traits.AUTH) or service:trait(traits.AUTH)
-            return auth_trait or {} as {any}
+            local auth_trait = op_trait(operation, traits.AUTH) or svc_trait(service, traits.AUTH)
+            return (auth_trait or {}) as {any}
         end
 
         local props = endpoint.properties as {string:any}
         if not props or not props.authSchemes then
-            local auth_trait = operation:trait(traits.AUTH) or service:trait(traits.AUTH)
-            return auth_trait or {} as {any}
+            local auth_trait = op_trait(operation, traits.AUTH) or svc_trait(service, traits.AUTH)
+            return (auth_trait or {}) as {any}
         end
 
         local options: {any} = {}

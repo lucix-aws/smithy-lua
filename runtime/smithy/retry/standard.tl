@@ -38,8 +38,8 @@ local record Token
     cost: number
 end
 
-function M.new(opts: Opts): table
-    opts = opts or {} as Opts
+function M.new(opts_in?: any): table
+    local opts = (opts_in or {}) as Opts
     local max_attempts = opts.max_attempts or M.DEFAULT_MAX_ATTEMPTS
     local max_backoff = opts.max_backoff or M.DEFAULT_MAX_BACKOFF
     local retry_cost = opts.retry_cost or M.DEFAULT_RETRY_COST
@@ -60,11 +60,11 @@ function M.new(opts: Opts): table
         if token.attempt >= max_attempts then
             return nil as number, err
         end
-        if not (error_mod as table).is_retryable(err) then
+        if not error_mod.is_retryable(err as error_mod.Error) then
             return nil as number, err
         end
 
-        local cost = (error_mod as table).is_timeout(err) and timeout_cost or retry_cost
+        local cost = error_mod.is_timeout(err as error_mod.Error) and timeout_cost or retry_cost
         if capacity < cost then
             return nil as number, err
         end

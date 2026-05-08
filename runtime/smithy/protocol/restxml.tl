@@ -18,7 +18,7 @@ end
 
 local M_mt: metatable<M> = { __index = M }
 
-function M.new(settings: {string:any}): M
+function M.new(settings?: {string:any}): M
     settings = settings or {}
     return setmetatable({
         codec = xml_codec.new({

@@ -31,13 +31,21 @@ local record M
     NO_AUTH: string
     anonymous_identity: table
     no_auth_scheme: AuthScheme
+
+    new_credentials: function(access_key: string, secret_key: string, session_token: string, expiration: number): Credentials
+    anonymous_identity_resolver: function(): table, any
+    anonymous_signer: function(request: any, _identity: any, _props: {string:any}): any, any
+    new_auth_scheme: function(scheme_id: string, identity_type: string, signer: function(any, any, {string:any}): any, any): AuthScheme
+    default_auth_scheme_resolver: function(service: any, operation: any, input: any): {AuthOption}
+    select_scheme: function(options: {AuthOption}, auth_schemes: {string:AuthScheme}, identity_resolvers: {string:function}): AuthSelection, string
+    apply_endpoint_auth_overrides: function(endpoint: {string:any}, scheme_id: string, signer_properties: {string:any})
 end
 
 M.SIGV4 = "aws.auth#sigv4"
 M.SIGV4A = "aws.auth#sigv4a"
 M.NO_AUTH = "smithy.api#noAuth"
 
-function M.new_credentials(access_key: string, secret_key: string, session_token: string, expiration: number): Credentials
+function M.new_credentials(access_key: string, secret_key: string, session_token: string, expiration: number): M.Credentials
     return {
         access_key = access_key,
         secret_key = secret_key,
@@ -56,12 +64,12 @@ function M.anonymous_signer(request: any, _identity: any, _props: {string:any}):
     return request, nil
 end
 
-function M.new_auth_scheme(scheme_id: string, identity_type: string, signer: function(any, any, {string:any}): any, any): AuthScheme
+function M.new_auth_scheme(scheme_id: string, identity_type: string, signer: function(any, any, {string:any}): any, any): M.AuthScheme
     return {
         scheme_id = scheme_id,
         identity_type = identity_type,
         signer = signer,
-        identity_resolver = function(self: AuthScheme, identity_resolvers: {string:function}): function
+        identity_resolver = function(self: M.AuthScheme, identity_resolvers: {string:function}): function
             return identity_resolvers[self.identity_type]
         end,
     }
@@ -71,21 +79,23 @@ M.no_auth_scheme = {
     scheme_id = M.NO_AUTH,
     identity_type = "anonymous",
     signer = M.anonymous_signer,
-    identity_resolver = function(_self: AuthScheme, _identity_resolvers: {string:function}): function
+    identity_resolver = function(_self: M.AuthScheme, _identity_resolvers: {string:function}): function
         return M.anonymous_identity_resolver
     end,
 }
 
-function M.default_auth_scheme_resolver(service: any, operation: any): {AuthOption}
+function M.default_auth_scheme_resolver(service: any, operation: any, _input: any): {M.AuthOption}
     local traits = require("smithy.traits")
-    local auth_trait = operation:trait(traits.AUTH)
+    local op_trait = (operation as {string:any}).trait as function(any, any): any
+    local auth_trait = op_trait(operation, traits.AUTH)
     if not auth_trait then
-        auth_trait = service:trait(traits.AUTH)
+        local svc_trait = (service as {string:any}).trait as function(any, any): any
+        auth_trait = svc_trait(service, traits.AUTH)
     end
-    return auth_trait or {} as {AuthOption}
+    return (auth_trait or {}) as {M.AuthOption}
 end
 
-function M.select_scheme(options: {AuthOption}, auth_schemes: {string:AuthScheme}, identity_resolvers: {string:function}): AuthSelection, string
+function M.select_scheme(options: {M.AuthOption}, auth_schemes: {string:M.AuthScheme}, identity_resolvers: {string:function}): M.AuthSelection, string
     for _, option in ipairs(options) do
         if option.scheme_id == M.NO_AUTH then
             return {
@@ -98,9 +108,10 @@ function M.select_scheme(options: {AuthOption}, auth_schemes: {string:AuthScheme
         if scheme then
             local resolver = scheme:identity_resolver(identity_resolvers)
             if resolver then
-                local sel: AuthSelection = {
+                local typed_resolver = resolver as function(): any, any
+                local sel: M.AuthSelection = {
                     scheme = scheme,
-                    identity_resolver = resolver,
+                    identity_resolver = typed_resolver,
                     signer_properties = option.signer_properties or {},
                 }
                 return sel

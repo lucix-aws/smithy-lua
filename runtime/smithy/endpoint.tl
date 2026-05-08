@@ -1,7 +1,14 @@
 local partitions = require("smithy.endpoint.partitions")
 
 local record M
+    record Endpoint
+        url: string
+        headers: {string:{string}}
+        properties: {string:any}
+    end
+
     _call_fn: function(string, {any}, {string: any}): any
+    resolve: function(ruleset: table, params: {string:any}): Endpoint, string
 end
 
 local UNSET: table = {}
@@ -19,7 +26,7 @@ local function get_attr(obj: any, path: string): any
             if key ~= "" then cur = (cur as table)[key] end
             local idx = tonumber(idx_str) as integer
             if idx < 0 then
-                idx = #(cur as table) + idx + 1
+                idx = #(cur as {any}) + idx + 1
             else
                 idx = idx + 1
             end
@@ -397,7 +404,7 @@ local function resolve_deep(val: any, scope: {string: any}): any
     return val
 end
 
-local function eval_endpoint(endpoint: {string: any}, scope: {string: any}): table
+local function eval_endpoint(endpoint: {string: any}, scope: {string: any}): M.Endpoint
     local url: any
     if type(endpoint["url"]) == "string" then
         url = resolve_template(endpoint["url"], scope)
@@ -426,10 +433,10 @@ local function eval_endpoint(endpoint: {string: any}, scope: {string: any}): tab
         properties = resolve_deep(endpoint["properties"], scope)
     end
 
-    return { url = url, headers = headers, properties = properties }
+    return { url = url as string, headers = headers, properties = properties } as M.Endpoint
 end
 
-local function eval_rules(rules: {any}, scope: {string: any}): table, string
+local function eval_rules(rules: {any}, scope: {string: any}): M.Endpoint, string
     for _, rule_any in ipairs(rules) do
         local rule = rule_any as {string: any}
         local child = setmetatable({} as {string: any}, { __index = scope })
@@ -444,24 +451,24 @@ local function eval_rules(rules: {any}, scope: {string: any}): table, string
                 else
                     msg = resolve_arg(rule["error"], child) as string
                 end
-                return nil as table, msg
+                return nil as M.Endpoint, msg
             elseif rule["type"] == "tree" then
                 local result, err = eval_rules(rule["rules"] as {any}, child)
                 if result or err then
                     return result, err
                 end
-                return nil as table, "rules exhausted in tree rule"
+                return nil as M.Endpoint, "rules exhausted in tree rule"
             end
         end
     end
-    return nil as table, nil as string
+    return nil as M.Endpoint, nil as string
 end
 
 ---------------------------------------------------------------------------
 -- Public API
 ---------------------------------------------------------------------------
 
-function M.resolve(ruleset: table, params: {string: any}): table, string
+function M.resolve(ruleset: table, params: {string: any}): M.Endpoint, string
     local rs = ruleset as {string: any}
     local scope: {string: any} = {}
     if rs["parameters"] then
@@ -473,7 +480,7 @@ function M.resolve(ruleset: table, params: {string: any}): table, string
             end
             if val == nil then
                 if def["required"] then
-                    return nil as table, "required endpoint parameter missing: " .. name
+                    return nil as M.Endpoint, "required endpoint parameter missing: " .. name
                 end
                 scope[name] = UNSET
             else
@@ -489,8 +496,8 @@ function M.resolve(ruleset: table, params: {string: any}): table, string
 
     local result, err = eval_rules(rs["rules"] as {any}, scope)
     if result then return result, nil as string end
-    if err then return nil as table, err end
-    return nil as table, "endpoint rules exhausted without a match"
+    if err then return nil as M.Endpoint, err end
+    return nil as M.Endpoint, "endpoint rules exhausted without a match"
 end
 
 return M

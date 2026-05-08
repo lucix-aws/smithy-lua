@@ -15,7 +15,7 @@ end
 
 local M_mt: metatable<M> = { __index = M }
 
-function M.new(_settings: any): M
+function M.new(_settings?: any): M
     return setmetatable({
         codec = json_codec.new({
             use_json_name = true,

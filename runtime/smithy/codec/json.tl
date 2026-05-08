@@ -31,7 +31,7 @@ local M_mt: metatable<M> = { __index = M }
 
 local encode_string = encoder._encode_string
 
-function M.new(settings: {string:any}): M
+function M.new(settings?: {string:any}): M
     settings = settings or {}
     return setmetatable({
         use_json_name = settings.use_json_name as boolean or false,

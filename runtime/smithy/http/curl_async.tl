@@ -113,7 +113,7 @@ local function new_loop(): Loop
 end
 
 function loop_idx:add(easy_handle: ffi.CData, cleanup_fn: function(ffi.CData): any, any): async.Operation<any>
-    local op = async.new_operation()
+    local op: async.Operation<any> = async.new_operation()
     local key = tostring(easy_handle)
     self._handles[key] = { op = op, cleanup = cleanup_fn, handle = easy_handle }
     curl.curl_multi_add_handle(self._multi, easy_handle)
@@ -197,7 +197,7 @@ function M.new(): http.HttpClient
     local function do_request(request: http.Request): async.Operation<http.Response>
         local handle = curl.curl_easy_init() as ffi.CData
         if handle == nil then
-            local op = async.new_operation()
+            local op: async.Operation<http.Response> = async.new_operation()
             op:resolve(nil, { type = "http", code = "CurlError", message = "curl_easy_init failed" })
             return op
         end
@@ -207,7 +207,7 @@ function M.new(): http.HttpClient
         local resp_headers: {string:string} = {}
         local got_status = false
         local transfer_done = false
-        local op = async.new_operation()
+        local op: async.Operation<http.Response> = async.new_operation()
 
         local write_cb = ffi.cast("size_t (*)(char *, size_t, size_t, void *)",
         function(ptr: ffi.CData, size: number, nmemb: number, _: ffi.CData): number

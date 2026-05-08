@@ -71,7 +71,7 @@ do
     end
 end
 
-local function crc32(data: any, offset: number, len: number, init: number): number
+local function crc32(data: any, offset: number, len: number, init?: number): number
     local crc = bxor(init or 0, 0xFFFFFFFF)
     for i = offset, offset + len - 1 do
         local b = (data as {number:number})[i]
@@ -138,7 +138,7 @@ function M.decode_frame(data: string): M.Frame, string
 end
 
 function M._decode_from_buf(buf: any, buf_len: number): M.Frame, string
-    local pos = 0
+    local pos: number = 0
 
     local total_len: number
     local headers_len: number
@@ -340,8 +340,8 @@ function M.deserialize_event(frame: M.Frame, event_schema: any, codec: any): any
             return nil, { type = "api", code = "UnknownError", message = "missing :exception-type" }
         end
         local members_fn = (event_schema as {string:any}).members as function(any): {string:any}
-        local es_members = members_fn and members_fn(event_schema) or (event_schema as {string:any})._members
-        local member_schema = es_members and es_members[exc_type]
+        local es_members: {string:any} = members_fn and members_fn(event_schema) or (event_schema as {string:any})._members as {string:any}
+        local member_schema = es_members and (es_members as {string:any})[exc_type]
         if not member_schema then
             return nil, { type = "api", code = exc_type, message = "unknown exception type" }
         end
@@ -366,8 +366,8 @@ function M.deserialize_event(frame: M.Frame, event_schema: any, codec: any): any
         end
 
         local members_fn = (event_schema as {string:any}).members as function(any): {string:any}
-        local es_members = members_fn and members_fn(event_schema) or (event_schema as {string:any})._members
-        local member_schema = es_members and es_members[event_type]
+        local es_members: {string:any} = members_fn and members_fn(event_schema) or (event_schema as {string:any})._members as {string:any}
+        local member_schema = es_members and (es_members as {string:any})[event_type]
         if not member_schema then
             return nil, nil
         end
@@ -453,7 +453,7 @@ end
 -- Frame encoding
 ----------------------------------------------------------------------------
 
-local function crc32_string(s: string, init: number): number
+local function crc32_string(s: string, init?: number): number
     local len = #s
     local buf = ffi.new("uint8_t[?]", len)
     ffi.copy(buf, s, len)
@@ -492,8 +492,8 @@ function M.serialize_event(event: any, event_schema: any, codec: any): string, s
     end
 
     local members_fn = (event_schema as {string:any}).members as function(any): {string:any}
-    local es_members = members_fn and members_fn(event_schema) or (event_schema as {string:any})._members
-    local member_schema = es_members and es_members[event_type]
+    local es_members: {string:any} = members_fn and members_fn(event_schema) or (event_schema as {string:any})._members as {string:any}
+    local member_schema = es_members and (es_members as {string:any})[event_type]
     if not member_schema then
         return nil, "unknown event type: " .. event_type
     end

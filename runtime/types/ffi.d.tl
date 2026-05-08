@@ -3,8 +3,8 @@ local record ffi
     record CType end
 
     record CData
-        metamethod __index: function(CData, integer): any
-        metamethod __newindex: function(CData, integer, any)
+        metamethod __index: function(CData, any): any
+        metamethod __newindex: function(CData, any, any)
         free: function(CData)
     end
 

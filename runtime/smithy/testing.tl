@@ -9,7 +9,7 @@ local M = {}
 function M.read_body(body: any): string
     if not body then return "" end
     if type(body) == "string" then return body as string end
-    return http.read_all(body) or ""
+    return http.read_all(body as http.Reader) or ""
 end
 
 function M.base64_decode(s: string): string

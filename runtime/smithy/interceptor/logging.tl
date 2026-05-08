@@ -15,7 +15,7 @@ local Interceptor: {string:any} = {}
 Interceptor.__index = Interceptor
 
 function M.new(): M.Interceptor
-    return setmetatable({}, Interceptor) as M.Interceptor
+    return setmetatable({} as M.Interceptor, Interceptor as metatable<M.Interceptor>)
 end
 
 (Interceptor as {string:function}).read_before_transmit = function(self: any, ctx: {string:any})

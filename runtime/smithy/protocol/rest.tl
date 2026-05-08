@@ -10,7 +10,7 @@ local stype = schema_mod.type
 local record M
     KEY_ONLY: table
 
-    uri_encode: function(s: string, greedy: boolean): string
+    uri_encode: function(s: string, greedy?: boolean): string
     expand_path: function(template: string, labels: {string:any}): string
     format_query_value: function(v: any): string
     build_query: function(params: {string:any}): string
@@ -26,7 +26,7 @@ end
 
 M.KEY_ONLY = {}
 
-function M.uri_encode(s: string, greedy: boolean): string
+function M.uri_encode(s: string, greedy?: boolean): string
     s = tostring(s)
     local out: {string} = {}
     for i = 1, #s do

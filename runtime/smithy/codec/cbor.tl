@@ -30,7 +30,7 @@ end
 
 local M_mt: metatable<M> = { __index = M }
 
-function M.new(_settings: {string:any}): M
+function M.new(_settings?: {string:any}): M
     return setmetatable({} as M, M_mt)
 end
 

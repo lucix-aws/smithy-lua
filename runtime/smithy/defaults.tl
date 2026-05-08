@@ -29,7 +29,7 @@ end
 function M.resolve_http_client(cfg: {string:any})
     if cfg.http_client then return end
     local http_client = require("smithy.http.client")
-    cfg.http_client = (http_client as {string:any}).resolve()
+    cfg.http_client = http_client.resolve()
 end
 
 function M.resolve_retry_strategy(cfg: {string:any})
@@ -37,7 +37,7 @@ function M.resolve_retry_strategy(cfg: {string:any})
     local standard = require("smithy.retry.standard")
     local opts: {string:any} = {}
     if cfg.max_attempts then opts.max_attempts = cfg.max_attempts end
-    cfg.retry_strategy = (standard as {string:any}).new(opts)
+    cfg.retry_strategy = standard.new(opts)
 end
 
 return M

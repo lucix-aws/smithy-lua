@@ -31,7 +31,7 @@ local function hmac_kdf(key: string, label: string, context: string, bit_len: in
         local counter = string.char(0, 0, 0, i)
         output = output .. hmac.digest(key, counter .. fixed)
     end
-    return output:sub(1, bit_len / 8)
+    return output:sub(1, (bit_len / 8) as integer)
 end
 
 local function ct_compare(a: string, b: string): integer
@@ -49,7 +49,7 @@ local function ct_compare(a: string, b: string): integer
     return a_larger - b_larger
 end
 
-local N_MINUS_2_BYTES = bigint.to_bytes(bigint.sub(field.N, bigint.from_int(2)))
+local N_MINUS_2_BYTES = bigint.to_bytes((bigint.sub(field.N, bigint.from_int(2))))
 
 function M.derive_key(access_key_id: string, secret_access_key: string): any, any, any
     local input_key = "AWS4A" .. secret_access_key
@@ -169,7 +169,7 @@ function M.sign(request: any, identity: any, props: {string:any}): any, any
     }, "\n")
 
     local hash = sha256.digest(string_to_sign)
-    local sig_der = ecdsa.sign(d, hash)
+    local sig_der = ecdsa.sign(d as bigint.BigInt, hash)
 
     local sig_hex: {string} = {}
     for i = 1, #sig_der do
