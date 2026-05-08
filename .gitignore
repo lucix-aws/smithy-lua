@@ -15,6 +15,3 @@ codegen/protocol-test-codegen/smithy-build.json
 
 # Compiled Lua output (source is .tl)
 runtime/smithy/**/*.lua
-
-# Compiled Lua output (source is .tl)
-runtime/smithy/**/*.lua

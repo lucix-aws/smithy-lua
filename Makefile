@@ -3,15 +3,9 @@ PROTOCOLTEST_BUILD = codegen/protocol-test-codegen/build/smithyprojections/proto
 
 BUSTED := $(shell test -x $$HOME/.luarocks/bin/busted && echo $$HOME/.luarocks/bin/busted || command -v busted 2>/dev/null)
 
-.PHONY: generate test test-runtime test-codegen protocol-test unit clean teal-build
+.PHONY: generate test test-runtime test-codegen protocol-test unit clean
 
 TL := $(shell command -v tl 2>/dev/null || echo $$HOME/.luarocks/bin/tl)
-
-teal-build:
-	@cd runtime && find smithy -name "*.tl" ! -name "*.d.tl" -print0 | while IFS= read -r -d '' f; do \
-		$(TL) gen --gen-target=5.1 --gen-compat=off "$$f" -o "$${f%.tl}.lua" || exit 1; \
-	done
-	@echo "teal-build: done"
 
 unit:
 	$(BUSTED)
