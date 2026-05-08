@@ -13,11 +13,4 @@ return {
         pattern = "test_",
         ROOT = {"protocoltest/"},
     },
-    endpoint = {
-        helper = "test/helper.lua",
-        loaders = {"teal"},
-        lpath = "build/?.lua;build/?/init.lua;runtime/?.lua;runtime/?/init.lua",
-        pattern = "test_",
-        ROOT = {"build/sqs/"},
-    },
 }

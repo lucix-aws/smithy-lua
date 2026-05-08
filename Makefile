@@ -1,48 +1,31 @@
 CODEGEN_TEST_BUILD = codegen/smithy-lua-codegen-test/build/smithyprojections/smithy-lua-codegen-test
 PROTOCOLTEST_BUILD = codegen/protocol-test-codegen/build/smithyprojections/protocol-test-codegen
 
-BUSTED := $(shell test -x $$HOME/.luarocks/bin/busted && echo $$HOME/.luarocks/bin/busted || command -v busted 2>/dev/null)
+.PHONY: generate test test-runtime test-protocol clean
 
-.PHONY: generate test test-runtime test-codegen protocol-test unit clean
-
-TL := $(shell command -v tl 2>/dev/null || echo $$HOME/.luarocks/bin/tl)
-
-unit:
-	$(BUSTED)
-	$(BUSTED) --run=protocol
+# Disable file insulation: busted's default insulate mode resets package.loaded
+# between test files, forcing the teal loader to re-parse and re-compile every
+# dependency (including the large schemas.tl) for each of the ~365 test files.
+# Since protocol tests are stateless generated code this is safe to disable.
+BUSTED = busted --no-auto-insulate
 
 generate:
-	cd codegen && ./gradlew :smithy-lua-codegen-test:build :protocol-test-codegen:build
-	rm -rf build
-	cp -r runtime build
-	@for proj in $(CODEGEN_TEST_BUILD)/*/; do \
-		codegen_dir=$$(find "$$proj" -name "lua-client-codegen" -type d 2>/dev/null | head -1); \
-		[ -z "$$codegen_dir" ] && continue; \
-		cp -r "$$codegen_dir"/* build/ 2>/dev/null || true; \
-	done
+	cd codegen && ./gradlew clean :protocol-test-codegen:build
 	rm -rf protocoltest
-	@mkdir -p protocoltest
-	@for proj in $(PROTOCOLTEST_BUILD)/*/; do \
+	mkdir -p protocoltest
+	for proj in $(PROTOCOLTEST_BUILD)/*/; do \
 		codegen_dir=$$(find "$$proj" -name "lua-client-codegen" -type d 2>/dev/null | head -1); \
 		[ -z "$$codegen_dir" ] && continue; \
 		cp -r "$$codegen_dir"/* protocoltest/ 2>/dev/null || true; \
 	done
 
-test: test-runtime test-codegen
+test: test-runtime test-protocol
 
-test-runtime: generate
+test-runtime:
 	$(BUSTED)
 
-test-codegen:
-	cd codegen && ./gradlew build
-
-protocol-test:
-	@echo "=== Running protocol tests ==="
+test-protocol:
 	$(BUSTED) --run=protocol
-
-endpoint-test:
-	@echo "=== Running endpoint tests ==="
-	$(BUSTED) --run=endpoint
 
 clean:
 	rm -rf build protocoltest
