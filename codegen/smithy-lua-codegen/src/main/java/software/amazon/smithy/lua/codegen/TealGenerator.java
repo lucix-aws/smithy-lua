@@ -52,32 +52,22 @@ final class TealGenerator {
             writer.write("local record M");
             writer.indent();
 
+            // Walk all shapes reachable from the service
+            var walker = new software.amazon.smithy.model.neighbor.Walker(model);
+            var allShapes = walker.walkShapes(service);
             var emittedRecords = new java.util.HashSet<String>();
 
-            // Generate records for all structures used by this service
-            for (var operation : topDown.getContainedOperations(service)) {
-                var inputShape = operationIndex.expectInputShape(operation);
-                var outputShape = operationIndex.expectOutputShape(operation);
-                if (emittedRecords.add(inputShape.getId().getName(service))) {
-                    writeNestedRecord(writer, inputShape, service, model);
-                    writer.write("");
-                }
-                if (emittedRecords.add(outputShape.getId().getName(service))) {
-                    writeNestedRecord(writer, outputShape, service, model);
-                    writer.write("");
-                }
-            }
-
-            // Generate error records
-            for (var operation : topDown.getContainedOperations(service)) {
-                for (var errorId : operation.getErrors()) {
-                    var errorShape = model.expectShape(errorId, StructureShape.class);
-                    if (emittedRecords.add(errorShape.getId().getName(service))) {
-                        writeNestedRecord(writer, errorShape, service, model);
+            // Generate records for all structures and unions
+            allShapes.stream()
+                .filter(s -> s.getType() == ShapeType.STRUCTURE || s.getType() == ShapeType.UNION)
+                .sorted((a, b) -> a.getId().getName(service).compareTo(b.getId().getName(service)))
+                .forEach(shape -> {
+                    var name = shape.getId().getName(service);
+                    if (emittedRecords.add(name)) {
+                        writeNestedRecordFromShape(writer, shape, service, model);
                         writer.write("");
                     }
-                }
-            }
+                });
 
             // Generate enum types inside M
             model.shapes(EnumShape.class)
@@ -300,6 +290,28 @@ final class TealGenerator {
         "repeat", "return", "then", "true", "until", "while",
         "record", "enum", "type"
     );
+
+    private static void writeNestedRecordFromShape(LuaWriter writer, Shape shape, ServiceShape service, Model model) {
+        var name = shape.getId().getName(service);
+        writeDoc(writer, shape);
+        writer.write("record $L", name);
+        writer.indent();
+        for (var member : shape.members()) {
+            var memberName = member.getMemberName();
+            if (TEAL_RESERVED.contains(memberName)) continue;
+            var target = model.expectShape(member.getTarget());
+            String tealType;
+            if (member.hasTrait(HttpPayloadTrait.class) && target.hasTrait(StreamingTrait.class)) {
+                tealType = "function(): string, string";
+            } else {
+                tealType = toTealType(target, service, model);
+            }
+            writeDoc(writer, member);
+            writer.write("$L: $L", memberName, tealType);
+        }
+        writer.dedent();
+        writer.write("end");
+    }
 
     private static void writeNestedRecord(LuaWriter writer, StructureShape shape, ServiceShape service, Model model) {
         var name = shape.getId().getName(service);

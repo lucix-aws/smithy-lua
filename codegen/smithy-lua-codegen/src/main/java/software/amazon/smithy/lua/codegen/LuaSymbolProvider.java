@@ -102,7 +102,7 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return Symbol.builder()
                 .name("Client")
                 .namespace(serviceNamespace, ".")
-                .definitionFile(serviceNamespace + "/client.lua")
+                .definitionFile(serviceNamespace + "/client.tl")
                 .build();
     }
 
@@ -111,7 +111,7 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return Symbol.builder()
                 .name(StringUtils.uncapitalize(shape.getId().getName(service)))
                 .namespace(serviceNamespace, ".")
-                .definitionFile(serviceNamespace + "/client.lua")
+                .definitionFile(serviceNamespace + "/client.tl")
                 .build();
     }
 
@@ -209,7 +209,7 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return Symbol.builder()
                 .name(name)
                 .namespace(serviceNamespace, ".")
-                .definitionFile(serviceNamespace + "/types.lua")
+                .definitionFile(serviceNamespace + "/types.tl")
                 .build();
     }
 
@@ -218,7 +218,7 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return Symbol.builder()
                 .name(name)
                 .namespace(serviceNamespace, ".")
-                .definitionFile(serviceNamespace + "/schemas.lua")
+                .definitionFile(serviceNamespace + "/schemas.tl")
                 .build();
     }
 
