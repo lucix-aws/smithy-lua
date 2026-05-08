@@ -29,7 +29,7 @@ public final class EndpointTestGenerator implements LuaIntegration {
         }
 
         var serviceNs = LuaSymbolProvider.getServiceNamespace(service);
-        var filePath = serviceNs + "/test_endpoint_rules.lua";
+        var filePath = serviceNs + "/test_endpoint_rules.tl";
         var cases = trait.getTestCases();
 
         context.writerDelegator().useFileWriter(filePath, serviceNs, writer -> {

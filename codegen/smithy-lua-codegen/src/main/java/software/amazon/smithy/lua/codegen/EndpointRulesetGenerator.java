@@ -6,7 +6,7 @@ import software.amazon.smithy.model.node.ObjectNode;
 import software.amazon.smithy.rulesengine.traits.EndpointRuleSetTrait;
 
 /**
- * Generates an endpoint_rules.lua file containing the service's endpoint
+ * Generates an endpoint_rules.tl file containing the service's endpoint
  * ruleset as a Lua table literal.
  */
 public final class EndpointRulesetGenerator {
@@ -14,7 +14,7 @@ public final class EndpointRulesetGenerator {
     private EndpointRulesetGenerator() {}
 
     /**
-     * Generate endpoint_rules.lua for the service if it has an endpointRuleSet trait.
+     * Generate endpoint_rules.tl for the service if it has an endpointRuleSet trait.
      */
     public static void generate(LuaContext context) {
         var service = context.service();
@@ -24,7 +24,7 @@ public final class EndpointRulesetGenerator {
         }
 
         var serviceNs = LuaSymbolProvider.getServiceNamespace(service);
-        var filePath = serviceNs + "/endpoint_rules.lua";
+        var filePath = serviceNs + "/endpoint_rules.tl";
 
         context.writerDelegator().useFileWriter(filePath, serviceNs, writer -> {
             writer.write("return ");

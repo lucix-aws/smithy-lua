@@ -81,7 +81,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                 if (cases.isEmpty()) return;
                 var inputShape = operationIndex.expectInputShape(operation);
                 context.writerDelegator().useFileWriter(
-                        serviceNs + "/test_" + toSnake(opName) + "_request.lua", serviceNs, writer ->
+                        serviceNs + "/test_" + toSnake(opName) + "_request.tl", serviceNs, writer ->
                         writeRequestTests(writer, serviceNs, service, opName, inputShape, cases, protocol, operation));
             });
 
@@ -90,7 +90,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                 if (cases.isEmpty()) return;
                 var outputShape = operationIndex.expectOutputShape(operation);
                 context.writerDelegator().useFileWriter(
-                        serviceNs + "/test_" + toSnake(opName) + "_response.lua", serviceNs, writer ->
+                        serviceNs + "/test_" + toSnake(opName) + "_response.tl", serviceNs, writer ->
                         writeResponseTests(writer, serviceNs, service, opName, outputShape, cases, protocol, model));
             });
 
@@ -101,7 +101,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
                     if (cases.isEmpty()) return;
                     var errorName = errorShape.getId().getName(service);
                     context.writerDelegator().useFileWriter(
-                            serviceNs + "/test_" + toSnake(opName) + "_" + toSnake(errorName) + "_error.lua", serviceNs, writer ->
+                            serviceNs + "/test_" + toSnake(opName) + "_" + toSnake(errorName) + "_error.tl", serviceNs, writer ->
                             writeErrorTests(writer, serviceNs, service, opName, errorShape, errorName, cases, protocol));
                 });
             }
