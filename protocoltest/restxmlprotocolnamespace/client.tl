@@ -17,7 +17,7 @@ local protocol_mod = require("smithy.protocol")
 local record Client
     config: base_client.ClientConfig
     invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
-    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, ? base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
 local record M
@@ -61,7 +61,7 @@ function M.new(cfg?: base_client.ClientConfig): Client
     return self
 end
 
-function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options?: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
 end
 

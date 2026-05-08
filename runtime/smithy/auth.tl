@@ -32,7 +32,7 @@ local record M
     anonymous_identity: table
     no_auth_scheme: AuthScheme
 
-    new_credentials: function(access_key: string, secret_key: string, session_token: string, expiration: number): Credentials
+    new_credentials: function(access_key: string, secret_key: string, session_token?: string, expiration?: number): Credentials
     anonymous_identity_resolver: function(): table, any
     anonymous_signer: function(request: any, _identity: any, _props: {string:any}): any, any
     new_auth_scheme: function(scheme_id: string, identity_type: string, signer: function(any, any, {string:any}): any, any): AuthScheme
@@ -45,7 +45,7 @@ M.SIGV4 = "aws.auth#sigv4"
 M.SIGV4A = "aws.auth#sigv4a"
 M.NO_AUTH = "smithy.api#noAuth"
 
-function M.new_credentials(access_key: string, secret_key: string, session_token: string, expiration: number): M.Credentials
+function M.new_credentials(access_key: string, secret_key: string, session_token?: string, expiration?: number): M.Credentials
     return {
         access_key = access_key,
         secret_key = secret_key,

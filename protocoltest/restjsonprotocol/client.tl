@@ -17,119 +17,119 @@ local protocol_mod = require("smithy.protocol")
 local record Client
     config: base_client.ClientConfig
     invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
-    allQueryStringTypes: function(Client, types.AllQueryStringTypesInput, base_client.InvokeOptions): async.Operation<types.AllQueryStringTypesOutput>
-    constantAndVariableQueryString: function(Client, types.ConstantAndVariableQueryStringInput, base_client.InvokeOptions): async.Operation<types.ConstantAndVariableQueryStringOutput>
-    constantQueryString: function(Client, types.ConstantQueryStringInput, base_client.InvokeOptions): async.Operation<types.ConstantQueryStringOutput>
-    contentTypeParameters: function(Client, types.ContentTypeParametersInput, base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
-    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
-    documentType: function(Client, types.DocumentTypeInput, base_client.InvokeOptions): async.Operation<types.DocumentTypeOutput>
-    documentTypeAsMapValue: function(Client, types.DocumentTypeAsMapValueInput, base_client.InvokeOptions): async.Operation<types.DocumentTypeAsMapValueOutput>
-    documentTypeAsPayload: function(Client, types.DocumentTypeAsPayloadInput, base_client.InvokeOptions): async.Operation<types.DocumentTypeAsPayloadOutput>
-    duplexStream: function(Client, types.DuplexStreamInput, base_client.InvokeOptions): async.Operation<types.DuplexStreamOutput>
-    duplexStreamWithDistinctStreams: function(Client, types.DuplexStreamWithDistinctStreamsInput, base_client.InvokeOptions): async.Operation<types.DuplexStreamWithDistinctStreamsOutput>
-    duplexStreamWithInitialMessages: function(Client, types.DuplexStreamWithInitialMessagesInput, base_client.InvokeOptions): async.Operation<types.DuplexStreamWithInitialMessagesOutput>
-    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    endpointOperation: function(Client, types.EndpointOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
-    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    fractionalSeconds: function(Client, types.FractionalSecondsInput, base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
-    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
-    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
-    httpChecksumRequired: function(Client, types.HttpChecksumRequiredInput, base_client.InvokeOptions): async.Operation<types.HttpChecksumRequiredOutput>
-    httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput, base_client.InvokeOptions): async.Operation<types.HttpEmptyPrefixHeadersOutput>
-    httpEnumPayload: function(Client, types.HttpEnumPayloadInput, base_client.InvokeOptions): async.Operation<types.HttpEnumPayloadOutput>
-    httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsOutput>
-    httpPayloadTraitsWithMediaType: function(Client, types.HttpPayloadTraitsWithMediaTypeInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
-    httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithStructureOutput>
-    httpPayloadWithUnion: function(Client, types.HttpPayloadWithUnionInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithUnionOutput>
-    httpPrefixHeaders: function(Client, types.HttpPrefixHeadersInput, base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersOutput>
-    httpPrefixHeadersInResponse: function(Client, types.HttpPrefixHeadersInResponseInput, base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersInResponseOutput>
-    httpQueryParamsOnlyOperation: function(Client, types.HttpQueryParamsOnlyOperationInput, base_client.InvokeOptions): async.Operation<types.HttpQueryParamsOnlyOperationOutput>
-    httpRequestWithFloatLabels: function(Client, types.HttpRequestWithFloatLabelsInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithFloatLabelsOutput>
-    httpRequestWithGreedyLabelInPath: function(Client, types.HttpRequestWithGreedyLabelInPathInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
-    httpRequestWithLabels: function(Client, types.HttpRequestWithLabelsInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsOutput>
-    httpRequestWithLabelsAndTimestampFormat: function(Client, types.HttpRequestWithLabelsAndTimestampFormatInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
-    httpRequestWithRegexLiteral: function(Client, types.HttpRequestWithRegexLiteralInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithRegexLiteralOutput>
-    httpResponseCode: function(Client, types.HttpResponseCodeInput, base_client.InvokeOptions): async.Operation<types.HttpResponseCodeOutput>
-    httpStringPayload: function(Client, types.HttpStringPayloadInput, base_client.InvokeOptions): async.Operation<types.HttpStringPayloadOutput>
-    ignoreQueryParamsInResponse: function(Client, types.IgnoreQueryParamsInResponseInput, base_client.InvokeOptions): async.Operation<types.IgnoreQueryParamsInResponseOutput>
-    inputAndOutputWithHeaders: function(Client, types.InputAndOutputWithHeadersInput, base_client.InvokeOptions): async.Operation<types.InputAndOutputWithHeadersOutput>
-    inputStream: function(Client, types.InputStreamInput, base_client.InvokeOptions): async.Operation<types.InputStreamOutput>
-    inputStreamWithInitialRequest: function(Client, types.InputStreamWithInitialRequestInput, base_client.InvokeOptions): async.Operation<types.InputStreamWithInitialRequestOutput>
-    jsonBlobs: function(Client, types.JsonBlobsInput, base_client.InvokeOptions): async.Operation<types.JsonBlobsOutput>
-    jsonEnums: function(Client, types.JsonEnumsInput, base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
-    jsonIntEnums: function(Client, types.JsonIntEnumsInput, base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
-    jsonLists: function(Client, types.JsonListsInput, base_client.InvokeOptions): async.Operation<types.JsonListsOutput>
-    jsonMaps: function(Client, types.JsonMapsInput, base_client.InvokeOptions): async.Operation<types.JsonMapsOutput>
-    jsonTimestamps: function(Client, types.JsonTimestampsInput, base_client.InvokeOptions): async.Operation<types.JsonTimestampsOutput>
-    jsonUnions: function(Client, types.JsonUnionsInput, base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
-    malformedAcceptWithBody: function(Client, types.MalformedAcceptWithBodyInput, base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithBodyOutput>
-    malformedAcceptWithGenericString: function(Client, types.MalformedAcceptWithGenericStringInput, base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithGenericStringOutput>
-    malformedAcceptWithPayload: function(Client, types.MalformedAcceptWithPayloadInput, base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithPayloadOutput>
-    malformedBlob: function(Client, types.MalformedBlobInput, base_client.InvokeOptions): async.Operation<types.MalformedBlobOutput>
-    malformedBoolean: function(Client, types.MalformedBooleanInput, base_client.InvokeOptions): async.Operation<types.MalformedBooleanOutput>
-    malformedByte: function(Client, types.MalformedByteInput, base_client.InvokeOptions): async.Operation<types.MalformedByteOutput>
-    malformedContentTypeWithBody: function(Client, types.MalformedContentTypeWithBodyInput, base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithBodyOutput>
-    malformedContentTypeWithGenericString: function(Client, types.MalformedContentTypeWithGenericStringInput, base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithGenericStringOutput>
-    malformedContentTypeWithoutBody: function(Client, types.MalformedContentTypeWithoutBodyInput, base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyOutput>
-    malformedContentTypeWithoutBodyEmptyInput: function(Client, types.MalformedContentTypeWithoutBodyEmptyInputInput, base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyEmptyInputOutput>
-    malformedContentTypeWithPayload: function(Client, types.MalformedContentTypeWithPayloadInput, base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithPayloadOutput>
-    malformedDouble: function(Client, types.MalformedDoubleInput, base_client.InvokeOptions): async.Operation<types.MalformedDoubleOutput>
-    malformedFloat: function(Client, types.MalformedFloatInput, base_client.InvokeOptions): async.Operation<types.MalformedFloatOutput>
-    malformedInteger: function(Client, types.MalformedIntegerInput, base_client.InvokeOptions): async.Operation<types.MalformedIntegerOutput>
-    malformedList: function(Client, types.MalformedListInput, base_client.InvokeOptions): async.Operation<types.MalformedListOutput>
-    malformedLong: function(Client, types.MalformedLongInput, base_client.InvokeOptions): async.Operation<types.MalformedLongOutput>
-    malformedMap: function(Client, types.MalformedMapInput, base_client.InvokeOptions): async.Operation<types.MalformedMapOutput>
-    malformedRequestBody: function(Client, types.MalformedRequestBodyInput, base_client.InvokeOptions): async.Operation<types.MalformedRequestBodyOutput>
-    malformedShort: function(Client, types.MalformedShortInput, base_client.InvokeOptions): async.Operation<types.MalformedShortOutput>
-    malformedString: function(Client, types.MalformedStringInput, base_client.InvokeOptions): async.Operation<types.MalformedStringOutput>
-    malformedTimestampBodyDateTime: function(Client, types.MalformedTimestampBodyDateTimeInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDateTimeOutput>
-    malformedTimestampBodyDefault: function(Client, types.MalformedTimestampBodyDefaultInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDefaultOutput>
-    malformedTimestampBodyHttpDate: function(Client, types.MalformedTimestampBodyHttpDateInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyHttpDateOutput>
-    malformedTimestampHeaderDateTime: function(Client, types.MalformedTimestampHeaderDateTimeInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDateTimeOutput>
-    malformedTimestampHeaderDefault: function(Client, types.MalformedTimestampHeaderDefaultInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDefaultOutput>
-    malformedTimestampHeaderEpoch: function(Client, types.MalformedTimestampHeaderEpochInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderEpochOutput>
-    malformedTimestampPathDefault: function(Client, types.MalformedTimestampPathDefaultInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathDefaultOutput>
-    malformedTimestampPathEpoch: function(Client, types.MalformedTimestampPathEpochInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathEpochOutput>
-    malformedTimestampPathHttpDate: function(Client, types.MalformedTimestampPathHttpDateInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathHttpDateOutput>
-    malformedTimestampQueryDefault: function(Client, types.MalformedTimestampQueryDefaultInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryDefaultOutput>
-    malformedTimestampQueryEpoch: function(Client, types.MalformedTimestampQueryEpochInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryEpochOutput>
-    malformedTimestampQueryHttpDate: function(Client, types.MalformedTimestampQueryHttpDateInput, base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryHttpDateOutput>
-    malformedUnion: function(Client, types.MalformedUnionInput, base_client.InvokeOptions): async.Operation<types.MalformedUnionOutput>
-    mediaTypeHeader: function(Client, types.MediaTypeHeaderInput, base_client.InvokeOptions): async.Operation<types.MediaTypeHeaderOutput>
-    noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
-    noInputAndOutput: function(Client, types.NoInputAndOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
-    nullAndEmptyHeadersClient: function(Client, types.NullAndEmptyHeadersClientInput, base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersClientOutput>
-    nullAndEmptyHeadersServer: function(Client, types.NullAndEmptyHeadersServerInput, base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersServerOutput>
-    omitsNullSerializesEmptyString: function(Client, types.OmitsNullSerializesEmptyStringInput, base_client.InvokeOptions): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
-    omitsSerializingEmptyLists: function(Client, types.OmitsSerializingEmptyListsInput, base_client.InvokeOptions): async.Operation<types.OmitsSerializingEmptyListsOutput>
-    operationWithDefaults: function(Client, types.OperationWithDefaultsInput, base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
-    operationWithNestedStructure: function(Client, types.OperationWithNestedStructureInput, base_client.InvokeOptions): async.Operation<types.OperationWithNestedStructureOutput>
-    outputStream: function(Client, types.OutputStreamInput, base_client.InvokeOptions): async.Operation<types.OutputStreamOutput>
-    outputStreamWithInitialResponse: function(Client, types.OutputStreamWithInitialResponseInput, base_client.InvokeOptions): async.Operation<types.OutputStreamWithInitialResponseOutput>
-    postPlayerAction: function(Client, types.PostPlayerActionInput, base_client.InvokeOptions): async.Operation<types.PostPlayerActionOutput>
-    postUnionWithJsonName: function(Client, types.PostUnionWithJsonNameInput, base_client.InvokeOptions): async.Operation<types.PostUnionWithJsonNameOutput>
-    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
-    queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput, base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
-    queryParamsAsStringListMap: function(Client, types.QueryParamsAsStringListMapInput, base_client.InvokeOptions): async.Operation<types.QueryParamsAsStringListMapOutput>
-    queryPrecedence: function(Client, types.QueryPrecedenceInput, base_client.InvokeOptions): async.Operation<types.QueryPrecedenceOutput>
-    recursiveShapes: function(Client, types.RecursiveShapesInput, base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
-    responseCodeHttpFallback: function(Client, types.ResponseCodeHttpFallbackInput, base_client.InvokeOptions): async.Operation<types.ResponseCodeHttpFallbackOutput>
-    responseCodeRequired: function(Client, types.ResponseCodeRequiredInput, base_client.InvokeOptions): async.Operation<types.ResponseCodeRequiredOutput>
-    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
-    sparseJsonLists: function(Client, types.SparseJsonListsInput, base_client.InvokeOptions): async.Operation<types.SparseJsonListsOutput>
-    sparseJsonMaps: function(Client, types.SparseJsonMapsInput, base_client.InvokeOptions): async.Operation<types.SparseJsonMapsOutput>
-    streamingTraits: function(Client, types.StreamingTraitsInput, base_client.InvokeOptions): async.Operation<types.StreamingTraitsOutput>
-    streamingTraitsRequireLength: function(Client, types.StreamingTraitsRequireLengthInput, base_client.InvokeOptions): async.Operation<types.StreamingTraitsRequireLengthOutput>
-    streamingTraitsWithMediaType: function(Client, types.StreamingTraitsWithMediaTypeInput, base_client.InvokeOptions): async.Operation<types.StreamingTraitsWithMediaTypeOutput>
-    testBodyStructure: function(Client, types.TestBodyStructureInput, base_client.InvokeOptions): async.Operation<types.TestBodyStructureOutput>
-    testGetNoInputNoPayload: function(Client, types.TestGetNoInputNoPayloadInput, base_client.InvokeOptions): async.Operation<types.TestGetNoInputNoPayloadOutput>
-    testGetNoPayload: function(Client, types.TestGetNoPayloadInput, base_client.InvokeOptions): async.Operation<types.TestGetNoPayloadOutput>
-    testPayloadBlob: function(Client, types.TestPayloadBlobInput, base_client.InvokeOptions): async.Operation<types.TestPayloadBlobOutput>
-    testPayloadStructure: function(Client, types.TestPayloadStructureInput, base_client.InvokeOptions): async.Operation<types.TestPayloadStructureOutput>
-    testPostNoInputNoPayload: function(Client, types.TestPostNoInputNoPayloadInput, base_client.InvokeOptions): async.Operation<types.TestPostNoInputNoPayloadOutput>
-    testPostNoPayload: function(Client, types.TestPostNoPayloadInput, base_client.InvokeOptions): async.Operation<types.TestPostNoPayloadOutput>
-    timestampFormatHeaders: function(Client, types.TimestampFormatHeadersInput, base_client.InvokeOptions): async.Operation<types.TimestampFormatHeadersOutput>
-    unitInputAndOutput: function(Client, types.UnitInputAndOutputInput, base_client.InvokeOptions): async.Operation<types.UnitInputAndOutputOutput>
+    allQueryStringTypes: function(Client, types.AllQueryStringTypesInput, ? base_client.InvokeOptions): async.Operation<types.AllQueryStringTypesOutput>
+    constantAndVariableQueryString: function(Client, types.ConstantAndVariableQueryStringInput, ? base_client.InvokeOptions): async.Operation<types.ConstantAndVariableQueryStringOutput>
+    constantQueryString: function(Client, types.ConstantQueryStringInput, ? base_client.InvokeOptions): async.Operation<types.ConstantQueryStringOutput>
+    contentTypeParameters: function(Client, types.ContentTypeParametersInput, ? base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, ? base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+    documentType: function(Client, types.DocumentTypeInput, ? base_client.InvokeOptions): async.Operation<types.DocumentTypeOutput>
+    documentTypeAsMapValue: function(Client, types.DocumentTypeAsMapValueInput, ? base_client.InvokeOptions): async.Operation<types.DocumentTypeAsMapValueOutput>
+    documentTypeAsPayload: function(Client, types.DocumentTypeAsPayloadInput, ? base_client.InvokeOptions): async.Operation<types.DocumentTypeAsPayloadOutput>
+    duplexStream: function(Client, types.DuplexStreamInput, ? base_client.InvokeOptions): async.Operation<types.DuplexStreamOutput>
+    duplexStreamWithDistinctStreams: function(Client, types.DuplexStreamWithDistinctStreamsInput, ? base_client.InvokeOptions): async.Operation<types.DuplexStreamWithDistinctStreamsOutput>
+    duplexStreamWithInitialMessages: function(Client, types.DuplexStreamWithInitialMessagesInput, ? base_client.InvokeOptions): async.Operation<types.DuplexStreamWithInitialMessagesOutput>
+    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, ? base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    endpointOperation: function(Client, types.EndpointOperationInput, ? base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, ? base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    fractionalSeconds: function(Client, types.FractionalSecondsInput, ? base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, ? base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, ? base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+    httpChecksumRequired: function(Client, types.HttpChecksumRequiredInput, ? base_client.InvokeOptions): async.Operation<types.HttpChecksumRequiredOutput>
+    httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput, ? base_client.InvokeOptions): async.Operation<types.HttpEmptyPrefixHeadersOutput>
+    httpEnumPayload: function(Client, types.HttpEnumPayloadInput, ? base_client.InvokeOptions): async.Operation<types.HttpEnumPayloadOutput>
+    httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput, ? base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsOutput>
+    httpPayloadTraitsWithMediaType: function(Client, types.HttpPayloadTraitsWithMediaTypeInput, ? base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
+    httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput, ? base_client.InvokeOptions): async.Operation<types.HttpPayloadWithStructureOutput>
+    httpPayloadWithUnion: function(Client, types.HttpPayloadWithUnionInput, ? base_client.InvokeOptions): async.Operation<types.HttpPayloadWithUnionOutput>
+    httpPrefixHeaders: function(Client, types.HttpPrefixHeadersInput, ? base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersOutput>
+    httpPrefixHeadersInResponse: function(Client, types.HttpPrefixHeadersInResponseInput, ? base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersInResponseOutput>
+    httpQueryParamsOnlyOperation: function(Client, types.HttpQueryParamsOnlyOperationInput, ? base_client.InvokeOptions): async.Operation<types.HttpQueryParamsOnlyOperationOutput>
+    httpRequestWithFloatLabels: function(Client, types.HttpRequestWithFloatLabelsInput, ? base_client.InvokeOptions): async.Operation<types.HttpRequestWithFloatLabelsOutput>
+    httpRequestWithGreedyLabelInPath: function(Client, types.HttpRequestWithGreedyLabelInPathInput, ? base_client.InvokeOptions): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
+    httpRequestWithLabels: function(Client, types.HttpRequestWithLabelsInput, ? base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsOutput>
+    httpRequestWithLabelsAndTimestampFormat: function(Client, types.HttpRequestWithLabelsAndTimestampFormatInput, ? base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
+    httpRequestWithRegexLiteral: function(Client, types.HttpRequestWithRegexLiteralInput, ? base_client.InvokeOptions): async.Operation<types.HttpRequestWithRegexLiteralOutput>
+    httpResponseCode: function(Client, types.HttpResponseCodeInput, ? base_client.InvokeOptions): async.Operation<types.HttpResponseCodeOutput>
+    httpStringPayload: function(Client, types.HttpStringPayloadInput, ? base_client.InvokeOptions): async.Operation<types.HttpStringPayloadOutput>
+    ignoreQueryParamsInResponse: function(Client, types.IgnoreQueryParamsInResponseInput, ? base_client.InvokeOptions): async.Operation<types.IgnoreQueryParamsInResponseOutput>
+    inputAndOutputWithHeaders: function(Client, types.InputAndOutputWithHeadersInput, ? base_client.InvokeOptions): async.Operation<types.InputAndOutputWithHeadersOutput>
+    inputStream: function(Client, types.InputStreamInput, ? base_client.InvokeOptions): async.Operation<types.InputStreamOutput>
+    inputStreamWithInitialRequest: function(Client, types.InputStreamWithInitialRequestInput, ? base_client.InvokeOptions): async.Operation<types.InputStreamWithInitialRequestOutput>
+    jsonBlobs: function(Client, types.JsonBlobsInput, ? base_client.InvokeOptions): async.Operation<types.JsonBlobsOutput>
+    jsonEnums: function(Client, types.JsonEnumsInput, ? base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
+    jsonIntEnums: function(Client, types.JsonIntEnumsInput, ? base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
+    jsonLists: function(Client, types.JsonListsInput, ? base_client.InvokeOptions): async.Operation<types.JsonListsOutput>
+    jsonMaps: function(Client, types.JsonMapsInput, ? base_client.InvokeOptions): async.Operation<types.JsonMapsOutput>
+    jsonTimestamps: function(Client, types.JsonTimestampsInput, ? base_client.InvokeOptions): async.Operation<types.JsonTimestampsOutput>
+    jsonUnions: function(Client, types.JsonUnionsInput, ? base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
+    malformedAcceptWithBody: function(Client, types.MalformedAcceptWithBodyInput, ? base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithBodyOutput>
+    malformedAcceptWithGenericString: function(Client, types.MalformedAcceptWithGenericStringInput, ? base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithGenericStringOutput>
+    malformedAcceptWithPayload: function(Client, types.MalformedAcceptWithPayloadInput, ? base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithPayloadOutput>
+    malformedBlob: function(Client, types.MalformedBlobInput, ? base_client.InvokeOptions): async.Operation<types.MalformedBlobOutput>
+    malformedBoolean: function(Client, types.MalformedBooleanInput, ? base_client.InvokeOptions): async.Operation<types.MalformedBooleanOutput>
+    malformedByte: function(Client, types.MalformedByteInput, ? base_client.InvokeOptions): async.Operation<types.MalformedByteOutput>
+    malformedContentTypeWithBody: function(Client, types.MalformedContentTypeWithBodyInput, ? base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithBodyOutput>
+    malformedContentTypeWithGenericString: function(Client, types.MalformedContentTypeWithGenericStringInput, ? base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithGenericStringOutput>
+    malformedContentTypeWithoutBody: function(Client, types.MalformedContentTypeWithoutBodyInput, ? base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyOutput>
+    malformedContentTypeWithoutBodyEmptyInput: function(Client, types.MalformedContentTypeWithoutBodyEmptyInputInput, ? base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyEmptyInputOutput>
+    malformedContentTypeWithPayload: function(Client, types.MalformedContentTypeWithPayloadInput, ? base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithPayloadOutput>
+    malformedDouble: function(Client, types.MalformedDoubleInput, ? base_client.InvokeOptions): async.Operation<types.MalformedDoubleOutput>
+    malformedFloat: function(Client, types.MalformedFloatInput, ? base_client.InvokeOptions): async.Operation<types.MalformedFloatOutput>
+    malformedInteger: function(Client, types.MalformedIntegerInput, ? base_client.InvokeOptions): async.Operation<types.MalformedIntegerOutput>
+    malformedList: function(Client, types.MalformedListInput, ? base_client.InvokeOptions): async.Operation<types.MalformedListOutput>
+    malformedLong: function(Client, types.MalformedLongInput, ? base_client.InvokeOptions): async.Operation<types.MalformedLongOutput>
+    malformedMap: function(Client, types.MalformedMapInput, ? base_client.InvokeOptions): async.Operation<types.MalformedMapOutput>
+    malformedRequestBody: function(Client, types.MalformedRequestBodyInput, ? base_client.InvokeOptions): async.Operation<types.MalformedRequestBodyOutput>
+    malformedShort: function(Client, types.MalformedShortInput, ? base_client.InvokeOptions): async.Operation<types.MalformedShortOutput>
+    malformedString: function(Client, types.MalformedStringInput, ? base_client.InvokeOptions): async.Operation<types.MalformedStringOutput>
+    malformedTimestampBodyDateTime: function(Client, types.MalformedTimestampBodyDateTimeInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDateTimeOutput>
+    malformedTimestampBodyDefault: function(Client, types.MalformedTimestampBodyDefaultInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDefaultOutput>
+    malformedTimestampBodyHttpDate: function(Client, types.MalformedTimestampBodyHttpDateInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyHttpDateOutput>
+    malformedTimestampHeaderDateTime: function(Client, types.MalformedTimestampHeaderDateTimeInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDateTimeOutput>
+    malformedTimestampHeaderDefault: function(Client, types.MalformedTimestampHeaderDefaultInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDefaultOutput>
+    malformedTimestampHeaderEpoch: function(Client, types.MalformedTimestampHeaderEpochInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderEpochOutput>
+    malformedTimestampPathDefault: function(Client, types.MalformedTimestampPathDefaultInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathDefaultOutput>
+    malformedTimestampPathEpoch: function(Client, types.MalformedTimestampPathEpochInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathEpochOutput>
+    malformedTimestampPathHttpDate: function(Client, types.MalformedTimestampPathHttpDateInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathHttpDateOutput>
+    malformedTimestampQueryDefault: function(Client, types.MalformedTimestampQueryDefaultInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryDefaultOutput>
+    malformedTimestampQueryEpoch: function(Client, types.MalformedTimestampQueryEpochInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryEpochOutput>
+    malformedTimestampQueryHttpDate: function(Client, types.MalformedTimestampQueryHttpDateInput, ? base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryHttpDateOutput>
+    malformedUnion: function(Client, types.MalformedUnionInput, ? base_client.InvokeOptions): async.Operation<types.MalformedUnionOutput>
+    mediaTypeHeader: function(Client, types.MediaTypeHeaderInput, ? base_client.InvokeOptions): async.Operation<types.MediaTypeHeaderOutput>
+    noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput, ? base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
+    noInputAndOutput: function(Client, types.NoInputAndOutputInput, ? base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    nullAndEmptyHeadersClient: function(Client, types.NullAndEmptyHeadersClientInput, ? base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersClientOutput>
+    nullAndEmptyHeadersServer: function(Client, types.NullAndEmptyHeadersServerInput, ? base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersServerOutput>
+    omitsNullSerializesEmptyString: function(Client, types.OmitsNullSerializesEmptyStringInput, ? base_client.InvokeOptions): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
+    omitsSerializingEmptyLists: function(Client, types.OmitsSerializingEmptyListsInput, ? base_client.InvokeOptions): async.Operation<types.OmitsSerializingEmptyListsOutput>
+    operationWithDefaults: function(Client, types.OperationWithDefaultsInput, ? base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
+    operationWithNestedStructure: function(Client, types.OperationWithNestedStructureInput, ? base_client.InvokeOptions): async.Operation<types.OperationWithNestedStructureOutput>
+    outputStream: function(Client, types.OutputStreamInput, ? base_client.InvokeOptions): async.Operation<types.OutputStreamOutput>
+    outputStreamWithInitialResponse: function(Client, types.OutputStreamWithInitialResponseInput, ? base_client.InvokeOptions): async.Operation<types.OutputStreamWithInitialResponseOutput>
+    postPlayerAction: function(Client, types.PostPlayerActionInput, ? base_client.InvokeOptions): async.Operation<types.PostPlayerActionOutput>
+    postUnionWithJsonName: function(Client, types.PostUnionWithJsonNameInput, ? base_client.InvokeOptions): async.Operation<types.PostUnionWithJsonNameOutput>
+    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, ? base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput, ? base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+    queryParamsAsStringListMap: function(Client, types.QueryParamsAsStringListMapInput, ? base_client.InvokeOptions): async.Operation<types.QueryParamsAsStringListMapOutput>
+    queryPrecedence: function(Client, types.QueryPrecedenceInput, ? base_client.InvokeOptions): async.Operation<types.QueryPrecedenceOutput>
+    recursiveShapes: function(Client, types.RecursiveShapesInput, ? base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
+    responseCodeHttpFallback: function(Client, types.ResponseCodeHttpFallbackInput, ? base_client.InvokeOptions): async.Operation<types.ResponseCodeHttpFallbackOutput>
+    responseCodeRequired: function(Client, types.ResponseCodeRequiredInput, ? base_client.InvokeOptions): async.Operation<types.ResponseCodeRequiredOutput>
+    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, ? base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    sparseJsonLists: function(Client, types.SparseJsonListsInput, ? base_client.InvokeOptions): async.Operation<types.SparseJsonListsOutput>
+    sparseJsonMaps: function(Client, types.SparseJsonMapsInput, ? base_client.InvokeOptions): async.Operation<types.SparseJsonMapsOutput>
+    streamingTraits: function(Client, types.StreamingTraitsInput, ? base_client.InvokeOptions): async.Operation<types.StreamingTraitsOutput>
+    streamingTraitsRequireLength: function(Client, types.StreamingTraitsRequireLengthInput, ? base_client.InvokeOptions): async.Operation<types.StreamingTraitsRequireLengthOutput>
+    streamingTraitsWithMediaType: function(Client, types.StreamingTraitsWithMediaTypeInput, ? base_client.InvokeOptions): async.Operation<types.StreamingTraitsWithMediaTypeOutput>
+    testBodyStructure: function(Client, types.TestBodyStructureInput, ? base_client.InvokeOptions): async.Operation<types.TestBodyStructureOutput>
+    testGetNoInputNoPayload: function(Client, types.TestGetNoInputNoPayloadInput, ? base_client.InvokeOptions): async.Operation<types.TestGetNoInputNoPayloadOutput>
+    testGetNoPayload: function(Client, types.TestGetNoPayloadInput, ? base_client.InvokeOptions): async.Operation<types.TestGetNoPayloadOutput>
+    testPayloadBlob: function(Client, types.TestPayloadBlobInput, ? base_client.InvokeOptions): async.Operation<types.TestPayloadBlobOutput>
+    testPayloadStructure: function(Client, types.TestPayloadStructureInput, ? base_client.InvokeOptions): async.Operation<types.TestPayloadStructureOutput>
+    testPostNoInputNoPayload: function(Client, types.TestPostNoInputNoPayloadInput, ? base_client.InvokeOptions): async.Operation<types.TestPostNoInputNoPayloadOutput>
+    testPostNoPayload: function(Client, types.TestPostNoPayloadInput, ? base_client.InvokeOptions): async.Operation<types.TestPostNoPayloadOutput>
+    timestampFormatHeaders: function(Client, types.TimestampFormatHeadersInput, ? base_client.InvokeOptions): async.Operation<types.TimestampFormatHeadersOutput>
+    unitInputAndOutput: function(Client, types.UnitInputAndOutputInput, ? base_client.InvokeOptions): async.Operation<types.UnitInputAndOutputOutput>
 end
 
 local record M
@@ -173,455 +173,455 @@ function M.new(cfg?: base_client.ClientConfig): Client
     return self
 end
 
-function C:allQueryStringTypes(input: types.AllQueryStringTypesInput, options: base_client.InvokeOptions): async.Operation<types.AllQueryStringTypesOutput>
+function C:allQueryStringTypes(input: types.AllQueryStringTypesInput, options?: base_client.InvokeOptions): async.Operation<types.AllQueryStringTypesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.AllQueryStringTypes as schema.OperationSchema, input, options) as async.Operation<types.AllQueryStringTypesOutput>
 end
 
-function C:constantAndVariableQueryString(input: types.ConstantAndVariableQueryStringInput, options: base_client.InvokeOptions): async.Operation<types.ConstantAndVariableQueryStringOutput>
+function C:constantAndVariableQueryString(input: types.ConstantAndVariableQueryStringInput, options?: base_client.InvokeOptions): async.Operation<types.ConstantAndVariableQueryStringOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ConstantAndVariableQueryString as schema.OperationSchema, input, options) as async.Operation<types.ConstantAndVariableQueryStringOutput>
 end
 
-function C:constantQueryString(input: types.ConstantQueryStringInput, options: base_client.InvokeOptions): async.Operation<types.ConstantQueryStringOutput>
+function C:constantQueryString(input: types.ConstantQueryStringInput, options?: base_client.InvokeOptions): async.Operation<types.ConstantQueryStringOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ConstantQueryString as schema.OperationSchema, input, options) as async.Operation<types.ConstantQueryStringOutput>
 end
 
-function C:contentTypeParameters(input: types.ContentTypeParametersInput, options: base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+function C:contentTypeParameters(input: types.ContentTypeParametersInput, options?: base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ContentTypeParameters as schema.OperationSchema, input, options) as async.Operation<types.ContentTypeParametersOutput>
 end
 
-function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options: base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options?: base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DatetimeOffsets as schema.OperationSchema, input, options) as async.Operation<types.DatetimeOffsetsOutput>
 end
 
-function C:documentType(input: types.DocumentTypeInput, options: base_client.InvokeOptions): async.Operation<types.DocumentTypeOutput>
+function C:documentType(input: types.DocumentTypeInput, options?: base_client.InvokeOptions): async.Operation<types.DocumentTypeOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DocumentType as schema.OperationSchema, input, options) as async.Operation<types.DocumentTypeOutput>
 end
 
-function C:documentTypeAsMapValue(input: types.DocumentTypeAsMapValueInput, options: base_client.InvokeOptions): async.Operation<types.DocumentTypeAsMapValueOutput>
+function C:documentTypeAsMapValue(input: types.DocumentTypeAsMapValueInput, options?: base_client.InvokeOptions): async.Operation<types.DocumentTypeAsMapValueOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DocumentTypeAsMapValue as schema.OperationSchema, input, options) as async.Operation<types.DocumentTypeAsMapValueOutput>
 end
 
-function C:documentTypeAsPayload(input: types.DocumentTypeAsPayloadInput, options: base_client.InvokeOptions): async.Operation<types.DocumentTypeAsPayloadOutput>
+function C:documentTypeAsPayload(input: types.DocumentTypeAsPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.DocumentTypeAsPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DocumentTypeAsPayload as schema.OperationSchema, input, options) as async.Operation<types.DocumentTypeAsPayloadOutput>
 end
 
-function C:duplexStream(input: types.DuplexStreamInput, options: base_client.InvokeOptions): async.Operation<types.DuplexStreamOutput>
+function C:duplexStream(input: types.DuplexStreamInput, options?: base_client.InvokeOptions): async.Operation<types.DuplexStreamOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DuplexStream as schema.OperationSchema, input, options) as async.Operation<types.DuplexStreamOutput>
 end
 
-function C:duplexStreamWithDistinctStreams(input: types.DuplexStreamWithDistinctStreamsInput, options: base_client.InvokeOptions): async.Operation<types.DuplexStreamWithDistinctStreamsOutput>
+function C:duplexStreamWithDistinctStreams(input: types.DuplexStreamWithDistinctStreamsInput, options?: base_client.InvokeOptions): async.Operation<types.DuplexStreamWithDistinctStreamsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DuplexStreamWithDistinctStreams as schema.OperationSchema, input, options) as async.Operation<types.DuplexStreamWithDistinctStreamsOutput>
 end
 
-function C:duplexStreamWithInitialMessages(input: types.DuplexStreamWithInitialMessagesInput, options: base_client.InvokeOptions): async.Operation<types.DuplexStreamWithInitialMessagesOutput>
+function C:duplexStreamWithInitialMessages(input: types.DuplexStreamWithInitialMessagesInput, options?: base_client.InvokeOptions): async.Operation<types.DuplexStreamWithInitialMessagesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DuplexStreamWithInitialMessages as schema.OperationSchema, input, options) as async.Operation<types.DuplexStreamWithInitialMessagesOutput>
 end
 
-function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options?: base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EmptyInputAndEmptyOutput as schema.OperationSchema, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
 end
 
-function C:endpointOperation(input: types.EndpointOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+function C:endpointOperation(input: types.EndpointOperationInput, options?: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointOperationOutput>
 end
 
-function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options?: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointWithHostLabelOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
 end
 
-function C:fractionalSeconds(input: types.FractionalSecondsInput, options: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+function C:fractionalSeconds(input: types.FractionalSecondsInput, options?: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FractionalSeconds as schema.OperationSchema, input, options) as async.Operation<types.FractionalSecondsOutput>
 end
 
-function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options?: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.GreetingWithErrors as schema.OperationSchema, input, options) as async.Operation<types.GreetingWithErrorsOutput>
 end
 
-function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options: base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options?: base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HostWithPathOperation as schema.OperationSchema, input, options) as async.Operation<types.HostWithPathOperationOutput>
 end
 
-function C:httpChecksumRequired(input: types.HttpChecksumRequiredInput, options: base_client.InvokeOptions): async.Operation<types.HttpChecksumRequiredOutput>
+function C:httpChecksumRequired(input: types.HttpChecksumRequiredInput, options?: base_client.InvokeOptions): async.Operation<types.HttpChecksumRequiredOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpChecksumRequired as schema.OperationSchema, input, options) as async.Operation<types.HttpChecksumRequiredOutput>
 end
 
-function C:httpEmptyPrefixHeaders(input: types.HttpEmptyPrefixHeadersInput, options: base_client.InvokeOptions): async.Operation<types.HttpEmptyPrefixHeadersOutput>
+function C:httpEmptyPrefixHeaders(input: types.HttpEmptyPrefixHeadersInput, options?: base_client.InvokeOptions): async.Operation<types.HttpEmptyPrefixHeadersOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpEmptyPrefixHeaders as schema.OperationSchema, input, options) as async.Operation<types.HttpEmptyPrefixHeadersOutput>
 end
 
-function C:httpEnumPayload(input: types.HttpEnumPayloadInput, options: base_client.InvokeOptions): async.Operation<types.HttpEnumPayloadOutput>
+function C:httpEnumPayload(input: types.HttpEnumPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.HttpEnumPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpEnumPayload as schema.OperationSchema, input, options) as async.Operation<types.HttpEnumPayloadOutput>
 end
 
-function C:httpPayloadTraits(input: types.HttpPayloadTraitsInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsOutput>
+function C:httpPayloadTraits(input: types.HttpPayloadTraitsInput, options?: base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadTraits as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadTraitsOutput>
 end
 
-function C:httpPayloadTraitsWithMediaType(input: types.HttpPayloadTraitsWithMediaTypeInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
+function C:httpPayloadTraitsWithMediaType(input: types.HttpPayloadTraitsWithMediaTypeInput, options?: base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadTraitsWithMediaType as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
 end
 
-function C:httpPayloadWithStructure(input: types.HttpPayloadWithStructureInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithStructureOutput>
+function C:httpPayloadWithStructure(input: types.HttpPayloadWithStructureInput, options?: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithStructureOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithStructure as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithStructureOutput>
 end
 
-function C:httpPayloadWithUnion(input: types.HttpPayloadWithUnionInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithUnionOutput>
+function C:httpPayloadWithUnion(input: types.HttpPayloadWithUnionInput, options?: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithUnionOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithUnion as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithUnionOutput>
 end
 
-function C:httpPrefixHeaders(input: types.HttpPrefixHeadersInput, options: base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersOutput>
+function C:httpPrefixHeaders(input: types.HttpPrefixHeadersInput, options?: base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPrefixHeaders as schema.OperationSchema, input, options) as async.Operation<types.HttpPrefixHeadersOutput>
 end
 
-function C:httpPrefixHeadersInResponse(input: types.HttpPrefixHeadersInResponseInput, options: base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersInResponseOutput>
+function C:httpPrefixHeadersInResponse(input: types.HttpPrefixHeadersInResponseInput, options?: base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersInResponseOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPrefixHeadersInResponse as schema.OperationSchema, input, options) as async.Operation<types.HttpPrefixHeadersInResponseOutput>
 end
 
-function C:httpQueryParamsOnlyOperation(input: types.HttpQueryParamsOnlyOperationInput, options: base_client.InvokeOptions): async.Operation<types.HttpQueryParamsOnlyOperationOutput>
+function C:httpQueryParamsOnlyOperation(input: types.HttpQueryParamsOnlyOperationInput, options?: base_client.InvokeOptions): async.Operation<types.HttpQueryParamsOnlyOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpQueryParamsOnlyOperation as schema.OperationSchema, input, options) as async.Operation<types.HttpQueryParamsOnlyOperationOutput>
 end
 
-function C:httpRequestWithFloatLabels(input: types.HttpRequestWithFloatLabelsInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithFloatLabelsOutput>
+function C:httpRequestWithFloatLabels(input: types.HttpRequestWithFloatLabelsInput, options?: base_client.InvokeOptions): async.Operation<types.HttpRequestWithFloatLabelsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithFloatLabels as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithFloatLabelsOutput>
 end
 
-function C:httpRequestWithGreedyLabelInPath(input: types.HttpRequestWithGreedyLabelInPathInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
+function C:httpRequestWithGreedyLabelInPath(input: types.HttpRequestWithGreedyLabelInPathInput, options?: base_client.InvokeOptions): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithGreedyLabelInPath as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
 end
 
-function C:httpRequestWithLabels(input: types.HttpRequestWithLabelsInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsOutput>
+function C:httpRequestWithLabels(input: types.HttpRequestWithLabelsInput, options?: base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithLabels as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithLabelsOutput>
 end
 
-function C:httpRequestWithLabelsAndTimestampFormat(input: types.HttpRequestWithLabelsAndTimestampFormatInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
+function C:httpRequestWithLabelsAndTimestampFormat(input: types.HttpRequestWithLabelsAndTimestampFormatInput, options?: base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithLabelsAndTimestampFormat as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
 end
 
-function C:httpRequestWithRegexLiteral(input: types.HttpRequestWithRegexLiteralInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithRegexLiteralOutput>
+function C:httpRequestWithRegexLiteral(input: types.HttpRequestWithRegexLiteralInput, options?: base_client.InvokeOptions): async.Operation<types.HttpRequestWithRegexLiteralOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithRegexLiteral as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithRegexLiteralOutput>
 end
 
-function C:httpResponseCode(input: types.HttpResponseCodeInput, options: base_client.InvokeOptions): async.Operation<types.HttpResponseCodeOutput>
+function C:httpResponseCode(input: types.HttpResponseCodeInput, options?: base_client.InvokeOptions): async.Operation<types.HttpResponseCodeOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpResponseCode as schema.OperationSchema, input, options) as async.Operation<types.HttpResponseCodeOutput>
 end
 
-function C:httpStringPayload(input: types.HttpStringPayloadInput, options: base_client.InvokeOptions): async.Operation<types.HttpStringPayloadOutput>
+function C:httpStringPayload(input: types.HttpStringPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.HttpStringPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpStringPayload as schema.OperationSchema, input, options) as async.Operation<types.HttpStringPayloadOutput>
 end
 
-function C:ignoreQueryParamsInResponse(input: types.IgnoreQueryParamsInResponseInput, options: base_client.InvokeOptions): async.Operation<types.IgnoreQueryParamsInResponseOutput>
+function C:ignoreQueryParamsInResponse(input: types.IgnoreQueryParamsInResponseInput, options?: base_client.InvokeOptions): async.Operation<types.IgnoreQueryParamsInResponseOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.IgnoreQueryParamsInResponse as schema.OperationSchema, input, options) as async.Operation<types.IgnoreQueryParamsInResponseOutput>
 end
 
-function C:inputAndOutputWithHeaders(input: types.InputAndOutputWithHeadersInput, options: base_client.InvokeOptions): async.Operation<types.InputAndOutputWithHeadersOutput>
+function C:inputAndOutputWithHeaders(input: types.InputAndOutputWithHeadersInput, options?: base_client.InvokeOptions): async.Operation<types.InputAndOutputWithHeadersOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.InputAndOutputWithHeaders as schema.OperationSchema, input, options) as async.Operation<types.InputAndOutputWithHeadersOutput>
 end
 
-function C:inputStream(input: types.InputStreamInput, options: base_client.InvokeOptions): async.Operation<types.InputStreamOutput>
+function C:inputStream(input: types.InputStreamInput, options?: base_client.InvokeOptions): async.Operation<types.InputStreamOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.InputStream as schema.OperationSchema, input, options) as async.Operation<types.InputStreamOutput>
 end
 
-function C:inputStreamWithInitialRequest(input: types.InputStreamWithInitialRequestInput, options: base_client.InvokeOptions): async.Operation<types.InputStreamWithInitialRequestOutput>
+function C:inputStreamWithInitialRequest(input: types.InputStreamWithInitialRequestInput, options?: base_client.InvokeOptions): async.Operation<types.InputStreamWithInitialRequestOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.InputStreamWithInitialRequest as schema.OperationSchema, input, options) as async.Operation<types.InputStreamWithInitialRequestOutput>
 end
 
-function C:jsonBlobs(input: types.JsonBlobsInput, options: base_client.InvokeOptions): async.Operation<types.JsonBlobsOutput>
+function C:jsonBlobs(input: types.JsonBlobsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonBlobsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonBlobs as schema.OperationSchema, input, options) as async.Operation<types.JsonBlobsOutput>
 end
 
-function C:jsonEnums(input: types.JsonEnumsInput, options: base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
+function C:jsonEnums(input: types.JsonEnumsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonEnums as schema.OperationSchema, input, options) as async.Operation<types.JsonEnumsOutput>
 end
 
-function C:jsonIntEnums(input: types.JsonIntEnumsInput, options: base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
+function C:jsonIntEnums(input: types.JsonIntEnumsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonIntEnums as schema.OperationSchema, input, options) as async.Operation<types.JsonIntEnumsOutput>
 end
 
-function C:jsonLists(input: types.JsonListsInput, options: base_client.InvokeOptions): async.Operation<types.JsonListsOutput>
+function C:jsonLists(input: types.JsonListsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonListsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonLists as schema.OperationSchema, input, options) as async.Operation<types.JsonListsOutput>
 end
 
-function C:jsonMaps(input: types.JsonMapsInput, options: base_client.InvokeOptions): async.Operation<types.JsonMapsOutput>
+function C:jsonMaps(input: types.JsonMapsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonMapsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonMaps as schema.OperationSchema, input, options) as async.Operation<types.JsonMapsOutput>
 end
 
-function C:jsonTimestamps(input: types.JsonTimestampsInput, options: base_client.InvokeOptions): async.Operation<types.JsonTimestampsOutput>
+function C:jsonTimestamps(input: types.JsonTimestampsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonTimestampsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonTimestamps as schema.OperationSchema, input, options) as async.Operation<types.JsonTimestampsOutput>
 end
 
-function C:jsonUnions(input: types.JsonUnionsInput, options: base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
+function C:jsonUnions(input: types.JsonUnionsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonUnions as schema.OperationSchema, input, options) as async.Operation<types.JsonUnionsOutput>
 end
 
-function C:malformedAcceptWithBody(input: types.MalformedAcceptWithBodyInput, options: base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithBodyOutput>
+function C:malformedAcceptWithBody(input: types.MalformedAcceptWithBodyInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithBodyOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedAcceptWithBody as schema.OperationSchema, input, options) as async.Operation<types.MalformedAcceptWithBodyOutput>
 end
 
-function C:malformedAcceptWithGenericString(input: types.MalformedAcceptWithGenericStringInput, options: base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithGenericStringOutput>
+function C:malformedAcceptWithGenericString(input: types.MalformedAcceptWithGenericStringInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithGenericStringOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedAcceptWithGenericString as schema.OperationSchema, input, options) as async.Operation<types.MalformedAcceptWithGenericStringOutput>
 end
 
-function C:malformedAcceptWithPayload(input: types.MalformedAcceptWithPayloadInput, options: base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithPayloadOutput>
+function C:malformedAcceptWithPayload(input: types.MalformedAcceptWithPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedAcceptWithPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedAcceptWithPayload as schema.OperationSchema, input, options) as async.Operation<types.MalformedAcceptWithPayloadOutput>
 end
 
-function C:malformedBlob(input: types.MalformedBlobInput, options: base_client.InvokeOptions): async.Operation<types.MalformedBlobOutput>
+function C:malformedBlob(input: types.MalformedBlobInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedBlobOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedBlob as schema.OperationSchema, input, options) as async.Operation<types.MalformedBlobOutput>
 end
 
-function C:malformedBoolean(input: types.MalformedBooleanInput, options: base_client.InvokeOptions): async.Operation<types.MalformedBooleanOutput>
+function C:malformedBoolean(input: types.MalformedBooleanInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedBooleanOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedBoolean as schema.OperationSchema, input, options) as async.Operation<types.MalformedBooleanOutput>
 end
 
-function C:malformedByte(input: types.MalformedByteInput, options: base_client.InvokeOptions): async.Operation<types.MalformedByteOutput>
+function C:malformedByte(input: types.MalformedByteInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedByteOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedByte as schema.OperationSchema, input, options) as async.Operation<types.MalformedByteOutput>
 end
 
-function C:malformedContentTypeWithBody(input: types.MalformedContentTypeWithBodyInput, options: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithBodyOutput>
+function C:malformedContentTypeWithBody(input: types.MalformedContentTypeWithBodyInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithBodyOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedContentTypeWithBody as schema.OperationSchema, input, options) as async.Operation<types.MalformedContentTypeWithBodyOutput>
 end
 
-function C:malformedContentTypeWithGenericString(input: types.MalformedContentTypeWithGenericStringInput, options: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithGenericStringOutput>
+function C:malformedContentTypeWithGenericString(input: types.MalformedContentTypeWithGenericStringInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithGenericStringOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedContentTypeWithGenericString as schema.OperationSchema, input, options) as async.Operation<types.MalformedContentTypeWithGenericStringOutput>
 end
 
-function C:malformedContentTypeWithoutBody(input: types.MalformedContentTypeWithoutBodyInput, options: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyOutput>
+function C:malformedContentTypeWithoutBody(input: types.MalformedContentTypeWithoutBodyInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedContentTypeWithoutBody as schema.OperationSchema, input, options) as async.Operation<types.MalformedContentTypeWithoutBodyOutput>
 end
 
-function C:malformedContentTypeWithoutBodyEmptyInput(input: types.MalformedContentTypeWithoutBodyEmptyInputInput, options: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyEmptyInputOutput>
+function C:malformedContentTypeWithoutBodyEmptyInput(input: types.MalformedContentTypeWithoutBodyEmptyInputInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithoutBodyEmptyInputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedContentTypeWithoutBodyEmptyInput as schema.OperationSchema, input, options) as async.Operation<types.MalformedContentTypeWithoutBodyEmptyInputOutput>
 end
 
-function C:malformedContentTypeWithPayload(input: types.MalformedContentTypeWithPayloadInput, options: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithPayloadOutput>
+function C:malformedContentTypeWithPayload(input: types.MalformedContentTypeWithPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedContentTypeWithPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedContentTypeWithPayload as schema.OperationSchema, input, options) as async.Operation<types.MalformedContentTypeWithPayloadOutput>
 end
 
-function C:malformedDouble(input: types.MalformedDoubleInput, options: base_client.InvokeOptions): async.Operation<types.MalformedDoubleOutput>
+function C:malformedDouble(input: types.MalformedDoubleInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedDoubleOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedDouble as schema.OperationSchema, input, options) as async.Operation<types.MalformedDoubleOutput>
 end
 
-function C:malformedFloat(input: types.MalformedFloatInput, options: base_client.InvokeOptions): async.Operation<types.MalformedFloatOutput>
+function C:malformedFloat(input: types.MalformedFloatInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedFloatOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedFloat as schema.OperationSchema, input, options) as async.Operation<types.MalformedFloatOutput>
 end
 
-function C:malformedInteger(input: types.MalformedIntegerInput, options: base_client.InvokeOptions): async.Operation<types.MalformedIntegerOutput>
+function C:malformedInteger(input: types.MalformedIntegerInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedIntegerOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedInteger as schema.OperationSchema, input, options) as async.Operation<types.MalformedIntegerOutput>
 end
 
-function C:malformedList(input: types.MalformedListInput, options: base_client.InvokeOptions): async.Operation<types.MalformedListOutput>
+function C:malformedList(input: types.MalformedListInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedListOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedList as schema.OperationSchema, input, options) as async.Operation<types.MalformedListOutput>
 end
 
-function C:malformedLong(input: types.MalformedLongInput, options: base_client.InvokeOptions): async.Operation<types.MalformedLongOutput>
+function C:malformedLong(input: types.MalformedLongInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedLongOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedLong as schema.OperationSchema, input, options) as async.Operation<types.MalformedLongOutput>
 end
 
-function C:malformedMap(input: types.MalformedMapInput, options: base_client.InvokeOptions): async.Operation<types.MalformedMapOutput>
+function C:malformedMap(input: types.MalformedMapInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedMapOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedMap as schema.OperationSchema, input, options) as async.Operation<types.MalformedMapOutput>
 end
 
-function C:malformedRequestBody(input: types.MalformedRequestBodyInput, options: base_client.InvokeOptions): async.Operation<types.MalformedRequestBodyOutput>
+function C:malformedRequestBody(input: types.MalformedRequestBodyInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedRequestBodyOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedRequestBody as schema.OperationSchema, input, options) as async.Operation<types.MalformedRequestBodyOutput>
 end
 
-function C:malformedShort(input: types.MalformedShortInput, options: base_client.InvokeOptions): async.Operation<types.MalformedShortOutput>
+function C:malformedShort(input: types.MalformedShortInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedShortOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedShort as schema.OperationSchema, input, options) as async.Operation<types.MalformedShortOutput>
 end
 
-function C:malformedString(input: types.MalformedStringInput, options: base_client.InvokeOptions): async.Operation<types.MalformedStringOutput>
+function C:malformedString(input: types.MalformedStringInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedStringOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedString as schema.OperationSchema, input, options) as async.Operation<types.MalformedStringOutput>
 end
 
-function C:malformedTimestampBodyDateTime(input: types.MalformedTimestampBodyDateTimeInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDateTimeOutput>
+function C:malformedTimestampBodyDateTime(input: types.MalformedTimestampBodyDateTimeInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDateTimeOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampBodyDateTime as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampBodyDateTimeOutput>
 end
 
-function C:malformedTimestampBodyDefault(input: types.MalformedTimestampBodyDefaultInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDefaultOutput>
+function C:malformedTimestampBodyDefault(input: types.MalformedTimestampBodyDefaultInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyDefaultOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampBodyDefault as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampBodyDefaultOutput>
 end
 
-function C:malformedTimestampBodyHttpDate(input: types.MalformedTimestampBodyHttpDateInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyHttpDateOutput>
+function C:malformedTimestampBodyHttpDate(input: types.MalformedTimestampBodyHttpDateInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampBodyHttpDateOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampBodyHttpDate as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampBodyHttpDateOutput>
 end
 
-function C:malformedTimestampHeaderDateTime(input: types.MalformedTimestampHeaderDateTimeInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDateTimeOutput>
+function C:malformedTimestampHeaderDateTime(input: types.MalformedTimestampHeaderDateTimeInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDateTimeOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampHeaderDateTime as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampHeaderDateTimeOutput>
 end
 
-function C:malformedTimestampHeaderDefault(input: types.MalformedTimestampHeaderDefaultInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDefaultOutput>
+function C:malformedTimestampHeaderDefault(input: types.MalformedTimestampHeaderDefaultInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderDefaultOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampHeaderDefault as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampHeaderDefaultOutput>
 end
 
-function C:malformedTimestampHeaderEpoch(input: types.MalformedTimestampHeaderEpochInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderEpochOutput>
+function C:malformedTimestampHeaderEpoch(input: types.MalformedTimestampHeaderEpochInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampHeaderEpochOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampHeaderEpoch as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampHeaderEpochOutput>
 end
 
-function C:malformedTimestampPathDefault(input: types.MalformedTimestampPathDefaultInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathDefaultOutput>
+function C:malformedTimestampPathDefault(input: types.MalformedTimestampPathDefaultInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathDefaultOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampPathDefault as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampPathDefaultOutput>
 end
 
-function C:malformedTimestampPathEpoch(input: types.MalformedTimestampPathEpochInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathEpochOutput>
+function C:malformedTimestampPathEpoch(input: types.MalformedTimestampPathEpochInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathEpochOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampPathEpoch as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampPathEpochOutput>
 end
 
-function C:malformedTimestampPathHttpDate(input: types.MalformedTimestampPathHttpDateInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathHttpDateOutput>
+function C:malformedTimestampPathHttpDate(input: types.MalformedTimestampPathHttpDateInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampPathHttpDateOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampPathHttpDate as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampPathHttpDateOutput>
 end
 
-function C:malformedTimestampQueryDefault(input: types.MalformedTimestampQueryDefaultInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryDefaultOutput>
+function C:malformedTimestampQueryDefault(input: types.MalformedTimestampQueryDefaultInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryDefaultOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampQueryDefault as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampQueryDefaultOutput>
 end
 
-function C:malformedTimestampQueryEpoch(input: types.MalformedTimestampQueryEpochInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryEpochOutput>
+function C:malformedTimestampQueryEpoch(input: types.MalformedTimestampQueryEpochInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryEpochOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampQueryEpoch as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampQueryEpochOutput>
 end
 
-function C:malformedTimestampQueryHttpDate(input: types.MalformedTimestampQueryHttpDateInput, options: base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryHttpDateOutput>
+function C:malformedTimestampQueryHttpDate(input: types.MalformedTimestampQueryHttpDateInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedTimestampQueryHttpDateOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedTimestampQueryHttpDate as schema.OperationSchema, input, options) as async.Operation<types.MalformedTimestampQueryHttpDateOutput>
 end
 
-function C:malformedUnion(input: types.MalformedUnionInput, options: base_client.InvokeOptions): async.Operation<types.MalformedUnionOutput>
+function C:malformedUnion(input: types.MalformedUnionInput, options?: base_client.InvokeOptions): async.Operation<types.MalformedUnionOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MalformedUnion as schema.OperationSchema, input, options) as async.Operation<types.MalformedUnionOutput>
 end
 
-function C:mediaTypeHeader(input: types.MediaTypeHeaderInput, options: base_client.InvokeOptions): async.Operation<types.MediaTypeHeaderOutput>
+function C:mediaTypeHeader(input: types.MediaTypeHeaderInput, options?: base_client.InvokeOptions): async.Operation<types.MediaTypeHeaderOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.MediaTypeHeader as schema.OperationSchema, input, options) as async.Operation<types.MediaTypeHeaderOutput>
 end
 
-function C:noInputAndNoOutput(input: types.NoInputAndNoOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
+function C:noInputAndNoOutput(input: types.NoInputAndNoOutputInput, options?: base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndNoOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndNoOutputOutput>
 end
 
-function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+function C:noInputAndOutput(input: types.NoInputAndOutputInput, options?: base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndOutputOutput>
 end
 
-function C:nullAndEmptyHeadersClient(input: types.NullAndEmptyHeadersClientInput, options: base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersClientOutput>
+function C:nullAndEmptyHeadersClient(input: types.NullAndEmptyHeadersClientInput, options?: base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersClientOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NullAndEmptyHeadersClient as schema.OperationSchema, input, options) as async.Operation<types.NullAndEmptyHeadersClientOutput>
 end
 
-function C:nullAndEmptyHeadersServer(input: types.NullAndEmptyHeadersServerInput, options: base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersServerOutput>
+function C:nullAndEmptyHeadersServer(input: types.NullAndEmptyHeadersServerInput, options?: base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersServerOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NullAndEmptyHeadersServer as schema.OperationSchema, input, options) as async.Operation<types.NullAndEmptyHeadersServerOutput>
 end
 
-function C:omitsNullSerializesEmptyString(input: types.OmitsNullSerializesEmptyStringInput, options: base_client.InvokeOptions): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
+function C:omitsNullSerializesEmptyString(input: types.OmitsNullSerializesEmptyStringInput, options?: base_client.InvokeOptions): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OmitsNullSerializesEmptyString as schema.OperationSchema, input, options) as async.Operation<types.OmitsNullSerializesEmptyStringOutput>
 end
 
-function C:omitsSerializingEmptyLists(input: types.OmitsSerializingEmptyListsInput, options: base_client.InvokeOptions): async.Operation<types.OmitsSerializingEmptyListsOutput>
+function C:omitsSerializingEmptyLists(input: types.OmitsSerializingEmptyListsInput, options?: base_client.InvokeOptions): async.Operation<types.OmitsSerializingEmptyListsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OmitsSerializingEmptyLists as schema.OperationSchema, input, options) as async.Operation<types.OmitsSerializingEmptyListsOutput>
 end
 
-function C:operationWithDefaults(input: types.OperationWithDefaultsInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
+function C:operationWithDefaults(input: types.OperationWithDefaultsInput, options?: base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithDefaults as schema.OperationSchema, input, options) as async.Operation<types.OperationWithDefaultsOutput>
 end
 
-function C:operationWithNestedStructure(input: types.OperationWithNestedStructureInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithNestedStructureOutput>
+function C:operationWithNestedStructure(input: types.OperationWithNestedStructureInput, options?: base_client.InvokeOptions): async.Operation<types.OperationWithNestedStructureOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithNestedStructure as schema.OperationSchema, input, options) as async.Operation<types.OperationWithNestedStructureOutput>
 end
 
-function C:outputStream(input: types.OutputStreamInput, options: base_client.InvokeOptions): async.Operation<types.OutputStreamOutput>
+function C:outputStream(input: types.OutputStreamInput, options?: base_client.InvokeOptions): async.Operation<types.OutputStreamOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OutputStream as schema.OperationSchema, input, options) as async.Operation<types.OutputStreamOutput>
 end
 
-function C:outputStreamWithInitialResponse(input: types.OutputStreamWithInitialResponseInput, options: base_client.InvokeOptions): async.Operation<types.OutputStreamWithInitialResponseOutput>
+function C:outputStreamWithInitialResponse(input: types.OutputStreamWithInitialResponseInput, options?: base_client.InvokeOptions): async.Operation<types.OutputStreamWithInitialResponseOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OutputStreamWithInitialResponse as schema.OperationSchema, input, options) as async.Operation<types.OutputStreamWithInitialResponseOutput>
 end
 
-function C:postPlayerAction(input: types.PostPlayerActionInput, options: base_client.InvokeOptions): async.Operation<types.PostPlayerActionOutput>
+function C:postPlayerAction(input: types.PostPlayerActionInput, options?: base_client.InvokeOptions): async.Operation<types.PostPlayerActionOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PostPlayerAction as schema.OperationSchema, input, options) as async.Operation<types.PostPlayerActionOutput>
 end
 
-function C:postUnionWithJsonName(input: types.PostUnionWithJsonNameInput, options: base_client.InvokeOptions): async.Operation<types.PostUnionWithJsonNameOutput>
+function C:postUnionWithJsonName(input: types.PostUnionWithJsonNameInput, options?: base_client.InvokeOptions): async.Operation<types.PostUnionWithJsonNameOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PostUnionWithJsonName as schema.OperationSchema, input, options) as async.Operation<types.PostUnionWithJsonNameOutput>
 end
 
-function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options?: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PutWithContentEncoding as schema.OperationSchema, input, options) as async.Operation<types.PutWithContentEncodingOutput>
 end
 
-function C:queryIdempotencyTokenAutoFill(input: types.QueryIdempotencyTokenAutoFillInput, options: base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+function C:queryIdempotencyTokenAutoFill(input: types.QueryIdempotencyTokenAutoFillInput, options?: base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryIdempotencyTokenAutoFill as schema.OperationSchema, input, options) as async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
 end
 
-function C:queryParamsAsStringListMap(input: types.QueryParamsAsStringListMapInput, options: base_client.InvokeOptions): async.Operation<types.QueryParamsAsStringListMapOutput>
+function C:queryParamsAsStringListMap(input: types.QueryParamsAsStringListMapInput, options?: base_client.InvokeOptions): async.Operation<types.QueryParamsAsStringListMapOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryParamsAsStringListMap as schema.OperationSchema, input, options) as async.Operation<types.QueryParamsAsStringListMapOutput>
 end
 
-function C:queryPrecedence(input: types.QueryPrecedenceInput, options: base_client.InvokeOptions): async.Operation<types.QueryPrecedenceOutput>
+function C:queryPrecedence(input: types.QueryPrecedenceInput, options?: base_client.InvokeOptions): async.Operation<types.QueryPrecedenceOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryPrecedence as schema.OperationSchema, input, options) as async.Operation<types.QueryPrecedenceOutput>
 end
 
-function C:recursiveShapes(input: types.RecursiveShapesInput, options: base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
+function C:recursiveShapes(input: types.RecursiveShapesInput, options?: base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RecursiveShapes as schema.OperationSchema, input, options) as async.Operation<types.RecursiveShapesOutput>
 end
 
-function C:responseCodeHttpFallback(input: types.ResponseCodeHttpFallbackInput, options: base_client.InvokeOptions): async.Operation<types.ResponseCodeHttpFallbackOutput>
+function C:responseCodeHttpFallback(input: types.ResponseCodeHttpFallbackInput, options?: base_client.InvokeOptions): async.Operation<types.ResponseCodeHttpFallbackOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ResponseCodeHttpFallback as schema.OperationSchema, input, options) as async.Operation<types.ResponseCodeHttpFallbackOutput>
 end
 
-function C:responseCodeRequired(input: types.ResponseCodeRequiredInput, options: base_client.InvokeOptions): async.Operation<types.ResponseCodeRequiredOutput>
+function C:responseCodeRequired(input: types.ResponseCodeRequiredInput, options?: base_client.InvokeOptions): async.Operation<types.ResponseCodeRequiredOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ResponseCodeRequired as schema.OperationSchema, input, options) as async.Operation<types.ResponseCodeRequiredOutput>
 end
 
-function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options?: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
-function C:sparseJsonLists(input: types.SparseJsonListsInput, options: base_client.InvokeOptions): async.Operation<types.SparseJsonListsOutput>
+function C:sparseJsonLists(input: types.SparseJsonListsInput, options?: base_client.InvokeOptions): async.Operation<types.SparseJsonListsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SparseJsonLists as schema.OperationSchema, input, options) as async.Operation<types.SparseJsonListsOutput>
 end
 
-function C:sparseJsonMaps(input: types.SparseJsonMapsInput, options: base_client.InvokeOptions): async.Operation<types.SparseJsonMapsOutput>
+function C:sparseJsonMaps(input: types.SparseJsonMapsInput, options?: base_client.InvokeOptions): async.Operation<types.SparseJsonMapsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SparseJsonMaps as schema.OperationSchema, input, options) as async.Operation<types.SparseJsonMapsOutput>
 end
 
-function C:streamingTraits(input: types.StreamingTraitsInput, options: base_client.InvokeOptions): async.Operation<types.StreamingTraitsOutput>
+function C:streamingTraits(input: types.StreamingTraitsInput, options?: base_client.InvokeOptions): async.Operation<types.StreamingTraitsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.StreamingTraits as schema.OperationSchema, input, options) as async.Operation<types.StreamingTraitsOutput>
 end
 
-function C:streamingTraitsRequireLength(input: types.StreamingTraitsRequireLengthInput, options: base_client.InvokeOptions): async.Operation<types.StreamingTraitsRequireLengthOutput>
+function C:streamingTraitsRequireLength(input: types.StreamingTraitsRequireLengthInput, options?: base_client.InvokeOptions): async.Operation<types.StreamingTraitsRequireLengthOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.StreamingTraitsRequireLength as schema.OperationSchema, input, options) as async.Operation<types.StreamingTraitsRequireLengthOutput>
 end
 
-function C:streamingTraitsWithMediaType(input: types.StreamingTraitsWithMediaTypeInput, options: base_client.InvokeOptions): async.Operation<types.StreamingTraitsWithMediaTypeOutput>
+function C:streamingTraitsWithMediaType(input: types.StreamingTraitsWithMediaTypeInput, options?: base_client.InvokeOptions): async.Operation<types.StreamingTraitsWithMediaTypeOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.StreamingTraitsWithMediaType as schema.OperationSchema, input, options) as async.Operation<types.StreamingTraitsWithMediaTypeOutput>
 end
 
-function C:testBodyStructure(input: types.TestBodyStructureInput, options: base_client.InvokeOptions): async.Operation<types.TestBodyStructureOutput>
+function C:testBodyStructure(input: types.TestBodyStructureInput, options?: base_client.InvokeOptions): async.Operation<types.TestBodyStructureOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestBodyStructure as schema.OperationSchema, input, options) as async.Operation<types.TestBodyStructureOutput>
 end
 
-function C:testGetNoInputNoPayload(input: types.TestGetNoInputNoPayloadInput, options: base_client.InvokeOptions): async.Operation<types.TestGetNoInputNoPayloadOutput>
+function C:testGetNoInputNoPayload(input: types.TestGetNoInputNoPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.TestGetNoInputNoPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestGetNoInputNoPayload as schema.OperationSchema, input, options) as async.Operation<types.TestGetNoInputNoPayloadOutput>
 end
 
-function C:testGetNoPayload(input: types.TestGetNoPayloadInput, options: base_client.InvokeOptions): async.Operation<types.TestGetNoPayloadOutput>
+function C:testGetNoPayload(input: types.TestGetNoPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.TestGetNoPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestGetNoPayload as schema.OperationSchema, input, options) as async.Operation<types.TestGetNoPayloadOutput>
 end
 
-function C:testPayloadBlob(input: types.TestPayloadBlobInput, options: base_client.InvokeOptions): async.Operation<types.TestPayloadBlobOutput>
+function C:testPayloadBlob(input: types.TestPayloadBlobInput, options?: base_client.InvokeOptions): async.Operation<types.TestPayloadBlobOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestPayloadBlob as schema.OperationSchema, input, options) as async.Operation<types.TestPayloadBlobOutput>
 end
 
-function C:testPayloadStructure(input: types.TestPayloadStructureInput, options: base_client.InvokeOptions): async.Operation<types.TestPayloadStructureOutput>
+function C:testPayloadStructure(input: types.TestPayloadStructureInput, options?: base_client.InvokeOptions): async.Operation<types.TestPayloadStructureOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestPayloadStructure as schema.OperationSchema, input, options) as async.Operation<types.TestPayloadStructureOutput>
 end
 
-function C:testPostNoInputNoPayload(input: types.TestPostNoInputNoPayloadInput, options: base_client.InvokeOptions): async.Operation<types.TestPostNoInputNoPayloadOutput>
+function C:testPostNoInputNoPayload(input: types.TestPostNoInputNoPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.TestPostNoInputNoPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestPostNoInputNoPayload as schema.OperationSchema, input, options) as async.Operation<types.TestPostNoInputNoPayloadOutput>
 end
 
-function C:testPostNoPayload(input: types.TestPostNoPayloadInput, options: base_client.InvokeOptions): async.Operation<types.TestPostNoPayloadOutput>
+function C:testPostNoPayload(input: types.TestPostNoPayloadInput, options?: base_client.InvokeOptions): async.Operation<types.TestPostNoPayloadOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TestPostNoPayload as schema.OperationSchema, input, options) as async.Operation<types.TestPostNoPayloadOutput>
 end
 
-function C:timestampFormatHeaders(input: types.TimestampFormatHeadersInput, options: base_client.InvokeOptions): async.Operation<types.TimestampFormatHeadersOutput>
+function C:timestampFormatHeaders(input: types.TimestampFormatHeadersInput, options?: base_client.InvokeOptions): async.Operation<types.TimestampFormatHeadersOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TimestampFormatHeaders as schema.OperationSchema, input, options) as async.Operation<types.TimestampFormatHeadersOutput>
 end
 
-function C:unitInputAndOutput(input: types.UnitInputAndOutputInput, options: base_client.InvokeOptions): async.Operation<types.UnitInputAndOutputOutput>
+function C:unitInputAndOutput(input: types.UnitInputAndOutputInput, options?: base_client.InvokeOptions): async.Operation<types.UnitInputAndOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.UnitInputAndOutput as schema.OperationSchema, input, options) as async.Operation<types.UnitInputAndOutputOutput>
 end
 

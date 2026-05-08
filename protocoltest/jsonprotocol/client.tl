@@ -17,24 +17,24 @@ local protocol_mod = require("smithy.protocol")
 local record Client
     config: base_client.ClientConfig
     invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
-    contentTypeParameters: function(Client, types.ContentTypeParametersInput, base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
-    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
-    emptyOperation: function(Client, types.EmptyOperationInput, base_client.InvokeOptions): async.Operation<types.EmptyOperationOutput>
-    endpointOperation: function(Client, types.EndpointOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
-    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    fractionalSeconds: function(Client, types.FractionalSecondsInput, base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
-    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
-    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
-    jsonEnums: function(Client, types.JsonEnumsInput, base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
-    jsonIntEnums: function(Client, types.JsonIntEnumsInput, base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
-    jsonUnions: function(Client, types.JsonUnionsInput, base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
-    kitchenSinkOperation: function(Client, types.KitchenSinkOperationInput, base_client.InvokeOptions): async.Operation<types.KitchenSinkOperationOutput>
-    nullOperation: function(Client, types.NullOperationInput, base_client.InvokeOptions): async.Operation<types.NullOperationOutput>
-    operationWithOptionalInputOutput: function(Client, types.OperationWithOptionalInputOutputInput, base_client.InvokeOptions): async.Operation<types.OperationWithOptionalInputOutputOutput>
-    putAndGetInlineDocuments: function(Client, types.PutAndGetInlineDocumentsInput, base_client.InvokeOptions): async.Operation<types.PutAndGetInlineDocumentsOutput>
-    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
-    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
-    sparseNullsOperation: function(Client, types.SparseNullsOperationInput, base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
+    contentTypeParameters: function(Client, types.ContentTypeParametersInput, ? base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, ? base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+    emptyOperation: function(Client, types.EmptyOperationInput, ? base_client.InvokeOptions): async.Operation<types.EmptyOperationOutput>
+    endpointOperation: function(Client, types.EndpointOperationInput, ? base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, ? base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    fractionalSeconds: function(Client, types.FractionalSecondsInput, ? base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, ? base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, ? base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+    jsonEnums: function(Client, types.JsonEnumsInput, ? base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
+    jsonIntEnums: function(Client, types.JsonIntEnumsInput, ? base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
+    jsonUnions: function(Client, types.JsonUnionsInput, ? base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
+    kitchenSinkOperation: function(Client, types.KitchenSinkOperationInput, ? base_client.InvokeOptions): async.Operation<types.KitchenSinkOperationOutput>
+    nullOperation: function(Client, types.NullOperationInput, ? base_client.InvokeOptions): async.Operation<types.NullOperationOutput>
+    operationWithOptionalInputOutput: function(Client, types.OperationWithOptionalInputOutputInput, ? base_client.InvokeOptions): async.Operation<types.OperationWithOptionalInputOutputOutput>
+    putAndGetInlineDocuments: function(Client, types.PutAndGetInlineDocumentsInput, ? base_client.InvokeOptions): async.Operation<types.PutAndGetInlineDocumentsOutput>
+    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, ? base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, ? base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    sparseNullsOperation: function(Client, types.SparseNullsOperationInput, ? base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
 end
 
 local record M
@@ -78,75 +78,75 @@ function M.new(cfg?: base_client.ClientConfig): Client
     return self
 end
 
-function C:contentTypeParameters(input: types.ContentTypeParametersInput, options: base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+function C:contentTypeParameters(input: types.ContentTypeParametersInput, options?: base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ContentTypeParameters as schema.OperationSchema, input, options) as async.Operation<types.ContentTypeParametersOutput>
 end
 
-function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options: base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options?: base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DatetimeOffsets as schema.OperationSchema, input, options) as async.Operation<types.DatetimeOffsetsOutput>
 end
 
-function C:emptyOperation(input: types.EmptyOperationInput, options: base_client.InvokeOptions): async.Operation<types.EmptyOperationOutput>
+function C:emptyOperation(input: types.EmptyOperationInput, options?: base_client.InvokeOptions): async.Operation<types.EmptyOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EmptyOperation as schema.OperationSchema, input, options) as async.Operation<types.EmptyOperationOutput>
 end
 
-function C:endpointOperation(input: types.EndpointOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+function C:endpointOperation(input: types.EndpointOperationInput, options?: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointOperationOutput>
 end
 
-function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options?: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointWithHostLabelOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
 end
 
-function C:fractionalSeconds(input: types.FractionalSecondsInput, options: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+function C:fractionalSeconds(input: types.FractionalSecondsInput, options?: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FractionalSeconds as schema.OperationSchema, input, options) as async.Operation<types.FractionalSecondsOutput>
 end
 
-function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options?: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.GreetingWithErrors as schema.OperationSchema, input, options) as async.Operation<types.GreetingWithErrorsOutput>
 end
 
-function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options: base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options?: base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HostWithPathOperation as schema.OperationSchema, input, options) as async.Operation<types.HostWithPathOperationOutput>
 end
 
-function C:jsonEnums(input: types.JsonEnumsInput, options: base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
+function C:jsonEnums(input: types.JsonEnumsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonEnumsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonEnums as schema.OperationSchema, input, options) as async.Operation<types.JsonEnumsOutput>
 end
 
-function C:jsonIntEnums(input: types.JsonIntEnumsInput, options: base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
+function C:jsonIntEnums(input: types.JsonIntEnumsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonIntEnumsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonIntEnums as schema.OperationSchema, input, options) as async.Operation<types.JsonIntEnumsOutput>
 end
 
-function C:jsonUnions(input: types.JsonUnionsInput, options: base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
+function C:jsonUnions(input: types.JsonUnionsInput, options?: base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonUnions as schema.OperationSchema, input, options) as async.Operation<types.JsonUnionsOutput>
 end
 
-function C:kitchenSinkOperation(input: types.KitchenSinkOperationInput, options: base_client.InvokeOptions): async.Operation<types.KitchenSinkOperationOutput>
+function C:kitchenSinkOperation(input: types.KitchenSinkOperationInput, options?: base_client.InvokeOptions): async.Operation<types.KitchenSinkOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.KitchenSinkOperation as schema.OperationSchema, input, options) as async.Operation<types.KitchenSinkOperationOutput>
 end
 
-function C:nullOperation(input: types.NullOperationInput, options: base_client.InvokeOptions): async.Operation<types.NullOperationOutput>
+function C:nullOperation(input: types.NullOperationInput, options?: base_client.InvokeOptions): async.Operation<types.NullOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NullOperation as schema.OperationSchema, input, options) as async.Operation<types.NullOperationOutput>
 end
 
-function C:operationWithOptionalInputOutput(input: types.OperationWithOptionalInputOutputInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithOptionalInputOutputOutput>
+function C:operationWithOptionalInputOutput(input: types.OperationWithOptionalInputOutputInput, options?: base_client.InvokeOptions): async.Operation<types.OperationWithOptionalInputOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithOptionalInputOutput as schema.OperationSchema, input, options) as async.Operation<types.OperationWithOptionalInputOutputOutput>
 end
 
-function C:putAndGetInlineDocuments(input: types.PutAndGetInlineDocumentsInput, options: base_client.InvokeOptions): async.Operation<types.PutAndGetInlineDocumentsOutput>
+function C:putAndGetInlineDocuments(input: types.PutAndGetInlineDocumentsInput, options?: base_client.InvokeOptions): async.Operation<types.PutAndGetInlineDocumentsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PutAndGetInlineDocuments as schema.OperationSchema, input, options) as async.Operation<types.PutAndGetInlineDocumentsOutput>
 end
 
-function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options?: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PutWithContentEncoding as schema.OperationSchema, input, options) as async.Operation<types.PutWithContentEncodingOutput>
 end
 
-function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options?: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
-function C:sparseNullsOperation(input: types.SparseNullsOperationInput, options: base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
+function C:sparseNullsOperation(input: types.SparseNullsOperationInput, options?: base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SparseNullsOperation as schema.OperationSchema, input, options) as async.Operation<types.SparseNullsOperationOutput>
 end
 

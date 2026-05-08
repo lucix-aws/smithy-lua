@@ -70,7 +70,7 @@ public final class DirectedLuaCodegen
             writer.write("");
             writer.write("local _N = $S", namespace);
             writer.write("");
-            writer.write("local M = {}");
+            writer.write("local M: {string:any} = {}");
             writer.write("");
 
             // Generate list and map schemas before structures (they may be referenced as map_value/list_member)
@@ -109,13 +109,14 @@ public final class DirectedLuaCodegen
         directive.context().writerDelegator().useFileWriter(schemasFile, serviceNs, writer -> {
             writer.write("");
             writer.write("-- Fix forward references for recursive schemas");
-            writer.write("for _, s in pairs(M) do");
+            writer.write("for _, _s in pairs(M) do");
+            writer.write("    local s = _s as {string:any}");
             writer.write("    if type(s) == \"table\" and (s.type == \"structure\" or s.type == \"union\") then");
-            writer.write("        local members = rawget(s, \"_members\")");
+            writer.write("        local members = rawget(s, \"_members\") as {string:{string:any}}");
             writer.write("        if members then");
             writer.write("            for _, ms in pairs(members) do");
-            writer.write("                if (ms.type == \"structure\" or ms.type == \"union\") and not rawget(ms, \"_target\") and ms.target_id then");
-            writer.write("                    rawset(ms, \"_target\", M[ms.target_id.name])");
+            writer.write("                if (ms.type == \"structure\" or ms.type == \"union\") and not rawget(ms as {string:any}, \"_target\") and ms.target_id then");
+            writer.write("                    rawset(ms as {string:any}, \"_target\", M[(ms.target_id as {string:string}).name])");
             writer.write("                end");
             writer.write("            end");
             writer.write("        end");

@@ -471,7 +471,7 @@ function M.new(config: {string:any}): M.DynamicClient, string
         if rules_trait then
             local endpoint_engine = require("smithy.endpoint")
             client_config.endpoint_provider = function(params: any): any, any
-                return endpoint_engine.resolve(rules_trait as table, params as {string:any})
+                return endpoint_engine.resolve(rules_trait as {string:any}, params as {string:any})
             end
         else
             return nil, "no endpoint_url or endpoint rules for service " .. service_id_str

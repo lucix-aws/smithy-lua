@@ -17,19 +17,19 @@ local protocol_mod = require("smithy.protocol")
 local record Client
     config: base_client.ClientConfig
     invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
-    emptyInputOutput: function(Client, types.EmptyInputOutputInput, base_client.InvokeOptions): async.Operation<types.EmptyInputOutputOutput>
-    float16: function(Client, types.Float16Input, base_client.InvokeOptions): async.Operation<types.Float16Output>
-    fractionalSeconds: function(Client, types.FractionalSecondsInput, base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
-    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
-    noInputOutput: function(Client, types.NoInputOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputOutputOutput>
-    operationWithDefaults: function(Client, types.OperationWithDefaultsInput, base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
-    optionalInputOutput: function(Client, types.OptionalInputOutputInput, base_client.InvokeOptions): async.Operation<types.OptionalInputOutputOutput>
-    recursiveShapes: function(Client, types.RecursiveShapesInput, base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
-    rpcV2CborDenseMaps: function(Client, types.RpcV2CborDenseMapsInput, base_client.InvokeOptions): async.Operation<types.RpcV2CborDenseMapsOutput>
-    rpcV2CborLists: function(Client, types.RpcV2CborListsInput, base_client.InvokeOptions): async.Operation<types.RpcV2CborListsOutput>
-    rpcV2CborSparseMaps: function(Client, types.RpcV2CborSparseMapsInput, base_client.InvokeOptions): async.Operation<types.RpcV2CborSparseMapsOutput>
-    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
-    sparseNullsOperation: function(Client, types.SparseNullsOperationInput, base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
+    emptyInputOutput: function(Client, types.EmptyInputOutputInput, ? base_client.InvokeOptions): async.Operation<types.EmptyInputOutputOutput>
+    float16: function(Client, types.Float16Input, ? base_client.InvokeOptions): async.Operation<types.Float16Output>
+    fractionalSeconds: function(Client, types.FractionalSecondsInput, ? base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, ? base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    noInputOutput: function(Client, types.NoInputOutputInput, ? base_client.InvokeOptions): async.Operation<types.NoInputOutputOutput>
+    operationWithDefaults: function(Client, types.OperationWithDefaultsInput, ? base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
+    optionalInputOutput: function(Client, types.OptionalInputOutputInput, ? base_client.InvokeOptions): async.Operation<types.OptionalInputOutputOutput>
+    recursiveShapes: function(Client, types.RecursiveShapesInput, ? base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
+    rpcV2CborDenseMaps: function(Client, types.RpcV2CborDenseMapsInput, ? base_client.InvokeOptions): async.Operation<types.RpcV2CborDenseMapsOutput>
+    rpcV2CborLists: function(Client, types.RpcV2CborListsInput, ? base_client.InvokeOptions): async.Operation<types.RpcV2CborListsOutput>
+    rpcV2CborSparseMaps: function(Client, types.RpcV2CborSparseMapsInput, ? base_client.InvokeOptions): async.Operation<types.RpcV2CborSparseMapsOutput>
+    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, ? base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    sparseNullsOperation: function(Client, types.SparseNullsOperationInput, ? base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
 end
 
 local record M
@@ -73,55 +73,55 @@ function M.new(cfg?: base_client.ClientConfig): Client
     return self
 end
 
-function C:emptyInputOutput(input: types.EmptyInputOutputInput, options: base_client.InvokeOptions): async.Operation<types.EmptyInputOutputOutput>
+function C:emptyInputOutput(input: types.EmptyInputOutputInput, options?: base_client.InvokeOptions): async.Operation<types.EmptyInputOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EmptyInputOutput as schema.OperationSchema, input, options) as async.Operation<types.EmptyInputOutputOutput>
 end
 
-function C:float16(input: types.Float16Input, options: base_client.InvokeOptions): async.Operation<types.Float16Output>
+function C:float16(input: types.Float16Input, options?: base_client.InvokeOptions): async.Operation<types.Float16Output>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.Float16 as schema.OperationSchema, input, options) as async.Operation<types.Float16Output>
 end
 
-function C:fractionalSeconds(input: types.FractionalSecondsInput, options: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+function C:fractionalSeconds(input: types.FractionalSecondsInput, options?: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FractionalSeconds as schema.OperationSchema, input, options) as async.Operation<types.FractionalSecondsOutput>
 end
 
-function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options?: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.GreetingWithErrors as schema.OperationSchema, input, options) as async.Operation<types.GreetingWithErrorsOutput>
 end
 
-function C:noInputOutput(input: types.NoInputOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputOutputOutput>
+function C:noInputOutput(input: types.NoInputOutputInput, options?: base_client.InvokeOptions): async.Operation<types.NoInputOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputOutputOutput>
 end
 
-function C:operationWithDefaults(input: types.OperationWithDefaultsInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
+function C:operationWithDefaults(input: types.OperationWithDefaultsInput, options?: base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithDefaults as schema.OperationSchema, input, options) as async.Operation<types.OperationWithDefaultsOutput>
 end
 
-function C:optionalInputOutput(input: types.OptionalInputOutputInput, options: base_client.InvokeOptions): async.Operation<types.OptionalInputOutputOutput>
+function C:optionalInputOutput(input: types.OptionalInputOutputInput, options?: base_client.InvokeOptions): async.Operation<types.OptionalInputOutputOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OptionalInputOutput as schema.OperationSchema, input, options) as async.Operation<types.OptionalInputOutputOutput>
 end
 
-function C:recursiveShapes(input: types.RecursiveShapesInput, options: base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
+function C:recursiveShapes(input: types.RecursiveShapesInput, options?: base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RecursiveShapes as schema.OperationSchema, input, options) as async.Operation<types.RecursiveShapesOutput>
 end
 
-function C:rpcV2CborDenseMaps(input: types.RpcV2CborDenseMapsInput, options: base_client.InvokeOptions): async.Operation<types.RpcV2CborDenseMapsOutput>
+function C:rpcV2CborDenseMaps(input: types.RpcV2CborDenseMapsInput, options?: base_client.InvokeOptions): async.Operation<types.RpcV2CborDenseMapsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RpcV2CborDenseMaps as schema.OperationSchema, input, options) as async.Operation<types.RpcV2CborDenseMapsOutput>
 end
 
-function C:rpcV2CborLists(input: types.RpcV2CborListsInput, options: base_client.InvokeOptions): async.Operation<types.RpcV2CborListsOutput>
+function C:rpcV2CborLists(input: types.RpcV2CborListsInput, options?: base_client.InvokeOptions): async.Operation<types.RpcV2CborListsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RpcV2CborLists as schema.OperationSchema, input, options) as async.Operation<types.RpcV2CborListsOutput>
 end
 
-function C:rpcV2CborSparseMaps(input: types.RpcV2CborSparseMapsInput, options: base_client.InvokeOptions): async.Operation<types.RpcV2CborSparseMapsOutput>
+function C:rpcV2CborSparseMaps(input: types.RpcV2CborSparseMapsInput, options?: base_client.InvokeOptions): async.Operation<types.RpcV2CborSparseMapsOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RpcV2CborSparseMaps as schema.OperationSchema, input, options) as async.Operation<types.RpcV2CborSparseMapsOutput>
 end
 
-function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options?: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
-function C:sparseNullsOperation(input: types.SparseNullsOperationInput, options: base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
+function C:sparseNullsOperation(input: types.SparseNullsOperationInput, options?: base_client.InvokeOptions): async.Operation<types.SparseNullsOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SparseNullsOperation as schema.OperationSchema, input, options) as async.Operation<types.SparseNullsOperationOutput>
 end
 

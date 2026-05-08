@@ -7,8 +7,34 @@ local record M
         properties: {string:any}
     end
 
+    record Condition
+        fn: string
+        argv: {any}
+        assign: string
+    end
+
+    record Rule
+        type: string
+        conditions: {Condition}
+        rules: {Rule}
+        endpoint: {string:any}
+        error: any
+    end
+
+    record Parameter
+        type: string
+        default: any
+        required: boolean
+    end
+
+    record Ruleset
+        version: string
+        parameters: {string:Parameter}
+        rules: {Rule}
+    end
+
     _call_fn: function(string, {any}, {string: any}): any
-    resolve: function(ruleset: table, params: {string:any}): Endpoint, string
+    resolve: function(ruleset: {string:any}, params: {string:any}): Endpoint, string
 end
 
 local UNSET: table = {}
@@ -369,19 +395,18 @@ end
 -- Condition evaluation
 ---------------------------------------------------------------------------
 
-local function eval_conditions(conditions: {any}, scope: {string: any}): boolean
+local function eval_conditions(conditions: {M.Condition}, scope: {string: any}): boolean
     if not conditions then return true end
-    for _, cond_any in ipairs(conditions) do
-        local cond = cond_any as {string: any}
-        local result = M._call_fn(cond["fn"] as string, cond["argv"] as {any}, scope)
+    for _, cond in ipairs(conditions) do
+        local result = M._call_fn(cond.fn, cond.argv, scope)
         if not result and result ~= false then
             return false
         end
         if result == false then
             return false
         end
-        if cond["assign"] then
-            scope[cond["assign"] as string] = result
+        if cond.assign then
+            scope[cond.assign] = result
         end
     end
     return true
@@ -436,24 +461,23 @@ local function eval_endpoint(endpoint: {string: any}, scope: {string: any}): M.E
     return { url = url as string, headers = headers, properties = properties } as M.Endpoint
 end
 
-local function eval_rules(rules: {any}, scope: {string: any}): M.Endpoint, string
-    for _, rule_any in ipairs(rules) do
-        local rule = rule_any as {string: any}
+local function eval_rules(rules: {M.Rule}, scope: {string: any}): M.Endpoint, string
+    for _, rule in ipairs(rules) do
         local child = setmetatable({} as {string: any}, { __index = scope })
 
-        if eval_conditions(rule["conditions"] as {any}, child) then
-            if rule["type"] == "endpoint" then
-                return eval_endpoint(rule["endpoint"] as {string: any}, child), nil as string
-            elseif rule["type"] == "error" then
+        if eval_conditions(rule.conditions, child) then
+            if rule.type == "endpoint" then
+                return eval_endpoint(rule.endpoint as {string: any}, child), nil as string
+            elseif rule.type == "error" then
                 local msg: string
-                if type(rule["error"]) == "string" then
-                    msg = resolve_template(rule["error"], child) as string
+                if type(rule.error) == "string" then
+                    msg = resolve_template(rule.error, child) as string
                 else
-                    msg = resolve_arg(rule["error"], child) as string
+                    msg = resolve_arg(rule.error, child) as string
                 end
                 return nil as M.Endpoint, msg
-            elseif rule["type"] == "tree" then
-                local result, err = eval_rules(rule["rules"] as {any}, child)
+            elseif rule.type == "tree" then
+                local result, err = eval_rules(rule.rules, child)
                 if result or err then
                     return result, err
                 end
@@ -468,11 +492,10 @@ end
 -- Public API
 ---------------------------------------------------------------------------
 
-function M.resolve(ruleset: table, params: {string: any}): M.Endpoint, string
-    local rs = ruleset as {string: any}
+function M.resolve(ruleset: {string:any}, params: {string: any}): M.Endpoint, string
     local scope: {string: any} = {}
-    if rs["parameters"] then
-        for name, def_any in pairs(rs["parameters"] as {string: any}) do
+    if ruleset["parameters"] then
+        for name, def_any in pairs(ruleset["parameters"] as {string: any}) do
             local def = def_any as {string: any}
             local val = params[name]
             if val == nil and def["default"] ~= nil then
@@ -494,7 +517,7 @@ function M.resolve(ruleset: table, params: {string: any}): M.Endpoint, string
         end
     end
 
-    local result, err = eval_rules(rs["rules"] as {any}, scope)
+    local result, err = eval_rules(ruleset["rules"] as {M.Rule}, scope)
     if result then return result, nil as string end
     if err then return nil as M.Endpoint, err end
     return nil as M.Endpoint, "endpoint rules exhausted without a match"

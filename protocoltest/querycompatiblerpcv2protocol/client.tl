@@ -17,7 +17,7 @@ local protocol_mod = require("smithy.protocol")
 local record Client
     config: base_client.ClientConfig
     invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
-    queryCompatibleOperation: function(Client, types.QueryCompatibleOperationInput, base_client.InvokeOptions): async.Operation<types.QueryCompatibleOperationOutput>
+    queryCompatibleOperation: function(Client, types.QueryCompatibleOperationInput, ? base_client.InvokeOptions): async.Operation<types.QueryCompatibleOperationOutput>
 end
 
 local record M
@@ -61,7 +61,7 @@ function M.new(cfg?: base_client.ClientConfig): Client
     return self
 end
 
-function C:queryCompatibleOperation(input: types.QueryCompatibleOperationInput, options: base_client.InvokeOptions): async.Operation<types.QueryCompatibleOperationOutput>
+function C:queryCompatibleOperation(input: types.QueryCompatibleOperationInput, options?: base_client.InvokeOptions): async.Operation<types.QueryCompatibleOperationOutput>
     return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryCompatibleOperation as schema.OperationSchema, input, options) as async.Operation<types.QueryCompatibleOperationOutput>
 end
 

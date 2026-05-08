@@ -106,7 +106,7 @@ final class ClientGenerator {
                 var opName = symbolProvider.toSymbol(operation).getName();
                 var inputName = operationIndex.expectInputShape(operation).getId().getName(service);
                 var outputName = operationIndex.expectOutputShape(operation).getId().getName(service);
-                writer.write("$L: function(Client, types.$L, base_client.InvokeOptions): async.Operation<types.$L>",
+                writer.write("$L: function(Client, types.$L, ? base_client.InvokeOptions): async.Operation<types.$L>",
                         opName, inputName, outputName);
             }
             writer.dedent();
@@ -191,7 +191,7 @@ final class ClientGenerator {
                 var opSchemaName = operation.getId().getName(service);
                 var inputName = operationIndex.expectInputShape(operation).getId().getName(service);
                 var outputName = operationIndex.expectOutputShape(operation).getId().getName(service);
-                writer.write("function C:$L(input: types.$L, options: base_client.InvokeOptions): async.Operation<types.$L>",
+                writer.write("function C:$L(input: types.$L, options?: base_client.InvokeOptions): async.Operation<types.$L>",
                         opName, inputName, outputName);
                 writer.indent();
                 writer.write("return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.$L as schema.OperationSchema, input, options) as async.Operation<types.$L>",

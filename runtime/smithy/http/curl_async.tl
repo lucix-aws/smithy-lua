@@ -151,8 +151,8 @@ function loop_idx:poll()
 end
 
 function loop_idx:yield_for_data()
-    local co = coroutine.running()
-    if not co then
+    local co, is_main = coroutine.running()
+    if not co or is_main then
         -- Main thread: poll once
         self:poll()
         if (self._running[0] as integer) > 0 then
