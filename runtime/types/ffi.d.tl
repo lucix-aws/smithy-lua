@@ -1,18 +1,23 @@
 -- Type declarations for LuaJIT FFI
 local record ffi
     record CType end
-    record CData end
+
+    record CData
+        metamethod __index: function(CData, integer): any
+        metamethod __newindex: function(CData, integer, any)
+        free: function(CData)
+    end
 
     cdef: function(def: string)
-    new: function(ct: CType|string, ...: any): CData
+    new: function(ct: any, ...: any): CData
     typeof: function(ct: string, ...: any): CType
-    cast: function(ct: CType|string, init: any): CData
+    cast: function(ct: any, init: any): CData
     metatype: function(ct: CType, metatable: table): CType
     gc: function(cdata: CData, finalizer: function(CData)): CData
-    sizeof: function(ct: CType|CData|string, nelem?: number): number
-    alignof: function(ct: CType|CData|string): number
-    offsetof: function(ct: CType|CData|string, field: string): number
-    istype: function(ct: CType|string, obj: any): boolean
+    sizeof: function(ct: any, nelem?: number): number
+    alignof: function(ct: any): number
+    offsetof: function(ct: any, field: string): number
+    istype: function(ct: any, obj: any): boolean
     errno: function(newerr?: number): number
     string: function(ptr: CData, len?: number): string
     copy: function(dst: CData, src: any, len?: number)

@@ -273,7 +273,7 @@ function M.new(): http.HttpClient
         } as http.Response, nil
     end
     ;(jit as any).off(do_request)
-    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation
+    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation<http.Response>
         local op = async.new_operation()
         local result, err = do_request(req as StreamingRequest)
         op:resolve(result, err)

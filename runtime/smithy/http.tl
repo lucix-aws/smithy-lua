@@ -6,7 +6,7 @@ local record M
     type Reader = function(): string, M.Error
 
     record HttpClient
-        roundtrip: function(HttpClient, M.Request): async.Operation
+        roundtrip: function(HttpClient, M.Request): async.Operation<M.Response>
     end
 
     record Error

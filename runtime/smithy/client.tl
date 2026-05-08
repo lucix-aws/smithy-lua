@@ -10,7 +10,7 @@ local traits = require("smithy.traits")
 
 local record M
     new: function(config: {string:any}): {string:any}
-    invokeOperation: function(self: any, service: any, operation: any, input: any, options: any): any, any
+    invokeOperation: function(self: any, service: any, operation: any, input: any, options: any): async.Operation<any>
 end
 
 local function shallow_copy(t: {string:any}): {string:any}
@@ -240,8 +240,8 @@ local function do_attempt(config: {string:any}, service: any, operation: any, in
     return output, deser_err
 end
 
-function M.invokeOperation(self: any, service: any, operation: any, input: any, options: any): any, any
-    local op = async.new_operation() as any
+function M.invokeOperation(self: any, service: any, operation: any, input: any, options: any): async.Operation<any>
+    local op = async.new_operation()
     local result, err = M._doInvoke(self, service, operation, input, options)
     op:resolve(result, err)
     return op

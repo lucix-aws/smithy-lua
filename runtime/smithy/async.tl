@@ -1,30 +1,26 @@
 -- smithy.async - Operation (future/promise) and await primitives
 --
--- An Operation represents a value that may not be available yet.
+-- An Operation<T> represents a value of type T that may not be available yet.
 -- Operations can be awaited individually or in batch.
---
--- For main-thread awaiting, a poll driver can be registered via set_driver.
--- The HTTP client that owns the event loop registers itself so that await()
--- can pump the loop.
 
 local record M
-    record Operation
+    record Operation<T>
         _resolved: boolean
-        _value: any
+        _value: T
         _err: any
         _waiters: {thread}
 
-        resolve: function(Operation, value: any, err: any)
-        await: function(Operation): any, any
+        resolve: function(Operation<T>, value: T, err: any)
+        await: function(Operation<T>): T, any
     end
 
-    new_operation: function(): Operation
-    await_all: function(ops: {Operation}): {{any}}
+    new_operation: function<T>(): Operation<T>
+    await_all: function<T>(ops: {Operation<T>}): {{any}}
     set_driver: function(driver: function())
 end
 
-local Operation: metatable<M.Operation> = { __index = {} as M.Operation }
-local op_index = Operation.__index as M.Operation
+local Operation_mt: metatable<M.Operation<any>> = { __index = {} as M.Operation<any> }
+local op_index = Operation_mt.__index as M.Operation<any>
 
 local _driver: function() = nil
 
@@ -32,13 +28,13 @@ function M.set_driver(driver: function())
     _driver = driver
 end
 
-function M.new_operation(): M.Operation
+function M.new_operation<T>(): M.Operation<T>
     return setmetatable({
         _resolved = false,
         _value = nil,
         _err = nil,
         _waiters = nil,
-    } as M.Operation, Operation)
+    } as M.Operation<T>, Operation_mt as metatable<M.Operation<T>>)
 end
 
 function op_index:resolve(value: any, err: any)
@@ -60,7 +56,6 @@ function op_index:await(): any, any
     end
     local co, is_main = coroutine.running()
     if is_main or not co then
-        -- Main thread: pump the driver until resolved
         while not self._resolved do
             if _driver then
                 _driver()
@@ -74,7 +69,7 @@ function op_index:await(): any, any
     end
 end
 
-function M.await_all(ops: {M.Operation}): {{any}}
+function M.await_all<T>(ops: {M.Operation<T>}): {{any}}
     local results: {{any}} = {}
     local pending: {integer} = {}
     for i, op in ipairs(ops) do

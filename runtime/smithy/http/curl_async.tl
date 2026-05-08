@@ -42,7 +42,23 @@ struct curl_slist *curl_slist_append(struct curl_slist *list, const char *string
 void curl_slist_free_all(struct curl_slist *list);
 ]])
 
-local curl = ffi.load("curl")
+local record CurlLib
+    curl_multi_init: function(): ffi.CData
+    curl_multi_cleanup: function(ffi.CData): ffi.CData
+    curl_multi_add_handle: function(ffi.CData, ffi.CData): ffi.CData
+    curl_multi_remove_handle: function(ffi.CData, ffi.CData): ffi.CData
+    curl_multi_perform: function(ffi.CData, ffi.CData): ffi.CData
+    curl_multi_wait: function(ffi.CData, ffi.CData, integer, integer, ffi.CData): ffi.CData
+    curl_multi_info_read: function(ffi.CData, ffi.CData): ffi.CData
+    curl_easy_init: function(): ffi.CData
+    curl_easy_cleanup: function(ffi.CData)
+    curl_easy_setopt: function(ffi.CData, integer, any): ffi.CData
+    curl_easy_getinfo: function(ffi.CData, integer, ffi.CData): ffi.CData
+    curl_slist_append: function(ffi.CData, string): ffi.CData
+    curl_slist_free_all: function(ffi.CData)
+end
+
+local curl = ffi.load("curl") as CurlLib
 
 local CURLMSG_DONE = 1
 local CURLOPT_URL = 10002
@@ -58,7 +74,7 @@ local CURLINFO_RESPONSE_CODE = 0x200002
 -- Loop (curl_multi event loop)
 ---------------------------------------------------------------------------
 local record LoopEntry
-    op: async.Operation
+    op: async.Operation<any>
     cleanup: function(ffi.CData): any, any
     handle: ffi.CData
 end
@@ -71,7 +87,7 @@ local record Loop
     _numfds: ffi.CData
     _msgs: ffi.CData
 
-    add: function(Loop, easy_handle: ffi.CData, cleanup_fn: function(ffi.CData): any, any): async.Operation
+    add: function(Loop, easy_handle: ffi.CData, cleanup_fn: function(ffi.CData): any, any): async.Operation<any>
     poll: function(Loop)
     yield_for_data: function(Loop)
 end
@@ -96,7 +112,7 @@ local function new_loop(): Loop
     } as Loop, Loop_mt)
 end
 
-function loop_idx:add(easy_handle: ffi.CData, cleanup_fn: function(ffi.CData): any, any): async.Operation
+function loop_idx:add(easy_handle: ffi.CData, cleanup_fn: function(ffi.CData): any, any): async.Operation<any>
     local op = async.new_operation()
     local key = tostring(easy_handle)
     self._handles[key] = { op = op, cleanup = cleanup_fn, handle = easy_handle }
@@ -139,7 +155,7 @@ function loop_idx:yield_for_data()
     if not co then
         -- Main thread: poll once
         self:poll()
-        if (self._running as any)[0] > 0 then
+        if (self._running[0] as integer) > 0 then
             curl.curl_multi_wait(self._multi, nil, 0, 100, self._numfds)
         end
         return
@@ -154,7 +170,7 @@ local function get_loop(): Loop
         -- Register as the async driver so await() can pump us
         async.set_driver(function()
             _loop:poll()
-            if (_loop._running as any)[0] > 0 or #_loop._readers > 0 then
+            if (_loop._running[0] as integer) > 0 or #_loop._readers > 0 then
                 curl.curl_multi_wait(_loop._multi, nil, 0, 100, _loop._numfds)
             end
         end)
@@ -178,7 +194,7 @@ end
 function M.new(): http.HttpClient
     local loop = get_loop()
 
-    local function do_request(request: http.Request): async.Operation
+    local function do_request(request: http.Request): async.Operation<http.Response>
         local handle = curl.curl_easy_init() as ffi.CData
         if handle == nil then
             local op = async.new_operation()
@@ -203,7 +219,7 @@ function M.new(): http.HttpClient
                 got_status = true
                 local code_buf = ffi.new("long[1]") as ffi.CData
                 curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, code_buf)
-                local status_code = tonumber((code_buf as any)[0]) as integer
+                local status_code = tonumber(code_buf[0]) as integer
 
                 local chunk_idx = 0
                 local function body_reader(): string, http.Error
@@ -255,8 +271,8 @@ function M.new(): http.HttpClient
             local body = ""
             local b, err = http.read_all(request.body)
             if err then
-                (write_cb as any).free(write_cb);
-                (header_cb as any).free(header_cb)
+                (write_cb as ffi.CData):free();
+                (header_cb as ffi.CData):free()
                 if slist ~= nil then curl.curl_slist_free_all(slist) end
                 curl.curl_easy_cleanup(handle)
                 op:resolve(nil, { type = "http", code = "ReadError", message = err.message })
@@ -276,7 +292,7 @@ function M.new(): http.HttpClient
             if not got_status then
                 local code_buf = ffi.new("long[1]") as ffi.CData
                 curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, code_buf)
-                local status_code = tonumber((code_buf as any)[0]) as integer
+                local status_code = tonumber(code_buf[0]) as integer
                 if status_code == 0 then
                     op:resolve(nil, { type = "http", code = "CurlError", message = "connection failed" })
                 else
@@ -288,8 +304,8 @@ function M.new(): http.HttpClient
                 end
             end
 
-            (write_cb as any).free(write_cb);
-            (header_cb as any).free(header_cb)
+            (write_cb as ffi.CData):free();
+            (header_cb as ffi.CData):free()
             if slist ~= nil then curl.curl_slist_free_all(slist) end
             curl.curl_easy_cleanup(handle)
             return nil, nil
@@ -297,9 +313,10 @@ function M.new(): http.HttpClient
 
         return op
     end
-    ;(jit as any).off(do_request)
+    local jit = require("jit")
+    jit.off(do_request)
 
-    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation
+    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation<http.Response>
         return do_request(req)
     end } as http.HttpClient
 end

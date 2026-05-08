@@ -100,7 +100,7 @@ function M.new(): http.HttpClient
         }, nil
     end
 
-    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation
+    return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation<http.Response>
         local op = async.new_operation()
         local result, err = do_request(req)
         op:resolve(result, err)
