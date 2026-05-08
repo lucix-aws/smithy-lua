@@ -1,6 +1,13 @@
 # smithy-lua
 
-Smithy code generators and client runtime for Teal and Lua.
+Smithy code generators and client runtime for Lua and Teal.
+
+## All development work is done in Teal
+
+**This is a teal-first project.**
+
+All runtime code, including unit tests, must be written in Teal. The code
+generator (written in Java) must emit Teal code.
 
 ## Codegen
 
