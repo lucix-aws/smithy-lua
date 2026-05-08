@@ -8,103 +8,106 @@ local defaults = require("smithy.defaults")
 local endpoint = require("smithy.endpoint")
 local endpoint_rules = require("restxmlprotocol.endpoint_rules")
 local restxml_protocol = require("smithy.protocol.restxml")
+local schema = require("smithy.schema")
 local schemas = require("restxmlprotocol.schemas")
 local traits = require("smithy.traits")
 local types = require("restxmlprotocol.types")
+local protocol_mod = require("smithy.protocol")
 
 local record Client
-    config: {string:any}
-    invokeOperation: function(Client, any, any, any, any): async.Operation<any>
-    allQueryStringTypes: function(Client, types.AllQueryStringTypesInput, any): async.Operation<types.AllQueryStringTypesOutput>
-    bodyWithXmlName: function(Client, types.BodyWithXmlNameInput, any): async.Operation<types.BodyWithXmlNameOutput>
-    constantAndVariableQueryString: function(Client, types.ConstantAndVariableQueryStringInput, any): async.Operation<types.ConstantAndVariableQueryStringOutput>
-    constantQueryString: function(Client, types.ConstantQueryStringInput, any): async.Operation<types.ConstantQueryStringOutput>
-    contentTypeParameters: function(Client, types.ContentTypeParametersInput, any): async.Operation<types.ContentTypeParametersOutput>
-    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, any): async.Operation<types.DatetimeOffsetsOutput>
-    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, any): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    endpointOperation: function(Client, types.EndpointOperationInput, any): async.Operation<types.EndpointOperationOutput>
-    endpointWithHostLabelHeaderOperation: function(Client, types.EndpointWithHostLabelHeaderOperationInput, any): async.Operation<types.EndpointWithHostLabelHeaderOperationOutput>
-    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, any): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    flattenedXmlMap: function(Client, types.FlattenedXmlMapInput, any): async.Operation<types.FlattenedXmlMapOutput>
-    flattenedXmlMapWithXmlName: function(Client, types.FlattenedXmlMapWithXmlNameInput, any): async.Operation<types.FlattenedXmlMapWithXmlNameOutput>
-    flattenedXmlMapWithXmlNamespace: function(Client, types.FlattenedXmlMapWithXmlNamespaceInput, any): async.Operation<types.FlattenedXmlMapWithXmlNamespaceOutput>
-    fractionalSeconds: function(Client, types.FractionalSecondsInput, any): async.Operation<types.FractionalSecondsOutput>
-    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, any): async.Operation<types.GreetingWithErrorsOutput>
-    httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput, any): async.Operation<types.HttpEmptyPrefixHeadersOutput>
-    httpEnumPayload: function(Client, types.HttpEnumPayloadInput, any): async.Operation<types.HttpEnumPayloadOutput>
-    httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput, any): async.Operation<types.HttpPayloadTraitsOutput>
-    httpPayloadTraitsWithMediaType: function(Client, types.HttpPayloadTraitsWithMediaTypeInput, any): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
-    httpPayloadWithMemberXmlName: function(Client, types.HttpPayloadWithMemberXmlNameInput, any): async.Operation<types.HttpPayloadWithMemberXmlNameOutput>
-    httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput, any): async.Operation<types.HttpPayloadWithStructureOutput>
-    httpPayloadWithUnion: function(Client, types.HttpPayloadWithUnionInput, any): async.Operation<types.HttpPayloadWithUnionOutput>
-    httpPayloadWithXmlName: function(Client, types.HttpPayloadWithXmlNameInput, any): async.Operation<types.HttpPayloadWithXmlNameOutput>
-    httpPayloadWithXmlNamespace: function(Client, types.HttpPayloadWithXmlNamespaceInput, any): async.Operation<types.HttpPayloadWithXmlNamespaceOutput>
-    httpPayloadWithXmlNamespaceAndPrefix: function(Client, types.HttpPayloadWithXmlNamespaceAndPrefixInput, any): async.Operation<types.HttpPayloadWithXmlNamespaceAndPrefixOutput>
-    httpPrefixHeaders: function(Client, types.HttpPrefixHeadersInput, any): async.Operation<types.HttpPrefixHeadersOutput>
-    httpRequestWithFloatLabels: function(Client, types.HttpRequestWithFloatLabelsInput, any): async.Operation<types.HttpRequestWithFloatLabelsOutput>
-    httpRequestWithGreedyLabelInPath: function(Client, types.HttpRequestWithGreedyLabelInPathInput, any): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
-    httpRequestWithLabels: function(Client, types.HttpRequestWithLabelsInput, any): async.Operation<types.HttpRequestWithLabelsOutput>
-    httpRequestWithLabelsAndTimestampFormat: function(Client, types.HttpRequestWithLabelsAndTimestampFormatInput, any): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
-    httpResponseCode: function(Client, types.HttpResponseCodeInput, any): async.Operation<types.HttpResponseCodeOutput>
-    httpStringPayload: function(Client, types.HttpStringPayloadInput, any): async.Operation<types.HttpStringPayloadOutput>
-    ignoreQueryParamsInResponse: function(Client, types.IgnoreQueryParamsInResponseInput, any): async.Operation<types.IgnoreQueryParamsInResponseOutput>
-    inputAndOutputWithHeaders: function(Client, types.InputAndOutputWithHeadersInput, any): async.Operation<types.InputAndOutputWithHeadersOutput>
-    nestedXmlMaps: function(Client, types.NestedXmlMapsInput, any): async.Operation<types.NestedXmlMapsOutput>
-    nestedXmlMapWithXmlName: function(Client, types.NestedXmlMapWithXmlNameInput, any): async.Operation<types.NestedXmlMapWithXmlNameOutput>
-    noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput, any): async.Operation<types.NoInputAndNoOutputOutput>
-    noInputAndOutput: function(Client, types.NoInputAndOutputInput, any): async.Operation<types.NoInputAndOutputOutput>
-    nullAndEmptyHeadersClient: function(Client, types.NullAndEmptyHeadersClientInput, any): async.Operation<types.NullAndEmptyHeadersClientOutput>
-    nullAndEmptyHeadersServer: function(Client, types.NullAndEmptyHeadersServerInput, any): async.Operation<types.NullAndEmptyHeadersServerOutput>
-    omitsNullSerializesEmptyString: function(Client, types.OmitsNullSerializesEmptyStringInput, any): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
-    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, any): async.Operation<types.PutWithContentEncodingOutput>
-    queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput, any): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
-    queryParamsAsStringListMap: function(Client, types.QueryParamsAsStringListMapInput, any): async.Operation<types.QueryParamsAsStringListMapOutput>
-    queryPrecedence: function(Client, types.QueryPrecedenceInput, any): async.Operation<types.QueryPrecedenceOutput>
-    recursiveShapes: function(Client, types.RecursiveShapesInput, any): async.Operation<types.RecursiveShapesOutput>
-    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, any): async.Operation<types.SimpleScalarPropertiesOutput>
-    timestampFormatHeaders: function(Client, types.TimestampFormatHeadersInput, any): async.Operation<types.TimestampFormatHeadersOutput>
-    xmlAttributes: function(Client, types.XmlAttributesInput, any): async.Operation<types.XmlAttributesOutput>
-    xmlAttributesInMiddle: function(Client, types.XmlAttributesInMiddleInput, any): async.Operation<types.XmlAttributesInMiddleOutput>
-    xmlAttributesOnPayload: function(Client, types.XmlAttributesOnPayloadInput, any): async.Operation<types.XmlAttributesOnPayloadOutput>
-    xmlBlobs: function(Client, types.XmlBlobsInput, any): async.Operation<types.XmlBlobsOutput>
-    xmlEmptyBlobs: function(Client, types.XmlEmptyBlobsInput, any): async.Operation<types.XmlEmptyBlobsOutput>
-    xmlEmptyLists: function(Client, types.XmlEmptyListsInput, any): async.Operation<types.XmlEmptyListsOutput>
-    xmlEmptyMaps: function(Client, types.XmlEmptyMapsInput, any): async.Operation<types.XmlEmptyMapsOutput>
-    xmlEmptyStrings: function(Client, types.XmlEmptyStringsInput, any): async.Operation<types.XmlEmptyStringsOutput>
-    xmlEnums: function(Client, types.XmlEnumsInput, any): async.Operation<types.XmlEnumsOutput>
-    xmlIntEnums: function(Client, types.XmlIntEnumsInput, any): async.Operation<types.XmlIntEnumsOutput>
-    xmlLists: function(Client, types.XmlListsInput, any): async.Operation<types.XmlListsOutput>
-    xmlMaps: function(Client, types.XmlMapsInput, any): async.Operation<types.XmlMapsOutput>
-    xmlMapsXmlName: function(Client, types.XmlMapsXmlNameInput, any): async.Operation<types.XmlMapsXmlNameOutput>
-    xmlMapWithXmlNamespace: function(Client, types.XmlMapWithXmlNamespaceInput, any): async.Operation<types.XmlMapWithXmlNamespaceOutput>
-    xmlNamespaces: function(Client, types.XmlNamespacesInput, any): async.Operation<types.XmlNamespacesOutput>
-    xmlTimestamps: function(Client, types.XmlTimestampsInput, any): async.Operation<types.XmlTimestampsOutput>
-    xmlUnions: function(Client, types.XmlUnionsInput, any): async.Operation<types.XmlUnionsOutput>
+    config: base_client.ClientConfig
+    invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
+    allQueryStringTypes: function(Client, types.AllQueryStringTypesInput, base_client.InvokeOptions): async.Operation<types.AllQueryStringTypesOutput>
+    bodyWithXmlName: function(Client, types.BodyWithXmlNameInput, base_client.InvokeOptions): async.Operation<types.BodyWithXmlNameOutput>
+    constantAndVariableQueryString: function(Client, types.ConstantAndVariableQueryStringInput, base_client.InvokeOptions): async.Operation<types.ConstantAndVariableQueryStringOutput>
+    constantQueryString: function(Client, types.ConstantQueryStringInput, base_client.InvokeOptions): async.Operation<types.ConstantQueryStringOutput>
+    contentTypeParameters: function(Client, types.ContentTypeParametersInput, base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    endpointOperation: function(Client, types.EndpointOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    endpointWithHostLabelHeaderOperation: function(Client, types.EndpointWithHostLabelHeaderOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelHeaderOperationOutput>
+    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    flattenedXmlMap: function(Client, types.FlattenedXmlMapInput, base_client.InvokeOptions): async.Operation<types.FlattenedXmlMapOutput>
+    flattenedXmlMapWithXmlName: function(Client, types.FlattenedXmlMapWithXmlNameInput, base_client.InvokeOptions): async.Operation<types.FlattenedXmlMapWithXmlNameOutput>
+    flattenedXmlMapWithXmlNamespace: function(Client, types.FlattenedXmlMapWithXmlNamespaceInput, base_client.InvokeOptions): async.Operation<types.FlattenedXmlMapWithXmlNamespaceOutput>
+    fractionalSeconds: function(Client, types.FractionalSecondsInput, base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    httpEmptyPrefixHeaders: function(Client, types.HttpEmptyPrefixHeadersInput, base_client.InvokeOptions): async.Operation<types.HttpEmptyPrefixHeadersOutput>
+    httpEnumPayload: function(Client, types.HttpEnumPayloadInput, base_client.InvokeOptions): async.Operation<types.HttpEnumPayloadOutput>
+    httpPayloadTraits: function(Client, types.HttpPayloadTraitsInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsOutput>
+    httpPayloadTraitsWithMediaType: function(Client, types.HttpPayloadTraitsWithMediaTypeInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
+    httpPayloadWithMemberXmlName: function(Client, types.HttpPayloadWithMemberXmlNameInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithMemberXmlNameOutput>
+    httpPayloadWithStructure: function(Client, types.HttpPayloadWithStructureInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithStructureOutput>
+    httpPayloadWithUnion: function(Client, types.HttpPayloadWithUnionInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithUnionOutput>
+    httpPayloadWithXmlName: function(Client, types.HttpPayloadWithXmlNameInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithXmlNameOutput>
+    httpPayloadWithXmlNamespace: function(Client, types.HttpPayloadWithXmlNamespaceInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithXmlNamespaceOutput>
+    httpPayloadWithXmlNamespaceAndPrefix: function(Client, types.HttpPayloadWithXmlNamespaceAndPrefixInput, base_client.InvokeOptions): async.Operation<types.HttpPayloadWithXmlNamespaceAndPrefixOutput>
+    httpPrefixHeaders: function(Client, types.HttpPrefixHeadersInput, base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersOutput>
+    httpRequestWithFloatLabels: function(Client, types.HttpRequestWithFloatLabelsInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithFloatLabelsOutput>
+    httpRequestWithGreedyLabelInPath: function(Client, types.HttpRequestWithGreedyLabelInPathInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
+    httpRequestWithLabels: function(Client, types.HttpRequestWithLabelsInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsOutput>
+    httpRequestWithLabelsAndTimestampFormat: function(Client, types.HttpRequestWithLabelsAndTimestampFormatInput, base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
+    httpResponseCode: function(Client, types.HttpResponseCodeInput, base_client.InvokeOptions): async.Operation<types.HttpResponseCodeOutput>
+    httpStringPayload: function(Client, types.HttpStringPayloadInput, base_client.InvokeOptions): async.Operation<types.HttpStringPayloadOutput>
+    ignoreQueryParamsInResponse: function(Client, types.IgnoreQueryParamsInResponseInput, base_client.InvokeOptions): async.Operation<types.IgnoreQueryParamsInResponseOutput>
+    inputAndOutputWithHeaders: function(Client, types.InputAndOutputWithHeadersInput, base_client.InvokeOptions): async.Operation<types.InputAndOutputWithHeadersOutput>
+    nestedXmlMaps: function(Client, types.NestedXmlMapsInput, base_client.InvokeOptions): async.Operation<types.NestedXmlMapsOutput>
+    nestedXmlMapWithXmlName: function(Client, types.NestedXmlMapWithXmlNameInput, base_client.InvokeOptions): async.Operation<types.NestedXmlMapWithXmlNameOutput>
+    noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
+    noInputAndOutput: function(Client, types.NoInputAndOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    nullAndEmptyHeadersClient: function(Client, types.NullAndEmptyHeadersClientInput, base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersClientOutput>
+    nullAndEmptyHeadersServer: function(Client, types.NullAndEmptyHeadersServerInput, base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersServerOutput>
+    omitsNullSerializesEmptyString: function(Client, types.OmitsNullSerializesEmptyStringInput, base_client.InvokeOptions): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
+    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput, base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+    queryParamsAsStringListMap: function(Client, types.QueryParamsAsStringListMapInput, base_client.InvokeOptions): async.Operation<types.QueryParamsAsStringListMapOutput>
+    queryPrecedence: function(Client, types.QueryPrecedenceInput, base_client.InvokeOptions): async.Operation<types.QueryPrecedenceOutput>
+    recursiveShapes: function(Client, types.RecursiveShapesInput, base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
+    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    timestampFormatHeaders: function(Client, types.TimestampFormatHeadersInput, base_client.InvokeOptions): async.Operation<types.TimestampFormatHeadersOutput>
+    xmlAttributes: function(Client, types.XmlAttributesInput, base_client.InvokeOptions): async.Operation<types.XmlAttributesOutput>
+    xmlAttributesInMiddle: function(Client, types.XmlAttributesInMiddleInput, base_client.InvokeOptions): async.Operation<types.XmlAttributesInMiddleOutput>
+    xmlAttributesOnPayload: function(Client, types.XmlAttributesOnPayloadInput, base_client.InvokeOptions): async.Operation<types.XmlAttributesOnPayloadOutput>
+    xmlBlobs: function(Client, types.XmlBlobsInput, base_client.InvokeOptions): async.Operation<types.XmlBlobsOutput>
+    xmlEmptyBlobs: function(Client, types.XmlEmptyBlobsInput, base_client.InvokeOptions): async.Operation<types.XmlEmptyBlobsOutput>
+    xmlEmptyLists: function(Client, types.XmlEmptyListsInput, base_client.InvokeOptions): async.Operation<types.XmlEmptyListsOutput>
+    xmlEmptyMaps: function(Client, types.XmlEmptyMapsInput, base_client.InvokeOptions): async.Operation<types.XmlEmptyMapsOutput>
+    xmlEmptyStrings: function(Client, types.XmlEmptyStringsInput, base_client.InvokeOptions): async.Operation<types.XmlEmptyStringsOutput>
+    xmlEnums: function(Client, types.XmlEnumsInput, base_client.InvokeOptions): async.Operation<types.XmlEnumsOutput>
+    xmlIntEnums: function(Client, types.XmlIntEnumsInput, base_client.InvokeOptions): async.Operation<types.XmlIntEnumsOutput>
+    xmlLists: function(Client, types.XmlListsInput, base_client.InvokeOptions): async.Operation<types.XmlListsOutput>
+    xmlMaps: function(Client, types.XmlMapsInput, base_client.InvokeOptions): async.Operation<types.XmlMapsOutput>
+    xmlMapsXmlName: function(Client, types.XmlMapsXmlNameInput, base_client.InvokeOptions): async.Operation<types.XmlMapsXmlNameOutput>
+    xmlMapWithXmlNamespace: function(Client, types.XmlMapWithXmlNamespaceInput, base_client.InvokeOptions): async.Operation<types.XmlMapWithXmlNamespaceOutput>
+    xmlNamespaces: function(Client, types.XmlNamespacesInput, base_client.InvokeOptions): async.Operation<types.XmlNamespacesOutput>
+    xmlTimestamps: function(Client, types.XmlTimestampsInput, base_client.InvokeOptions): async.Operation<types.XmlTimestampsOutput>
+    xmlUnions: function(Client, types.XmlUnionsInput, base_client.InvokeOptions): async.Operation<types.XmlUnionsOutput>
 end
 
 local record M
-    new: function(cfg?: {string:any}): Client
+    new: function(cfg?: base_client.ClientConfig): Client
 end
 
 local Client_mt: metatable<Client> = { __index = {} as Client }
 local C = Client_mt.__index as Client
-C.invokeOperation = base_client.invokeOperation
+C.invokeOperation = base_client.invokeOperation as function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
 
-function M.new(cfg?: {string:any}): Client
-    local c = cfg or {}
+function M.new(cfg?: base_client.ClientConfig): Client
+    local c = cfg or {} as base_client.ClientConfig
     c.service_id = "RestXml"
-    if not c.protocol then c.protocol = restxml_protocol.new() end
+    if not c.protocol then c.protocol = restxml_protocol.new() as protocol_mod.ClientProtocol end
     if not c.endpoint_provider then
-        c.endpoint_provider = function(params)
+        c.endpoint_provider = function(params: {string:any}): endpoint.Endpoint, string
             return endpoint.resolve(endpoint_rules, params)
         end
     end
     if not c.auth_scheme_resolver then
-        c.auth_scheme_resolver = function(_service, operation)
-            local auth_trait = operation:trait(traits.AUTH) or _service:trait(traits.AUTH)
-            local options = {}
-            for _, scheme in ipairs(auth_trait or {}) do
-                local scheme_id = scheme.scheme_id or scheme
+        c.auth_scheme_resolver = function(_service: schema.ServiceSchema, operation: schema.OperationSchema): {auth.AuthOption}
+            local auth = require("smithy.auth")
+            local auth_trait = (operation:trait(traits.AUTH) or _service:trait(traits.AUTH)) as {auth.AuthOption}
+            local options: {auth.AuthOption} = {}
+            for _, scheme in ipairs(auth_trait or {} as {auth.AuthOption}) do
+                local scheme_id = scheme.scheme_id
                 if scheme_id == "aws.auth#sigv4" or scheme_id == "aws.auth#sigv4a" then
                     options[#options + 1] = { scheme_id = scheme_id, signer_properties = { signing_name = "restxml", signing_region = c.region } }
                 else
@@ -122,264 +125,264 @@ function M.new(cfg?: {string:any}): Client
     return self
 end
 
-function C:allQueryStringTypes(input: types.AllQueryStringTypesInput, options: any): async.Operation<types.AllQueryStringTypesOutput>
-    return self:invokeOperation(schemas.Service, schemas.AllQueryStringTypes, input, options) as async.Operation<types.AllQueryStringTypesOutput>
+function C:allQueryStringTypes(input: types.AllQueryStringTypesInput, options: base_client.InvokeOptions): async.Operation<types.AllQueryStringTypesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.AllQueryStringTypes as schema.OperationSchema, input, options) as async.Operation<types.AllQueryStringTypesOutput>
 end
 
-function C:bodyWithXmlName(input: types.BodyWithXmlNameInput, options: any): async.Operation<types.BodyWithXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.BodyWithXmlName, input, options) as async.Operation<types.BodyWithXmlNameOutput>
+function C:bodyWithXmlName(input: types.BodyWithXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.BodyWithXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.BodyWithXmlName as schema.OperationSchema, input, options) as async.Operation<types.BodyWithXmlNameOutput>
 end
 
-function C:constantAndVariableQueryString(input: types.ConstantAndVariableQueryStringInput, options: any): async.Operation<types.ConstantAndVariableQueryStringOutput>
-    return self:invokeOperation(schemas.Service, schemas.ConstantAndVariableQueryString, input, options) as async.Operation<types.ConstantAndVariableQueryStringOutput>
+function C:constantAndVariableQueryString(input: types.ConstantAndVariableQueryStringInput, options: base_client.InvokeOptions): async.Operation<types.ConstantAndVariableQueryStringOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ConstantAndVariableQueryString as schema.OperationSchema, input, options) as async.Operation<types.ConstantAndVariableQueryStringOutput>
 end
 
-function C:constantQueryString(input: types.ConstantQueryStringInput, options: any): async.Operation<types.ConstantQueryStringOutput>
-    return self:invokeOperation(schemas.Service, schemas.ConstantQueryString, input, options) as async.Operation<types.ConstantQueryStringOutput>
+function C:constantQueryString(input: types.ConstantQueryStringInput, options: base_client.InvokeOptions): async.Operation<types.ConstantQueryStringOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ConstantQueryString as schema.OperationSchema, input, options) as async.Operation<types.ConstantQueryStringOutput>
 end
 
-function C:contentTypeParameters(input: types.ContentTypeParametersInput, options: any): async.Operation<types.ContentTypeParametersOutput>
-    return self:invokeOperation(schemas.Service, schemas.ContentTypeParameters, input, options) as async.Operation<types.ContentTypeParametersOutput>
+function C:contentTypeParameters(input: types.ContentTypeParametersInput, options: base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ContentTypeParameters as schema.OperationSchema, input, options) as async.Operation<types.ContentTypeParametersOutput>
 end
 
-function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options: any): async.Operation<types.DatetimeOffsetsOutput>
-    return self:invokeOperation(schemas.Service, schemas.DatetimeOffsets, input, options) as async.Operation<types.DatetimeOffsetsOutput>
+function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options: base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DatetimeOffsets as schema.OperationSchema, input, options) as async.Operation<types.DatetimeOffsetsOutput>
 end
 
-function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: any): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.EmptyInputAndEmptyOutput, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
+function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EmptyInputAndEmptyOutput as schema.OperationSchema, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
 end
 
-function C:endpointOperation(input: types.EndpointOperationInput, options: any): async.Operation<types.EndpointOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointOperation, input, options) as async.Operation<types.EndpointOperationOutput>
+function C:endpointOperation(input: types.EndpointOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointOperationOutput>
 end
 
-function C:endpointWithHostLabelHeaderOperation(input: types.EndpointWithHostLabelHeaderOperationInput, options: any): async.Operation<types.EndpointWithHostLabelHeaderOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointWithHostLabelHeaderOperation, input, options) as async.Operation<types.EndpointWithHostLabelHeaderOperationOutput>
+function C:endpointWithHostLabelHeaderOperation(input: types.EndpointWithHostLabelHeaderOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelHeaderOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointWithHostLabelHeaderOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointWithHostLabelHeaderOperationOutput>
 end
 
-function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: any): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointWithHostLabelOperation, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
+function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointWithHostLabelOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
 end
 
-function C:flattenedXmlMap(input: types.FlattenedXmlMapInput, options: any): async.Operation<types.FlattenedXmlMapOutput>
-    return self:invokeOperation(schemas.Service, schemas.FlattenedXmlMap, input, options) as async.Operation<types.FlattenedXmlMapOutput>
+function C:flattenedXmlMap(input: types.FlattenedXmlMapInput, options: base_client.InvokeOptions): async.Operation<types.FlattenedXmlMapOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FlattenedXmlMap as schema.OperationSchema, input, options) as async.Operation<types.FlattenedXmlMapOutput>
 end
 
-function C:flattenedXmlMapWithXmlName(input: types.FlattenedXmlMapWithXmlNameInput, options: any): async.Operation<types.FlattenedXmlMapWithXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.FlattenedXmlMapWithXmlName, input, options) as async.Operation<types.FlattenedXmlMapWithXmlNameOutput>
+function C:flattenedXmlMapWithXmlName(input: types.FlattenedXmlMapWithXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.FlattenedXmlMapWithXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FlattenedXmlMapWithXmlName as schema.OperationSchema, input, options) as async.Operation<types.FlattenedXmlMapWithXmlNameOutput>
 end
 
-function C:flattenedXmlMapWithXmlNamespace(input: types.FlattenedXmlMapWithXmlNamespaceInput, options: any): async.Operation<types.FlattenedXmlMapWithXmlNamespaceOutput>
-    return self:invokeOperation(schemas.Service, schemas.FlattenedXmlMapWithXmlNamespace, input, options) as async.Operation<types.FlattenedXmlMapWithXmlNamespaceOutput>
+function C:flattenedXmlMapWithXmlNamespace(input: types.FlattenedXmlMapWithXmlNamespaceInput, options: base_client.InvokeOptions): async.Operation<types.FlattenedXmlMapWithXmlNamespaceOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FlattenedXmlMapWithXmlNamespace as schema.OperationSchema, input, options) as async.Operation<types.FlattenedXmlMapWithXmlNamespaceOutput>
 end
 
-function C:fractionalSeconds(input: types.FractionalSecondsInput, options: any): async.Operation<types.FractionalSecondsOutput>
-    return self:invokeOperation(schemas.Service, schemas.FractionalSeconds, input, options) as async.Operation<types.FractionalSecondsOutput>
+function C:fractionalSeconds(input: types.FractionalSecondsInput, options: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FractionalSeconds as schema.OperationSchema, input, options) as async.Operation<types.FractionalSecondsOutput>
 end
 
-function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: any): async.Operation<types.GreetingWithErrorsOutput>
-    return self:invokeOperation(schemas.Service, schemas.GreetingWithErrors, input, options) as async.Operation<types.GreetingWithErrorsOutput>
+function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.GreetingWithErrors as schema.OperationSchema, input, options) as async.Operation<types.GreetingWithErrorsOutput>
 end
 
-function C:httpEmptyPrefixHeaders(input: types.HttpEmptyPrefixHeadersInput, options: any): async.Operation<types.HttpEmptyPrefixHeadersOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpEmptyPrefixHeaders, input, options) as async.Operation<types.HttpEmptyPrefixHeadersOutput>
+function C:httpEmptyPrefixHeaders(input: types.HttpEmptyPrefixHeadersInput, options: base_client.InvokeOptions): async.Operation<types.HttpEmptyPrefixHeadersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpEmptyPrefixHeaders as schema.OperationSchema, input, options) as async.Operation<types.HttpEmptyPrefixHeadersOutput>
 end
 
-function C:httpEnumPayload(input: types.HttpEnumPayloadInput, options: any): async.Operation<types.HttpEnumPayloadOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpEnumPayload, input, options) as async.Operation<types.HttpEnumPayloadOutput>
+function C:httpEnumPayload(input: types.HttpEnumPayloadInput, options: base_client.InvokeOptions): async.Operation<types.HttpEnumPayloadOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpEnumPayload as schema.OperationSchema, input, options) as async.Operation<types.HttpEnumPayloadOutput>
 end
 
-function C:httpPayloadTraits(input: types.HttpPayloadTraitsInput, options: any): async.Operation<types.HttpPayloadTraitsOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadTraits, input, options) as async.Operation<types.HttpPayloadTraitsOutput>
+function C:httpPayloadTraits(input: types.HttpPayloadTraitsInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadTraits as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadTraitsOutput>
 end
 
-function C:httpPayloadTraitsWithMediaType(input: types.HttpPayloadTraitsWithMediaTypeInput, options: any): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadTraitsWithMediaType, input, options) as async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
+function C:httpPayloadTraitsWithMediaType(input: types.HttpPayloadTraitsWithMediaTypeInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadTraitsWithMediaType as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadTraitsWithMediaTypeOutput>
 end
 
-function C:httpPayloadWithMemberXmlName(input: types.HttpPayloadWithMemberXmlNameInput, options: any): async.Operation<types.HttpPayloadWithMemberXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadWithMemberXmlName, input, options) as async.Operation<types.HttpPayloadWithMemberXmlNameOutput>
+function C:httpPayloadWithMemberXmlName(input: types.HttpPayloadWithMemberXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithMemberXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithMemberXmlName as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithMemberXmlNameOutput>
 end
 
-function C:httpPayloadWithStructure(input: types.HttpPayloadWithStructureInput, options: any): async.Operation<types.HttpPayloadWithStructureOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadWithStructure, input, options) as async.Operation<types.HttpPayloadWithStructureOutput>
+function C:httpPayloadWithStructure(input: types.HttpPayloadWithStructureInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithStructureOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithStructure as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithStructureOutput>
 end
 
-function C:httpPayloadWithUnion(input: types.HttpPayloadWithUnionInput, options: any): async.Operation<types.HttpPayloadWithUnionOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadWithUnion, input, options) as async.Operation<types.HttpPayloadWithUnionOutput>
+function C:httpPayloadWithUnion(input: types.HttpPayloadWithUnionInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithUnionOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithUnion as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithUnionOutput>
 end
 
-function C:httpPayloadWithXmlName(input: types.HttpPayloadWithXmlNameInput, options: any): async.Operation<types.HttpPayloadWithXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadWithXmlName, input, options) as async.Operation<types.HttpPayloadWithXmlNameOutput>
+function C:httpPayloadWithXmlName(input: types.HttpPayloadWithXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithXmlName as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithXmlNameOutput>
 end
 
-function C:httpPayloadWithXmlNamespace(input: types.HttpPayloadWithXmlNamespaceInput, options: any): async.Operation<types.HttpPayloadWithXmlNamespaceOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadWithXmlNamespace, input, options) as async.Operation<types.HttpPayloadWithXmlNamespaceOutput>
+function C:httpPayloadWithXmlNamespace(input: types.HttpPayloadWithXmlNamespaceInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithXmlNamespaceOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithXmlNamespace as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithXmlNamespaceOutput>
 end
 
-function C:httpPayloadWithXmlNamespaceAndPrefix(input: types.HttpPayloadWithXmlNamespaceAndPrefixInput, options: any): async.Operation<types.HttpPayloadWithXmlNamespaceAndPrefixOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPayloadWithXmlNamespaceAndPrefix, input, options) as async.Operation<types.HttpPayloadWithXmlNamespaceAndPrefixOutput>
+function C:httpPayloadWithXmlNamespaceAndPrefix(input: types.HttpPayloadWithXmlNamespaceAndPrefixInput, options: base_client.InvokeOptions): async.Operation<types.HttpPayloadWithXmlNamespaceAndPrefixOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPayloadWithXmlNamespaceAndPrefix as schema.OperationSchema, input, options) as async.Operation<types.HttpPayloadWithXmlNamespaceAndPrefixOutput>
 end
 
-function C:httpPrefixHeaders(input: types.HttpPrefixHeadersInput, options: any): async.Operation<types.HttpPrefixHeadersOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpPrefixHeaders, input, options) as async.Operation<types.HttpPrefixHeadersOutput>
+function C:httpPrefixHeaders(input: types.HttpPrefixHeadersInput, options: base_client.InvokeOptions): async.Operation<types.HttpPrefixHeadersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpPrefixHeaders as schema.OperationSchema, input, options) as async.Operation<types.HttpPrefixHeadersOutput>
 end
 
-function C:httpRequestWithFloatLabels(input: types.HttpRequestWithFloatLabelsInput, options: any): async.Operation<types.HttpRequestWithFloatLabelsOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpRequestWithFloatLabels, input, options) as async.Operation<types.HttpRequestWithFloatLabelsOutput>
+function C:httpRequestWithFloatLabels(input: types.HttpRequestWithFloatLabelsInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithFloatLabelsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithFloatLabels as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithFloatLabelsOutput>
 end
 
-function C:httpRequestWithGreedyLabelInPath(input: types.HttpRequestWithGreedyLabelInPathInput, options: any): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpRequestWithGreedyLabelInPath, input, options) as async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
+function C:httpRequestWithGreedyLabelInPath(input: types.HttpRequestWithGreedyLabelInPathInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithGreedyLabelInPath as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithGreedyLabelInPathOutput>
 end
 
-function C:httpRequestWithLabels(input: types.HttpRequestWithLabelsInput, options: any): async.Operation<types.HttpRequestWithLabelsOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpRequestWithLabels, input, options) as async.Operation<types.HttpRequestWithLabelsOutput>
+function C:httpRequestWithLabels(input: types.HttpRequestWithLabelsInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithLabels as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithLabelsOutput>
 end
 
-function C:httpRequestWithLabelsAndTimestampFormat(input: types.HttpRequestWithLabelsAndTimestampFormatInput, options: any): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpRequestWithLabelsAndTimestampFormat, input, options) as async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
+function C:httpRequestWithLabelsAndTimestampFormat(input: types.HttpRequestWithLabelsAndTimestampFormatInput, options: base_client.InvokeOptions): async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpRequestWithLabelsAndTimestampFormat as schema.OperationSchema, input, options) as async.Operation<types.HttpRequestWithLabelsAndTimestampFormatOutput>
 end
 
-function C:httpResponseCode(input: types.HttpResponseCodeInput, options: any): async.Operation<types.HttpResponseCodeOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpResponseCode, input, options) as async.Operation<types.HttpResponseCodeOutput>
+function C:httpResponseCode(input: types.HttpResponseCodeInput, options: base_client.InvokeOptions): async.Operation<types.HttpResponseCodeOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpResponseCode as schema.OperationSchema, input, options) as async.Operation<types.HttpResponseCodeOutput>
 end
 
-function C:httpStringPayload(input: types.HttpStringPayloadInput, options: any): async.Operation<types.HttpStringPayloadOutput>
-    return self:invokeOperation(schemas.Service, schemas.HttpStringPayload, input, options) as async.Operation<types.HttpStringPayloadOutput>
+function C:httpStringPayload(input: types.HttpStringPayloadInput, options: base_client.InvokeOptions): async.Operation<types.HttpStringPayloadOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HttpStringPayload as schema.OperationSchema, input, options) as async.Operation<types.HttpStringPayloadOutput>
 end
 
-function C:ignoreQueryParamsInResponse(input: types.IgnoreQueryParamsInResponseInput, options: any): async.Operation<types.IgnoreQueryParamsInResponseOutput>
-    return self:invokeOperation(schemas.Service, schemas.IgnoreQueryParamsInResponse, input, options) as async.Operation<types.IgnoreQueryParamsInResponseOutput>
+function C:ignoreQueryParamsInResponse(input: types.IgnoreQueryParamsInResponseInput, options: base_client.InvokeOptions): async.Operation<types.IgnoreQueryParamsInResponseOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.IgnoreQueryParamsInResponse as schema.OperationSchema, input, options) as async.Operation<types.IgnoreQueryParamsInResponseOutput>
 end
 
-function C:inputAndOutputWithHeaders(input: types.InputAndOutputWithHeadersInput, options: any): async.Operation<types.InputAndOutputWithHeadersOutput>
-    return self:invokeOperation(schemas.Service, schemas.InputAndOutputWithHeaders, input, options) as async.Operation<types.InputAndOutputWithHeadersOutput>
+function C:inputAndOutputWithHeaders(input: types.InputAndOutputWithHeadersInput, options: base_client.InvokeOptions): async.Operation<types.InputAndOutputWithHeadersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.InputAndOutputWithHeaders as schema.OperationSchema, input, options) as async.Operation<types.InputAndOutputWithHeadersOutput>
 end
 
-function C:nestedXmlMaps(input: types.NestedXmlMapsInput, options: any): async.Operation<types.NestedXmlMapsOutput>
-    return self:invokeOperation(schemas.Service, schemas.NestedXmlMaps, input, options) as async.Operation<types.NestedXmlMapsOutput>
+function C:nestedXmlMaps(input: types.NestedXmlMapsInput, options: base_client.InvokeOptions): async.Operation<types.NestedXmlMapsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NestedXmlMaps as schema.OperationSchema, input, options) as async.Operation<types.NestedXmlMapsOutput>
 end
 
-function C:nestedXmlMapWithXmlName(input: types.NestedXmlMapWithXmlNameInput, options: any): async.Operation<types.NestedXmlMapWithXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.NestedXmlMapWithXmlName, input, options) as async.Operation<types.NestedXmlMapWithXmlNameOutput>
+function C:nestedXmlMapWithXmlName(input: types.NestedXmlMapWithXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.NestedXmlMapWithXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NestedXmlMapWithXmlName as schema.OperationSchema, input, options) as async.Operation<types.NestedXmlMapWithXmlNameOutput>
 end
 
-function C:noInputAndNoOutput(input: types.NoInputAndNoOutputInput, options: any): async.Operation<types.NoInputAndNoOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.NoInputAndNoOutput, input, options) as async.Operation<types.NoInputAndNoOutputOutput>
+function C:noInputAndNoOutput(input: types.NoInputAndNoOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndNoOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndNoOutputOutput>
 end
 
-function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: any): async.Operation<types.NoInputAndOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.NoInputAndOutput, input, options) as async.Operation<types.NoInputAndOutputOutput>
+function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndOutputOutput>
 end
 
-function C:nullAndEmptyHeadersClient(input: types.NullAndEmptyHeadersClientInput, options: any): async.Operation<types.NullAndEmptyHeadersClientOutput>
-    return self:invokeOperation(schemas.Service, schemas.NullAndEmptyHeadersClient, input, options) as async.Operation<types.NullAndEmptyHeadersClientOutput>
+function C:nullAndEmptyHeadersClient(input: types.NullAndEmptyHeadersClientInput, options: base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersClientOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NullAndEmptyHeadersClient as schema.OperationSchema, input, options) as async.Operation<types.NullAndEmptyHeadersClientOutput>
 end
 
-function C:nullAndEmptyHeadersServer(input: types.NullAndEmptyHeadersServerInput, options: any): async.Operation<types.NullAndEmptyHeadersServerOutput>
-    return self:invokeOperation(schemas.Service, schemas.NullAndEmptyHeadersServer, input, options) as async.Operation<types.NullAndEmptyHeadersServerOutput>
+function C:nullAndEmptyHeadersServer(input: types.NullAndEmptyHeadersServerInput, options: base_client.InvokeOptions): async.Operation<types.NullAndEmptyHeadersServerOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NullAndEmptyHeadersServer as schema.OperationSchema, input, options) as async.Operation<types.NullAndEmptyHeadersServerOutput>
 end
 
-function C:omitsNullSerializesEmptyString(input: types.OmitsNullSerializesEmptyStringInput, options: any): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
-    return self:invokeOperation(schemas.Service, schemas.OmitsNullSerializesEmptyString, input, options) as async.Operation<types.OmitsNullSerializesEmptyStringOutput>
+function C:omitsNullSerializesEmptyString(input: types.OmitsNullSerializesEmptyStringInput, options: base_client.InvokeOptions): async.Operation<types.OmitsNullSerializesEmptyStringOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OmitsNullSerializesEmptyString as schema.OperationSchema, input, options) as async.Operation<types.OmitsNullSerializesEmptyStringOutput>
 end
 
-function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: any): async.Operation<types.PutWithContentEncodingOutput>
-    return self:invokeOperation(schemas.Service, schemas.PutWithContentEncoding, input, options) as async.Operation<types.PutWithContentEncodingOutput>
+function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PutWithContentEncoding as schema.OperationSchema, input, options) as async.Operation<types.PutWithContentEncodingOutput>
 end
 
-function C:queryIdempotencyTokenAutoFill(input: types.QueryIdempotencyTokenAutoFillInput, options: any): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryIdempotencyTokenAutoFill, input, options) as async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+function C:queryIdempotencyTokenAutoFill(input: types.QueryIdempotencyTokenAutoFillInput, options: base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryIdempotencyTokenAutoFill as schema.OperationSchema, input, options) as async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
 end
 
-function C:queryParamsAsStringListMap(input: types.QueryParamsAsStringListMapInput, options: any): async.Operation<types.QueryParamsAsStringListMapOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryParamsAsStringListMap, input, options) as async.Operation<types.QueryParamsAsStringListMapOutput>
+function C:queryParamsAsStringListMap(input: types.QueryParamsAsStringListMapInput, options: base_client.InvokeOptions): async.Operation<types.QueryParamsAsStringListMapOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryParamsAsStringListMap as schema.OperationSchema, input, options) as async.Operation<types.QueryParamsAsStringListMapOutput>
 end
 
-function C:queryPrecedence(input: types.QueryPrecedenceInput, options: any): async.Operation<types.QueryPrecedenceOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryPrecedence, input, options) as async.Operation<types.QueryPrecedenceOutput>
+function C:queryPrecedence(input: types.QueryPrecedenceInput, options: base_client.InvokeOptions): async.Operation<types.QueryPrecedenceOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryPrecedence as schema.OperationSchema, input, options) as async.Operation<types.QueryPrecedenceOutput>
 end
 
-function C:recursiveShapes(input: types.RecursiveShapesInput, options: any): async.Operation<types.RecursiveShapesOutput>
-    return self:invokeOperation(schemas.Service, schemas.RecursiveShapes, input, options) as async.Operation<types.RecursiveShapesOutput>
+function C:recursiveShapes(input: types.RecursiveShapesInput, options: base_client.InvokeOptions): async.Operation<types.RecursiveShapesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RecursiveShapes as schema.OperationSchema, input, options) as async.Operation<types.RecursiveShapesOutput>
 end
 
-function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: any): async.Operation<types.SimpleScalarPropertiesOutput>
-    return self:invokeOperation(schemas.Service, schemas.SimpleScalarProperties, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
+function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
-function C:timestampFormatHeaders(input: types.TimestampFormatHeadersInput, options: any): async.Operation<types.TimestampFormatHeadersOutput>
-    return self:invokeOperation(schemas.Service, schemas.TimestampFormatHeaders, input, options) as async.Operation<types.TimestampFormatHeadersOutput>
+function C:timestampFormatHeaders(input: types.TimestampFormatHeadersInput, options: base_client.InvokeOptions): async.Operation<types.TimestampFormatHeadersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.TimestampFormatHeaders as schema.OperationSchema, input, options) as async.Operation<types.TimestampFormatHeadersOutput>
 end
 
-function C:xmlAttributes(input: types.XmlAttributesInput, options: any): async.Operation<types.XmlAttributesOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlAttributes, input, options) as async.Operation<types.XmlAttributesOutput>
+function C:xmlAttributes(input: types.XmlAttributesInput, options: base_client.InvokeOptions): async.Operation<types.XmlAttributesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlAttributes as schema.OperationSchema, input, options) as async.Operation<types.XmlAttributesOutput>
 end
 
-function C:xmlAttributesInMiddle(input: types.XmlAttributesInMiddleInput, options: any): async.Operation<types.XmlAttributesInMiddleOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlAttributesInMiddle, input, options) as async.Operation<types.XmlAttributesInMiddleOutput>
+function C:xmlAttributesInMiddle(input: types.XmlAttributesInMiddleInput, options: base_client.InvokeOptions): async.Operation<types.XmlAttributesInMiddleOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlAttributesInMiddle as schema.OperationSchema, input, options) as async.Operation<types.XmlAttributesInMiddleOutput>
 end
 
-function C:xmlAttributesOnPayload(input: types.XmlAttributesOnPayloadInput, options: any): async.Operation<types.XmlAttributesOnPayloadOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlAttributesOnPayload, input, options) as async.Operation<types.XmlAttributesOnPayloadOutput>
+function C:xmlAttributesOnPayload(input: types.XmlAttributesOnPayloadInput, options: base_client.InvokeOptions): async.Operation<types.XmlAttributesOnPayloadOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlAttributesOnPayload as schema.OperationSchema, input, options) as async.Operation<types.XmlAttributesOnPayloadOutput>
 end
 
-function C:xmlBlobs(input: types.XmlBlobsInput, options: any): async.Operation<types.XmlBlobsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlBlobs, input, options) as async.Operation<types.XmlBlobsOutput>
+function C:xmlBlobs(input: types.XmlBlobsInput, options: base_client.InvokeOptions): async.Operation<types.XmlBlobsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlBlobs as schema.OperationSchema, input, options) as async.Operation<types.XmlBlobsOutput>
 end
 
-function C:xmlEmptyBlobs(input: types.XmlEmptyBlobsInput, options: any): async.Operation<types.XmlEmptyBlobsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEmptyBlobs, input, options) as async.Operation<types.XmlEmptyBlobsOutput>
+function C:xmlEmptyBlobs(input: types.XmlEmptyBlobsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEmptyBlobsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEmptyBlobs as schema.OperationSchema, input, options) as async.Operation<types.XmlEmptyBlobsOutput>
 end
 
-function C:xmlEmptyLists(input: types.XmlEmptyListsInput, options: any): async.Operation<types.XmlEmptyListsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEmptyLists, input, options) as async.Operation<types.XmlEmptyListsOutput>
+function C:xmlEmptyLists(input: types.XmlEmptyListsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEmptyListsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEmptyLists as schema.OperationSchema, input, options) as async.Operation<types.XmlEmptyListsOutput>
 end
 
-function C:xmlEmptyMaps(input: types.XmlEmptyMapsInput, options: any): async.Operation<types.XmlEmptyMapsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEmptyMaps, input, options) as async.Operation<types.XmlEmptyMapsOutput>
+function C:xmlEmptyMaps(input: types.XmlEmptyMapsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEmptyMapsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEmptyMaps as schema.OperationSchema, input, options) as async.Operation<types.XmlEmptyMapsOutput>
 end
 
-function C:xmlEmptyStrings(input: types.XmlEmptyStringsInput, options: any): async.Operation<types.XmlEmptyStringsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEmptyStrings, input, options) as async.Operation<types.XmlEmptyStringsOutput>
+function C:xmlEmptyStrings(input: types.XmlEmptyStringsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEmptyStringsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEmptyStrings as schema.OperationSchema, input, options) as async.Operation<types.XmlEmptyStringsOutput>
 end
 
-function C:xmlEnums(input: types.XmlEnumsInput, options: any): async.Operation<types.XmlEnumsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEnums, input, options) as async.Operation<types.XmlEnumsOutput>
+function C:xmlEnums(input: types.XmlEnumsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEnumsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEnums as schema.OperationSchema, input, options) as async.Operation<types.XmlEnumsOutput>
 end
 
-function C:xmlIntEnums(input: types.XmlIntEnumsInput, options: any): async.Operation<types.XmlIntEnumsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlIntEnums, input, options) as async.Operation<types.XmlIntEnumsOutput>
+function C:xmlIntEnums(input: types.XmlIntEnumsInput, options: base_client.InvokeOptions): async.Operation<types.XmlIntEnumsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlIntEnums as schema.OperationSchema, input, options) as async.Operation<types.XmlIntEnumsOutput>
 end
 
-function C:xmlLists(input: types.XmlListsInput, options: any): async.Operation<types.XmlListsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlLists, input, options) as async.Operation<types.XmlListsOutput>
+function C:xmlLists(input: types.XmlListsInput, options: base_client.InvokeOptions): async.Operation<types.XmlListsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlLists as schema.OperationSchema, input, options) as async.Operation<types.XmlListsOutput>
 end
 
-function C:xmlMaps(input: types.XmlMapsInput, options: any): async.Operation<types.XmlMapsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlMaps, input, options) as async.Operation<types.XmlMapsOutput>
+function C:xmlMaps(input: types.XmlMapsInput, options: base_client.InvokeOptions): async.Operation<types.XmlMapsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlMaps as schema.OperationSchema, input, options) as async.Operation<types.XmlMapsOutput>
 end
 
-function C:xmlMapsXmlName(input: types.XmlMapsXmlNameInput, options: any): async.Operation<types.XmlMapsXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlMapsXmlName, input, options) as async.Operation<types.XmlMapsXmlNameOutput>
+function C:xmlMapsXmlName(input: types.XmlMapsXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.XmlMapsXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlMapsXmlName as schema.OperationSchema, input, options) as async.Operation<types.XmlMapsXmlNameOutput>
 end
 
-function C:xmlMapWithXmlNamespace(input: types.XmlMapWithXmlNamespaceInput, options: any): async.Operation<types.XmlMapWithXmlNamespaceOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlMapWithXmlNamespace, input, options) as async.Operation<types.XmlMapWithXmlNamespaceOutput>
+function C:xmlMapWithXmlNamespace(input: types.XmlMapWithXmlNamespaceInput, options: base_client.InvokeOptions): async.Operation<types.XmlMapWithXmlNamespaceOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlMapWithXmlNamespace as schema.OperationSchema, input, options) as async.Operation<types.XmlMapWithXmlNamespaceOutput>
 end
 
-function C:xmlNamespaces(input: types.XmlNamespacesInput, options: any): async.Operation<types.XmlNamespacesOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlNamespaces, input, options) as async.Operation<types.XmlNamespacesOutput>
+function C:xmlNamespaces(input: types.XmlNamespacesInput, options: base_client.InvokeOptions): async.Operation<types.XmlNamespacesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlNamespaces as schema.OperationSchema, input, options) as async.Operation<types.XmlNamespacesOutput>
 end
 
-function C:xmlTimestamps(input: types.XmlTimestampsInput, options: any): async.Operation<types.XmlTimestampsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlTimestamps, input, options) as async.Operation<types.XmlTimestampsOutput>
+function C:xmlTimestamps(input: types.XmlTimestampsInput, options: base_client.InvokeOptions): async.Operation<types.XmlTimestampsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlTimestamps as schema.OperationSchema, input, options) as async.Operation<types.XmlTimestampsOutput>
 end
 
-function C:xmlUnions(input: types.XmlUnionsInput, options: any): async.Operation<types.XmlUnionsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlUnions, input, options) as async.Operation<types.XmlUnionsOutput>
+function C:xmlUnions(input: types.XmlUnionsInput, options: base_client.InvokeOptions): async.Operation<types.XmlUnionsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlUnions as schema.OperationSchema, input, options) as async.Operation<types.XmlUnionsOutput>
 end
 
 return M

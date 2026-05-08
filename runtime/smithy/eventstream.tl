@@ -40,7 +40,7 @@ local record M
     end
 
     decode_frame: function(data: string): Frame, string
-    _decode_from_buf: function(buf: any, buf_len: number): Frame, string
+    _decode_from_buf: function(buf: ffi.CData, buf_len: number): Frame, string
     new_frame_reader: function(body_reader: function(): string): function(): Frame, string
     deserialize_event: function(frame: Frame, event_schema: any, codec: any): any, any
     encode_headers: function(headers: {string:any}): string
@@ -75,7 +75,7 @@ local function crc32(data: any, offset: number, len: number, init?: number): num
     local crc = bxor(init or 0, 0xFFFFFFFF)
     for i = offset, offset + len - 1 do
         local b = (data as {number:number})[i]
-        crc = bxor(rshift(crc, 8), crc_table[band(bxor(crc, b), 0xFF)])
+        crc = bxor(rshift(crc, 8), crc_table[band(bxor(crc, b), 0xFF)] as number)
     end
     return tonumber(ffi.cast("uint32_t", bxor(crc, 0xFFFFFFFF))) as number
 end
@@ -137,7 +137,7 @@ function M.decode_frame(data: string): M.Frame, string
     return nil, "expected string data"
 end
 
-function M._decode_from_buf(buf: any, buf_len: number): M.Frame, string
+function M._decode_from_buf(buf: ffi.CData, buf_len: number): M.Frame, string
     local pos: number = 0
 
     local total_len: number
@@ -146,7 +146,7 @@ function M._decode_from_buf(buf: any, buf_len: number): M.Frame, string
     headers_len, pos = read_u32(buf, pos)
 
     if total_len > buf_len then
-        return nil, "incomplete frame"
+        return nil as M.Frame, "incomplete frame"
     end
     if total_len < MIN_MESSAGE_LEN then
         return nil, "invalid total length"

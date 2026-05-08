@@ -32,8 +32,8 @@ end
 function M.from_bytes(s: string): M.BigInt
     assert(#s == 32, "from_bytes expects 32 bytes")
     local r = M.zero()
-    local bits = 0
-    local acc = 0
+    local bits: number = 0
+    local acc: number = 0
     local li = 1
     for i = 32, 1, -1 do
         acc = acc + string.byte(s, i) * (2 ^ bits)
@@ -51,8 +51,8 @@ end
 
 function M.to_bytes(a: M.BigInt): string
     local bytes: {number} = {}
-    local acc = 0
-    local bits = 0
+    local acc: number = 0
+    local bits: number = 0
     local li = 1
     for _ = 1, 32 do
         while bits < 8 and li <= LIMBS do
@@ -66,7 +66,7 @@ function M.to_bytes(a: M.BigInt): string
     end
     local out: {string} = {}
     for i = 32, 1, -1 do
-        out[#out + 1] = string.char(bytes[i])
+        out[#out + 1] = string.char(bytes[i] as integer)
     end
     return table.concat(out)
 end

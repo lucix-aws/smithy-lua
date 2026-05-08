@@ -20,14 +20,24 @@ ffi.cdef[[
 
 local NID_P256 = 415
 
+local record OpenSSLLib
+    EC_KEY_new_by_curve_name: function(integer): ffi.CData
+    EC_KEY_set_private_key: function(ffi.CData, ffi.CData): integer
+    EC_KEY_free: function(ffi.CData)
+    BN_bin2bn: function(string, integer, ffi.CData): ffi.CData
+    BN_free: function(ffi.CData)
+    ECDSA_size: function(ffi.CData): number
+    ECDSA_sign: function(integer, string, integer, ffi.CData, ffi.CData, ffi.CData): integer
+end
+
 local record M
     sign: function(d: bigint.BigInt, hash_bytes: string): string
     available: function(): boolean
 end
 
-local lib: ffi.CData
+local lib: OpenSSLLib
 
-local function load_lib(): ffi.CData
+local function load_lib(): OpenSSLLib
     if lib then return lib end
     local paths = {
         "/opt/homebrew/lib/libcrypto.dylib",
@@ -37,7 +47,7 @@ local function load_lib(): ffi.CData
         "libcrypto",
     }
     for _, path in ipairs(paths) do
-        local ok, l = pcall(ffi.load, path) as (boolean, ffi.CData)
+        local ok, l = pcall(ffi.load, path) as (boolean, OpenSSLLib)
         if ok then
             lib = l
             return lib
@@ -73,14 +83,14 @@ function M.sign(d: bigint.BigInt, hash_bytes: string): string
     crypto.BN_free(bn)
 
     local sig_len = ffi.new("unsigned int[1]")
-    local max_sig = crypto.ECDSA_size(eckey)
+    local max_sig = crypto.ECDSA_size(eckey) as integer
     local sig_buf = ffi.new("unsigned char[?]", max_sig)
 
     local rc = crypto.ECDSA_sign(0, hash_bytes, 32, sig_buf, sig_len, eckey)
     crypto.EC_KEY_free(eckey)
 
     if rc ~= 1 then error("ECDSA_sign failed") end
-    return ffi.string(sig_buf, sig_len[0])
+    return ffi.string(sig_buf, (sig_len as {integer})[0])
 end
 
 return M

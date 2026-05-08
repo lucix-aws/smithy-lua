@@ -3,8 +3,6 @@
 local async = require("smithy.async")
 local auth = require("smithy.auth")
 local endpoint_mod = require("smithy.endpoint")
-local eventstream = require("smithy.eventstream")
-local eventstream_signer = require("smithy.eventstream_signer")
 local http = require("smithy.http")
 local interceptor = require("smithy.interceptor")
 local protocol_mod = require("smithy.protocol")
@@ -176,12 +174,14 @@ local function do_attempt(config: M.ClientConfig, service: schema.ServiceSchema,
         if not seed then
             return nil, { type = "sdk", message = "failed to extract signature for event stream signing" }
         end
-        local es_signer = eventstream_signer.new(
-            identity as eventstream_signer.Identity,
-            signer_props as eventstream_signer.Props,
+        local eventstream_signer = require("smithy.eventstream_signer") as {string:any}
+        local es_signer = (eventstream_signer.new as function(any, any, string): any)(
+            identity,
+            signer_props,
             seed
         )
-        local new_sw = (eventstream as {string:any}).new_signing_writer as function(any): any
+        local eventstream = require("smithy.eventstream") as {string:any}
+        local new_sw = eventstream.new_signing_writer as function(any): any
         signing_writer = new_sw(es_signer)
         request.body = (signing_writer as {string:any}).body_reader as http.Reader
         (request as {string:any}).streaming = true
@@ -436,7 +436,7 @@ function M._doInvoke(self: M.Client, service: schema.ServiceSchema, operation: s
             output_schema = operation.output,
             on_close = result_tbl.close,
         }
-        local es_mod = eventstream as {string:any}
+        local es_mod = require("smithy.eventstream") as {string:any}
         local body_fn = result_tbl.body as function(): string
         local stream: any = (es_mod.new_stream as function(any, any, any, any): any)(body_fn, es, config.protocol.codec, stream_opts)
 
@@ -449,7 +449,7 @@ function M._doInvoke(self: M.Client, service: schema.ServiceSchema, operation: s
             local input_es_schema = es_member._target or es_member
 
             local stream_tbl = stream as {string:any}
-            local serialize_event = (eventstream as {string:any}).serialize_event as function(any, any, any): string, string
+            local serialize_event = es_mod.serialize_event as function(any, any, any): string, string
             stream_tbl.send = function(_self_stream: any, event: any): any, any
                 local frame, err = serialize_event(event, input_es_schema, config.protocol.codec)
                 if err then return nil, { type = "sdk", message = err } end

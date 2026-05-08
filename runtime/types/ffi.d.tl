@@ -5,6 +5,8 @@ local record ffi
     record CData
         metamethod __index: function(CData, any): any
         metamethod __newindex: function(CData, any, any)
+        metamethod __add: function(CData, number): CData
+        metamethod __call: function(CData, ...: any): any
         free: function(CData)
     end
 

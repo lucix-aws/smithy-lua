@@ -30,7 +30,36 @@ struct curl_slist *curl_slist_append(struct curl_slist *list, const char *string
 void curl_slist_free_all(struct curl_slist *list);
 ]]
 
-local curl = ffi.load("curl")
+local record CurlLib
+    curl_easy_init: function(): ffi.CData
+    curl_easy_cleanup: function(ffi.CData)
+    curl_easy_setopt: function(ffi.CData, integer, any): ffi.CData
+    curl_easy_getinfo: function(ffi.CData, integer, ffi.CData): ffi.CData
+    curl_easy_strerror: function(ffi.CData): string
+    curl_multi_init: function(): ffi.CData
+    curl_multi_cleanup: function(ffi.CData): ffi.CData
+    curl_multi_add_handle: function(ffi.CData, ffi.CData): ffi.CData
+    curl_multi_remove_handle: function(ffi.CData, ffi.CData): ffi.CData
+    curl_multi_perform: function(ffi.CData, ffi.CData): ffi.CData
+    curl_multi_wait: function(ffi.CData, ffi.CData, integer, integer, ffi.CData): ffi.CData
+    curl_slist_append: function(ffi.CData, string): ffi.CData
+    curl_slist_free_all: function(ffi.CData)
+end
+
+local record CDataArray
+    metamethod __index: function(CDataArray, integer): number
+end
+
+local record CDataCallback
+    free: function(CDataCallback)
+end
+
+local record Jit
+    off: function(any)
+end
+local jit: Jit = (require as function(string): any)("jit") as Jit
+
+local curl = ffi.load("curl") as CurlLib
 
 -- CURLoption constants
 local CURLOPT_URL            = 10002
@@ -151,8 +180,8 @@ function M.new(): http.HttpClient
             local body = ""
             local b, err = http.read_all(request.body)
             if err then
-                (write_cb as any).free(write_cb)
-                (header_cb as any).free(header_cb)
+                (write_cb as CDataCallback):free()
+                (header_cb as CDataCallback):free()
                 if slist ~= nil then curl.curl_slist_free_all(slist) end
                 curl.curl_multi_cleanup(multi)
                 curl.curl_easy_cleanup(handle)
@@ -177,11 +206,11 @@ function M.new(): http.HttpClient
             -- Check if we have a status code yet
             local code_buf = ffi.new("long[1]") as ffi.CData
             curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, code_buf)
-            if (code_buf as any)[0] ~= 0 then
+            if (code_buf as CDataArray)[0] ~= 0 then
                 break
             end
             -- Transfer finished before we got headers (error case)
-            if (running as any)[0] == 0 then
+            if (running as CDataArray)[0] == 0 then
                 break
             end
             curl.curl_multi_wait(multi, nil, 0, 1000, numfds)
@@ -190,11 +219,11 @@ function M.new(): http.HttpClient
         -- Get status code
         local code_buf = ffi.new("long[1]") as ffi.CData
         curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, code_buf)
-        local status_code = tonumber((code_buf as any)[0]) as integer
+        local status_code = tonumber((code_buf as CDataArray)[0]) as integer
 
         if status_code == 0 then
-            (write_cb as any).free(write_cb)
-            (header_cb as any).free(header_cb)
+            (write_cb as CDataCallback):free()
+            (header_cb as CDataCallback):free()
             curl.curl_multi_remove_handle(multi, handle)
             curl.curl_multi_cleanup(multi)
             if slist ~= nil then curl.curl_slist_free_all(slist) end
@@ -210,18 +239,18 @@ function M.new(): http.HttpClient
             -- Drain any remaining transfer
             if not transfer_done then
                 transfer_done = true
-                while (running as any)[0] > 0 do
+                while (running as CDataArray)[0] > 0 do
                     curl.curl_multi_perform(multi, running)
-                    if (running as any)[0] > 0 then
+                    if (running as CDataArray)[0] > 0 then
                         curl.curl_multi_wait(multi, nil, 0, 100, numfds)
                     end
                 end
             end
             curl.curl_multi_remove_handle(multi, handle)
             curl.curl_multi_cleanup(multi)
-            ;(write_cb as any).free(write_cb)
-            ;(header_cb as any).free(header_cb)
-            if read_cb then (read_cb as any).free(read_cb) end
+            ;(write_cb as CDataCallback):free()
+            ;(header_cb as CDataCallback):free()
+            if read_cb then (read_cb as CDataCallback):free() end
             if slist ~= nil then curl.curl_slist_free_all(slist) end
             curl.curl_easy_cleanup(handle)
         end
@@ -253,7 +282,7 @@ function M.new(): http.HttpClient
                 end
 
                 -- Transfer complete
-                if (running as any)[0] == 0 then
+                if (running as CDataArray)[0] == 0 then
                     transfer_done = true
                     cleanup()
                     return nil
@@ -263,7 +292,7 @@ function M.new(): http.HttpClient
                 curl.curl_multi_wait(multi, nil, 0, 1000, numfds)
             end
         end
-        ;(jit as any).off(body_reader)
+        ;jit.off(body_reader)
 
         return {
             status_code = status_code,
@@ -272,9 +301,9 @@ function M.new(): http.HttpClient
             close = cleanup,
         } as http.Response, nil
     end
-    ;(jit as any).off(do_request)
+    ;jit.off(do_request)
     return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation<http.Response>
-        local op = async.new_operation()
+        local op: async.Operation<http.Response> = async.new_operation()
         local result, err = do_request(req as StreamingRequest)
         op:resolve(result, err)
         return op

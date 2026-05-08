@@ -42,10 +42,10 @@ end
 
 function M.fsub(a: bigint.BigInt, b: bigint.BigInt): bigint.BigInt
     if bigint.cmp(a, b) >= 0 then
-        return bigint.sub(a, b)
+        return (bigint.sub(a, b))
     else
         local t = bigint.add(a, M.P)
-        return bigint.sub(t, b)
+        return (bigint.sub(t, b))
     end
 end
 
@@ -90,7 +90,7 @@ function M.reduce_wide(t: {number}): bigint.BigInt
     end
 
     local function get_byte(byte_pos: number): number
-        local b = 0
+        local b: number = 0
         for j = 7, 0, -1 do
             b = b * 2 + get_bit(byte_pos * 8 + j)
         end
@@ -107,13 +107,13 @@ function M.reduce_wide(t: {number}): bigint.BigInt
         local words = {w0,w1,w2,w3,w4,w5,w6,w7}
         for i = 1, 8 do
             local w = words[i]
-            b[#b+1] = string.char(w % 256)
+            b[#b+1] = string.char((w % 256) as integer)
             w = math.floor(w / 256)
-            b[#b+1] = string.char(w % 256)
+            b[#b+1] = string.char((w % 256) as integer)
             w = math.floor(w / 256)
-            b[#b+1] = string.char(w % 256)
+            b[#b+1] = string.char((w % 256) as integer)
             w = math.floor(w / 256)
-            b[#b+1] = string.char(w % 256)
+            b[#b+1] = string.char((w % 256) as integer)
         end
         local be: {string} = {}
         for i = 32, 1, -1 do be[#be+1] = b[i] end
@@ -222,7 +222,7 @@ function M.mul_mod_n(a: bigint.BigInt, b: bigint.BigInt): bigint.BigInt
 
     local bytes_le: {number} = {}
     for i = 0, 63 do
-        local v = 0
+        local v: number = 0
         for j = 7, 0, -1 do
             v = v * 2 + get_bit(i * 8 + j)
         end
@@ -231,8 +231,8 @@ function M.mul_mod_n(a: bigint.BigInt, b: bigint.BigInt): bigint.BigInt
 
     local lo_be: {string} = {}
     local hi_be: {string} = {}
-    for i = 32, 1, -1 do lo_be[#lo_be + 1] = string.char(bytes_le[i]) end
-    for i = 64, 33, -1 do hi_be[#hi_be + 1] = string.char(bytes_le[i]) end
+    for i = 32, 1, -1 do lo_be[#lo_be + 1] = string.char(bytes_le[i] as integer) end
+    for i = 64, 33, -1 do hi_be[#hi_be + 1] = string.char(bytes_le[i] as integer) end
 
     local lo = bigint.from_bytes(table.concat(lo_be))
     local hi = bigint.from_bytes(table.concat(hi_be))

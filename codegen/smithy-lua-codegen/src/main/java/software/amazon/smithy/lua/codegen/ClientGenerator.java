@@ -79,9 +79,11 @@ final class ClientGenerator {
             if (protocolRequire != null) {
                 writer.write("local $L = require(\"$L\")", protocolAlias, protocolRequire);
             }
+            writer.write("local schema = require(\"smithy.schema\")");
             writer.write("local schemas = require(\"$L.schemas\")", serviceNs);
             writer.write("local traits = require(\"smithy.traits\")");
             writer.write("local types = require(\"$L.types\")", serviceNs);
+            writer.write("local protocol_mod = require(\"smithy.protocol\")");
             var emittedAliases = new HashSet<String>();
             for (var resolver : configResolvers) {
                 if (emittedAliases.add(resolver.requireAlias())) {
@@ -98,13 +100,13 @@ final class ClientGenerator {
             // Client record
             writer.write("local record Client");
             writer.indent();
-            writer.write("config: {string:any}");
-            writer.write("invokeOperation: function(Client, any, any, any, any): async.Operation<any>");
+            writer.write("config: base_client.ClientConfig");
+            writer.write("invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>");
             for (var operation : topDown.getContainedOperations(service)) {
                 var opName = symbolProvider.toSymbol(operation).getName();
                 var inputName = operationIndex.expectInputShape(operation).getId().getName(service);
                 var outputName = operationIndex.expectOutputShape(operation).getId().getName(service);
-                writer.write("$L: function(Client, types.$L, any): async.Operation<types.$L>",
+                writer.write("$L: function(Client, types.$L, base_client.InvokeOptions): async.Operation<types.$L>",
                         opName, inputName, outputName);
             }
             writer.dedent();
@@ -113,7 +115,7 @@ final class ClientGenerator {
 
             writer.write("local record M");
             writer.indent();
-            writer.write("new: function(cfg?: {string:any}): Client");
+            writer.write("new: function(cfg?: base_client.ClientConfig): Client");
             writer.dedent();
             writer.write("end");
             writer.write("");
@@ -121,20 +123,20 @@ final class ClientGenerator {
             // Metatable
             writer.write("local Client_mt: metatable<Client> = { __index = {} as Client }");
             writer.write("local C = Client_mt.__index as Client");
-            writer.write("C.invokeOperation = base_client.invokeOperation");
+            writer.write("C.invokeOperation = base_client.invokeOperation as function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>");
             writer.write("");
 
             // Constructor
-            writer.write("function M.new(cfg?: {string:any}): Client");
+            writer.write("function M.new(cfg?: base_client.ClientConfig): Client");
             writer.indent();
-            writer.write("local c = cfg or {}");
+            writer.write("local c = cfg or {} as base_client.ClientConfig");
             writer.write("c.service_id = $S", service.getId().getName());
             if (protocolExpr != null) {
-                writer.write("if not c.protocol then c.protocol = $L end", protocolExpr);
+                writer.write("if not c.protocol then c.protocol = $L as protocol_mod.ClientProtocol end", protocolExpr);
             }
             writer.write("if not c.endpoint_provider then");
             writer.indent();
-            writer.write("c.endpoint_provider = function(params)");
+            writer.write("c.endpoint_provider = function(params: {string:any}): endpoint.Endpoint, string");
             writer.indent();
             writer.write("return endpoint.resolve(endpoint_rules, params)");
             writer.dedent();
@@ -143,13 +145,14 @@ final class ClientGenerator {
             writer.write("end");
             writer.write("if not c.auth_scheme_resolver then");
             writer.indent();
-            writer.write("c.auth_scheme_resolver = function(_service, operation)");
+            writer.write("c.auth_scheme_resolver = function(_service: schema.ServiceSchema, operation: schema.OperationSchema): {auth.AuthOption}");
             writer.indent();
-            writer.write("local auth_trait = operation:trait(traits.AUTH) or _service:trait(traits.AUTH)");
-            writer.write("local options = {}");
-            writer.write("for _, scheme in ipairs(auth_trait or {}) do");
+            writer.write("local auth = require(\"smithy.auth\")");
+            writer.write("local auth_trait = (operation:trait(traits.AUTH) or _service:trait(traits.AUTH)) as {auth.AuthOption}");
+            writer.write("local options: {auth.AuthOption} = {}");
+            writer.write("for _, scheme in ipairs(auth_trait or {} as {auth.AuthOption}) do");
             writer.indent();
-            writer.write("local scheme_id = scheme.scheme_id or scheme");
+            writer.write("local scheme_id = scheme.scheme_id");
             writer.write("if scheme_id == \"aws.auth#sigv4\" or scheme_id == \"aws.auth#sigv4a\" then");
             writer.indent();
             writer.write("options[#options + 1] = { scheme_id = scheme_id, signer_properties = { signing_name = $S, signing_region = c.region } }", signingName);
@@ -188,10 +191,10 @@ final class ClientGenerator {
                 var opSchemaName = operation.getId().getName(service);
                 var inputName = operationIndex.expectInputShape(operation).getId().getName(service);
                 var outputName = operationIndex.expectOutputShape(operation).getId().getName(service);
-                writer.write("function C:$L(input: types.$L, options: any): async.Operation<types.$L>",
+                writer.write("function C:$L(input: types.$L, options: base_client.InvokeOptions): async.Operation<types.$L>",
                         opName, inputName, outputName);
                 writer.indent();
-                writer.write("return self:invokeOperation(schemas.Service, schemas.$L, input, options) as async.Operation<types.$L>",
+                writer.write("return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.$L as schema.OperationSchema, input, options) as async.Operation<types.$L>",
                         opSchemaName, outputName);
                 writer.dedent();
                 writer.write("end");

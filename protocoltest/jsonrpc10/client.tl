@@ -8,54 +8,57 @@ local defaults = require("smithy.defaults")
 local endpoint = require("smithy.endpoint")
 local endpoint_rules = require("jsonrpc10.endpoint_rules")
 local awsjson_protocol = require("smithy.protocol.awsjson")
+local schema = require("smithy.schema")
 local schemas = require("jsonrpc10.schemas")
 local traits = require("smithy.traits")
 local types = require("jsonrpc10.types")
+local protocol_mod = require("smithy.protocol")
 
 local record Client
-    config: {string:any}
-    invokeOperation: function(Client, any, any, any, any): async.Operation<any>
-    contentTypeParameters: function(Client, types.ContentTypeParametersInput, any): async.Operation<types.ContentTypeParametersOutput>
-    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, any): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    endpointOperation: function(Client, types.EndpointOperationInput, any): async.Operation<types.EndpointOperationOutput>
-    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, any): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, any): async.Operation<types.GreetingWithErrorsOutput>
-    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, any): async.Operation<types.HostWithPathOperationOutput>
-    jsonUnions: function(Client, types.JsonUnionsInput, any): async.Operation<types.JsonUnionsOutput>
-    noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput, any): async.Operation<types.NoInputAndNoOutputOutput>
-    noInputAndOutput: function(Client, types.NoInputAndOutputInput, any): async.Operation<types.NoInputAndOutputOutput>
-    operationWithDefaults: function(Client, types.OperationWithDefaultsInput, any): async.Operation<types.OperationWithDefaultsOutput>
-    operationWithNestedStructure: function(Client, types.OperationWithNestedStructureInput, any): async.Operation<types.OperationWithNestedStructureOutput>
-    operationWithRequiredMembers: function(Client, types.OperationWithRequiredMembersInput, any): async.Operation<types.OperationWithRequiredMembersOutput>
-    operationWithRequiredMembersWithDefaults: function(Client, types.OperationWithRequiredMembersWithDefaultsInput, any): async.Operation<types.OperationWithRequiredMembersWithDefaultsOutput>
-    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, any): async.Operation<types.PutWithContentEncodingOutput>
-    queryIncompatibleOperation: function(Client, types.QueryIncompatibleOperationInput, any): async.Operation<types.QueryIncompatibleOperationOutput>
-    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, any): async.Operation<types.SimpleScalarPropertiesOutput>
+    config: base_client.ClientConfig
+    invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
+    contentTypeParameters: function(Client, types.ContentTypeParametersInput, base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    endpointOperation: function(Client, types.EndpointOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+    jsonUnions: function(Client, types.JsonUnionsInput, base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
+    noInputAndNoOutput: function(Client, types.NoInputAndNoOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
+    noInputAndOutput: function(Client, types.NoInputAndOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    operationWithDefaults: function(Client, types.OperationWithDefaultsInput, base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
+    operationWithNestedStructure: function(Client, types.OperationWithNestedStructureInput, base_client.InvokeOptions): async.Operation<types.OperationWithNestedStructureOutput>
+    operationWithRequiredMembers: function(Client, types.OperationWithRequiredMembersInput, base_client.InvokeOptions): async.Operation<types.OperationWithRequiredMembersOutput>
+    operationWithRequiredMembersWithDefaults: function(Client, types.OperationWithRequiredMembersWithDefaultsInput, base_client.InvokeOptions): async.Operation<types.OperationWithRequiredMembersWithDefaultsOutput>
+    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    queryIncompatibleOperation: function(Client, types.QueryIncompatibleOperationInput, base_client.InvokeOptions): async.Operation<types.QueryIncompatibleOperationOutput>
+    simpleScalarProperties: function(Client, types.SimpleScalarPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
 local record M
-    new: function(cfg?: {string:any}): Client
+    new: function(cfg?: base_client.ClientConfig): Client
 end
 
 local Client_mt: metatable<Client> = { __index = {} as Client }
 local C = Client_mt.__index as Client
-C.invokeOperation = base_client.invokeOperation
+C.invokeOperation = base_client.invokeOperation as function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
 
-function M.new(cfg?: {string:any}): Client
-    local c = cfg or {}
+function M.new(cfg?: base_client.ClientConfig): Client
+    local c = cfg or {} as base_client.ClientConfig
     c.service_id = "JsonRpc10"
-    if not c.protocol then c.protocol = awsjson_protocol.new({ version = "1.0", service_id = c.service_id }) end
+    if not c.protocol then c.protocol = awsjson_protocol.new({ version = "1.0", service_id = c.service_id }) as protocol_mod.ClientProtocol end
     if not c.endpoint_provider then
-        c.endpoint_provider = function(params)
+        c.endpoint_provider = function(params: {string:any}): endpoint.Endpoint, string
             return endpoint.resolve(endpoint_rules, params)
         end
     end
     if not c.auth_scheme_resolver then
-        c.auth_scheme_resolver = function(_service, operation)
-            local auth_trait = operation:trait(traits.AUTH) or _service:trait(traits.AUTH)
-            local options = {}
-            for _, scheme in ipairs(auth_trait or {}) do
-                local scheme_id = scheme.scheme_id or scheme
+        c.auth_scheme_resolver = function(_service: schema.ServiceSchema, operation: schema.OperationSchema): {auth.AuthOption}
+            local auth = require("smithy.auth")
+            local auth_trait = (operation:trait(traits.AUTH) or _service:trait(traits.AUTH)) as {auth.AuthOption}
+            local options: {auth.AuthOption} = {}
+            for _, scheme in ipairs(auth_trait or {} as {auth.AuthOption}) do
+                local scheme_id = scheme.scheme_id
                 if scheme_id == "aws.auth#sigv4" or scheme_id == "aws.auth#sigv4a" then
                     options[#options + 1] = { scheme_id = scheme_id, signer_properties = { signing_name = "jsonrpc10", signing_region = c.region } }
                 else
@@ -73,68 +76,68 @@ function M.new(cfg?: {string:any}): Client
     return self
 end
 
-function C:contentTypeParameters(input: types.ContentTypeParametersInput, options: any): async.Operation<types.ContentTypeParametersOutput>
-    return self:invokeOperation(schemas.Service, schemas.ContentTypeParameters, input, options) as async.Operation<types.ContentTypeParametersOutput>
+function C:contentTypeParameters(input: types.ContentTypeParametersInput, options: base_client.InvokeOptions): async.Operation<types.ContentTypeParametersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.ContentTypeParameters as schema.OperationSchema, input, options) as async.Operation<types.ContentTypeParametersOutput>
 end
 
-function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: any): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.EmptyInputAndEmptyOutput, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
+function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EmptyInputAndEmptyOutput as schema.OperationSchema, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
 end
 
-function C:endpointOperation(input: types.EndpointOperationInput, options: any): async.Operation<types.EndpointOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointOperation, input, options) as async.Operation<types.EndpointOperationOutput>
+function C:endpointOperation(input: types.EndpointOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointOperationOutput>
 end
 
-function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: any): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointWithHostLabelOperation, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
+function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointWithHostLabelOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
 end
 
-function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: any): async.Operation<types.GreetingWithErrorsOutput>
-    return self:invokeOperation(schemas.Service, schemas.GreetingWithErrors, input, options) as async.Operation<types.GreetingWithErrorsOutput>
+function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.GreetingWithErrors as schema.OperationSchema, input, options) as async.Operation<types.GreetingWithErrorsOutput>
 end
 
-function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options: any): async.Operation<types.HostWithPathOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.HostWithPathOperation, input, options) as async.Operation<types.HostWithPathOperationOutput>
+function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options: base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HostWithPathOperation as schema.OperationSchema, input, options) as async.Operation<types.HostWithPathOperationOutput>
 end
 
-function C:jsonUnions(input: types.JsonUnionsInput, options: any): async.Operation<types.JsonUnionsOutput>
-    return self:invokeOperation(schemas.Service, schemas.JsonUnions, input, options) as async.Operation<types.JsonUnionsOutput>
+function C:jsonUnions(input: types.JsonUnionsInput, options: base_client.InvokeOptions): async.Operation<types.JsonUnionsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.JsonUnions as schema.OperationSchema, input, options) as async.Operation<types.JsonUnionsOutput>
 end
 
-function C:noInputAndNoOutput(input: types.NoInputAndNoOutputInput, options: any): async.Operation<types.NoInputAndNoOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.NoInputAndNoOutput, input, options) as async.Operation<types.NoInputAndNoOutputOutput>
+function C:noInputAndNoOutput(input: types.NoInputAndNoOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndNoOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndNoOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndNoOutputOutput>
 end
 
-function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: any): async.Operation<types.NoInputAndOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.NoInputAndOutput, input, options) as async.Operation<types.NoInputAndOutputOutput>
+function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndOutputOutput>
 end
 
-function C:operationWithDefaults(input: types.OperationWithDefaultsInput, options: any): async.Operation<types.OperationWithDefaultsOutput>
-    return self:invokeOperation(schemas.Service, schemas.OperationWithDefaults, input, options) as async.Operation<types.OperationWithDefaultsOutput>
+function C:operationWithDefaults(input: types.OperationWithDefaultsInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithDefaultsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithDefaults as schema.OperationSchema, input, options) as async.Operation<types.OperationWithDefaultsOutput>
 end
 
-function C:operationWithNestedStructure(input: types.OperationWithNestedStructureInput, options: any): async.Operation<types.OperationWithNestedStructureOutput>
-    return self:invokeOperation(schemas.Service, schemas.OperationWithNestedStructure, input, options) as async.Operation<types.OperationWithNestedStructureOutput>
+function C:operationWithNestedStructure(input: types.OperationWithNestedStructureInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithNestedStructureOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithNestedStructure as schema.OperationSchema, input, options) as async.Operation<types.OperationWithNestedStructureOutput>
 end
 
-function C:operationWithRequiredMembers(input: types.OperationWithRequiredMembersInput, options: any): async.Operation<types.OperationWithRequiredMembersOutput>
-    return self:invokeOperation(schemas.Service, schemas.OperationWithRequiredMembers, input, options) as async.Operation<types.OperationWithRequiredMembersOutput>
+function C:operationWithRequiredMembers(input: types.OperationWithRequiredMembersInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithRequiredMembersOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithRequiredMembers as schema.OperationSchema, input, options) as async.Operation<types.OperationWithRequiredMembersOutput>
 end
 
-function C:operationWithRequiredMembersWithDefaults(input: types.OperationWithRequiredMembersWithDefaultsInput, options: any): async.Operation<types.OperationWithRequiredMembersWithDefaultsOutput>
-    return self:invokeOperation(schemas.Service, schemas.OperationWithRequiredMembersWithDefaults, input, options) as async.Operation<types.OperationWithRequiredMembersWithDefaultsOutput>
+function C:operationWithRequiredMembersWithDefaults(input: types.OperationWithRequiredMembersWithDefaultsInput, options: base_client.InvokeOptions): async.Operation<types.OperationWithRequiredMembersWithDefaultsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.OperationWithRequiredMembersWithDefaults as schema.OperationSchema, input, options) as async.Operation<types.OperationWithRequiredMembersWithDefaultsOutput>
 end
 
-function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: any): async.Operation<types.PutWithContentEncodingOutput>
-    return self:invokeOperation(schemas.Service, schemas.PutWithContentEncoding, input, options) as async.Operation<types.PutWithContentEncodingOutput>
+function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PutWithContentEncoding as schema.OperationSchema, input, options) as async.Operation<types.PutWithContentEncodingOutput>
 end
 
-function C:queryIncompatibleOperation(input: types.QueryIncompatibleOperationInput, options: any): async.Operation<types.QueryIncompatibleOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryIncompatibleOperation, input, options) as async.Operation<types.QueryIncompatibleOperationOutput>
+function C:queryIncompatibleOperation(input: types.QueryIncompatibleOperationInput, options: base_client.InvokeOptions): async.Operation<types.QueryIncompatibleOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryIncompatibleOperation as schema.OperationSchema, input, options) as async.Operation<types.QueryIncompatibleOperationOutput>
 end
 
-function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: any): async.Operation<types.SimpleScalarPropertiesOutput>
-    return self:invokeOperation(schemas.Service, schemas.SimpleScalarProperties, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
+function C:simpleScalarProperties(input: types.SimpleScalarPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarPropertiesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarPropertiesOutput>
 end
 
 return M

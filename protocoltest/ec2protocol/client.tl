@@ -8,63 +8,66 @@ local defaults = require("smithy.defaults")
 local endpoint = require("smithy.endpoint")
 local endpoint_rules = require("ec2protocol.endpoint_rules")
 local query_protocol = require("smithy.protocol.ec2query")
+local schema = require("smithy.schema")
 local schemas = require("ec2protocol.schemas")
 local traits = require("smithy.traits")
 local types = require("ec2protocol.types")
+local protocol_mod = require("smithy.protocol")
 
 local record Client
-    config: {string:any}
-    invokeOperation: function(Client, any, any, any, any): async.Operation<any>
-    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, any): async.Operation<types.DatetimeOffsetsOutput>
-    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, any): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    endpointOperation: function(Client, types.EndpointOperationInput, any): async.Operation<types.EndpointOperationOutput>
-    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, any): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    fractionalSeconds: function(Client, types.FractionalSecondsInput, any): async.Operation<types.FractionalSecondsOutput>
-    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, any): async.Operation<types.GreetingWithErrorsOutput>
-    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, any): async.Operation<types.HostWithPathOperationOutput>
-    ignoresWrappingXmlName: function(Client, types.IgnoresWrappingXmlNameInput, any): async.Operation<types.IgnoresWrappingXmlNameOutput>
-    nestedStructures: function(Client, types.NestedStructuresInput, any): async.Operation<types.NestedStructuresOutput>
-    noInputAndOutput: function(Client, types.NoInputAndOutputInput, any): async.Operation<types.NoInputAndOutputOutput>
-    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, any): async.Operation<types.PutWithContentEncodingOutput>
-    queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput, any): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
-    queryLists: function(Client, types.QueryListsInput, any): async.Operation<types.QueryListsOutput>
-    queryTimestamps: function(Client, types.QueryTimestampsInput, any): async.Operation<types.QueryTimestampsOutput>
-    recursiveXmlShapes: function(Client, types.RecursiveXmlShapesInput, any): async.Operation<types.RecursiveXmlShapesOutput>
-    simpleInputParams: function(Client, types.SimpleInputParamsInput, any): async.Operation<types.SimpleInputParamsOutput>
-    simpleScalarXmlProperties: function(Client, types.SimpleScalarXmlPropertiesInput, any): async.Operation<types.SimpleScalarXmlPropertiesOutput>
-    xmlBlobs: function(Client, types.XmlBlobsInput, any): async.Operation<types.XmlBlobsOperationOutput>
-    xmlEmptyBlobs: function(Client, types.XmlEmptyBlobsInput, any): async.Operation<types.XmlEmptyBlobsOutput>
-    xmlEmptyLists: function(Client, types.XmlEmptyListsInput, any): async.Operation<types.XmlEmptyListsOutput>
-    xmlEnums: function(Client, types.XmlEnumsInput, any): async.Operation<types.XmlEnumsOutput>
-    xmlIntEnums: function(Client, types.XmlIntEnumsInput, any): async.Operation<types.XmlIntEnumsOutput>
-    xmlLists: function(Client, types.XmlListsInput, any): async.Operation<types.XmlListsOperationOutput>
-    xmlNamespaces: function(Client, types.XmlNamespacesInput, any): async.Operation<types.XmlNamespacesOutput>
-    xmlTimestamps: function(Client, types.XmlTimestampsInput, any): async.Operation<types.XmlTimestampsOutput>
+    config: base_client.ClientConfig
+    invokeOperation: function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
+    datetimeOffsets: function(Client, types.DatetimeOffsetsInput, base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+    emptyInputAndEmptyOutput: function(Client, types.EmptyInputAndEmptyOutputInput, base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    endpointOperation: function(Client, types.EndpointOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    endpointWithHostLabelOperation: function(Client, types.EndpointWithHostLabelOperationInput, base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    fractionalSeconds: function(Client, types.FractionalSecondsInput, base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    greetingWithErrors: function(Client, types.GreetingWithErrorsInput, base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    hostWithPathOperation: function(Client, types.HostWithPathOperationInput, base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+    ignoresWrappingXmlName: function(Client, types.IgnoresWrappingXmlNameInput, base_client.InvokeOptions): async.Operation<types.IgnoresWrappingXmlNameOutput>
+    nestedStructures: function(Client, types.NestedStructuresInput, base_client.InvokeOptions): async.Operation<types.NestedStructuresOutput>
+    noInputAndOutput: function(Client, types.NoInputAndOutputInput, base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    putWithContentEncoding: function(Client, types.PutWithContentEncodingInput, base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    queryIdempotencyTokenAutoFill: function(Client, types.QueryIdempotencyTokenAutoFillInput, base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+    queryLists: function(Client, types.QueryListsInput, base_client.InvokeOptions): async.Operation<types.QueryListsOutput>
+    queryTimestamps: function(Client, types.QueryTimestampsInput, base_client.InvokeOptions): async.Operation<types.QueryTimestampsOutput>
+    recursiveXmlShapes: function(Client, types.RecursiveXmlShapesInput, base_client.InvokeOptions): async.Operation<types.RecursiveXmlShapesOutput>
+    simpleInputParams: function(Client, types.SimpleInputParamsInput, base_client.InvokeOptions): async.Operation<types.SimpleInputParamsOutput>
+    simpleScalarXmlProperties: function(Client, types.SimpleScalarXmlPropertiesInput, base_client.InvokeOptions): async.Operation<types.SimpleScalarXmlPropertiesOutput>
+    xmlBlobs: function(Client, types.XmlBlobsInput, base_client.InvokeOptions): async.Operation<types.XmlBlobsOperationOutput>
+    xmlEmptyBlobs: function(Client, types.XmlEmptyBlobsInput, base_client.InvokeOptions): async.Operation<types.XmlEmptyBlobsOutput>
+    xmlEmptyLists: function(Client, types.XmlEmptyListsInput, base_client.InvokeOptions): async.Operation<types.XmlEmptyListsOutput>
+    xmlEnums: function(Client, types.XmlEnumsInput, base_client.InvokeOptions): async.Operation<types.XmlEnumsOutput>
+    xmlIntEnums: function(Client, types.XmlIntEnumsInput, base_client.InvokeOptions): async.Operation<types.XmlIntEnumsOutput>
+    xmlLists: function(Client, types.XmlListsInput, base_client.InvokeOptions): async.Operation<types.XmlListsOperationOutput>
+    xmlNamespaces: function(Client, types.XmlNamespacesInput, base_client.InvokeOptions): async.Operation<types.XmlNamespacesOutput>
+    xmlTimestamps: function(Client, types.XmlTimestampsInput, base_client.InvokeOptions): async.Operation<types.XmlTimestampsOutput>
 end
 
 local record M
-    new: function(cfg?: {string:any}): Client
+    new: function(cfg?: base_client.ClientConfig): Client
 end
 
 local Client_mt: metatable<Client> = { __index = {} as Client }
 local C = Client_mt.__index as Client
-C.invokeOperation = base_client.invokeOperation
+C.invokeOperation = base_client.invokeOperation as function(Client, schema.ServiceSchema, schema.OperationSchema, {string:any}, base_client.InvokeOptions): async.Operation<any>
 
-function M.new(cfg?: {string:any}): Client
-    local c = cfg or {}
+function M.new(cfg?: base_client.ClientConfig): Client
+    local c = cfg or {} as base_client.ClientConfig
     c.service_id = "AwsEc2"
-    if not c.protocol then c.protocol = query_protocol.new("ec2Query") end
+    if not c.protocol then c.protocol = query_protocol.new("ec2Query") as protocol_mod.ClientProtocol end
     if not c.endpoint_provider then
-        c.endpoint_provider = function(params)
+        c.endpoint_provider = function(params: {string:any}): endpoint.Endpoint, string
             return endpoint.resolve(endpoint_rules, params)
         end
     end
     if not c.auth_scheme_resolver then
-        c.auth_scheme_resolver = function(_service, operation)
-            local auth_trait = operation:trait(traits.AUTH) or _service:trait(traits.AUTH)
-            local options = {}
-            for _, scheme in ipairs(auth_trait or {}) do
-                local scheme_id = scheme.scheme_id or scheme
+        c.auth_scheme_resolver = function(_service: schema.ServiceSchema, operation: schema.OperationSchema): {auth.AuthOption}
+            local auth = require("smithy.auth")
+            local auth_trait = (operation:trait(traits.AUTH) or _service:trait(traits.AUTH)) as {auth.AuthOption}
+            local options: {auth.AuthOption} = {}
+            for _, scheme in ipairs(auth_trait or {} as {auth.AuthOption}) do
+                local scheme_id = scheme.scheme_id
                 if scheme_id == "aws.auth#sigv4" or scheme_id == "aws.auth#sigv4a" then
                     options[#options + 1] = { scheme_id = scheme_id, signer_properties = { signing_name = "ec2query", signing_region = c.region } }
                 else
@@ -82,104 +85,104 @@ function M.new(cfg?: {string:any}): Client
     return self
 end
 
-function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options: any): async.Operation<types.DatetimeOffsetsOutput>
-    return self:invokeOperation(schemas.Service, schemas.DatetimeOffsets, input, options) as async.Operation<types.DatetimeOffsetsOutput>
+function C:datetimeOffsets(input: types.DatetimeOffsetsInput, options: base_client.InvokeOptions): async.Operation<types.DatetimeOffsetsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.DatetimeOffsets as schema.OperationSchema, input, options) as async.Operation<types.DatetimeOffsetsOutput>
 end
 
-function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: any): async.Operation<types.EmptyInputAndEmptyOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.EmptyInputAndEmptyOutput, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
+function C:emptyInputAndEmptyOutput(input: types.EmptyInputAndEmptyOutputInput, options: base_client.InvokeOptions): async.Operation<types.EmptyInputAndEmptyOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EmptyInputAndEmptyOutput as schema.OperationSchema, input, options) as async.Operation<types.EmptyInputAndEmptyOutputOutput>
 end
 
-function C:endpointOperation(input: types.EndpointOperationInput, options: any): async.Operation<types.EndpointOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointOperation, input, options) as async.Operation<types.EndpointOperationOutput>
+function C:endpointOperation(input: types.EndpointOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointOperationOutput>
 end
 
-function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: any): async.Operation<types.EndpointWithHostLabelOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.EndpointWithHostLabelOperation, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
+function C:endpointWithHostLabelOperation(input: types.EndpointWithHostLabelOperationInput, options: base_client.InvokeOptions): async.Operation<types.EndpointWithHostLabelOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.EndpointWithHostLabelOperation as schema.OperationSchema, input, options) as async.Operation<types.EndpointWithHostLabelOperationOutput>
 end
 
-function C:fractionalSeconds(input: types.FractionalSecondsInput, options: any): async.Operation<types.FractionalSecondsOutput>
-    return self:invokeOperation(schemas.Service, schemas.FractionalSeconds, input, options) as async.Operation<types.FractionalSecondsOutput>
+function C:fractionalSeconds(input: types.FractionalSecondsInput, options: base_client.InvokeOptions): async.Operation<types.FractionalSecondsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.FractionalSeconds as schema.OperationSchema, input, options) as async.Operation<types.FractionalSecondsOutput>
 end
 
-function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: any): async.Operation<types.GreetingWithErrorsOutput>
-    return self:invokeOperation(schemas.Service, schemas.GreetingWithErrors, input, options) as async.Operation<types.GreetingWithErrorsOutput>
+function C:greetingWithErrors(input: types.GreetingWithErrorsInput, options: base_client.InvokeOptions): async.Operation<types.GreetingWithErrorsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.GreetingWithErrors as schema.OperationSchema, input, options) as async.Operation<types.GreetingWithErrorsOutput>
 end
 
-function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options: any): async.Operation<types.HostWithPathOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.HostWithPathOperation, input, options) as async.Operation<types.HostWithPathOperationOutput>
+function C:hostWithPathOperation(input: types.HostWithPathOperationInput, options: base_client.InvokeOptions): async.Operation<types.HostWithPathOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.HostWithPathOperation as schema.OperationSchema, input, options) as async.Operation<types.HostWithPathOperationOutput>
 end
 
-function C:ignoresWrappingXmlName(input: types.IgnoresWrappingXmlNameInput, options: any): async.Operation<types.IgnoresWrappingXmlNameOutput>
-    return self:invokeOperation(schemas.Service, schemas.IgnoresWrappingXmlName, input, options) as async.Operation<types.IgnoresWrappingXmlNameOutput>
+function C:ignoresWrappingXmlName(input: types.IgnoresWrappingXmlNameInput, options: base_client.InvokeOptions): async.Operation<types.IgnoresWrappingXmlNameOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.IgnoresWrappingXmlName as schema.OperationSchema, input, options) as async.Operation<types.IgnoresWrappingXmlNameOutput>
 end
 
-function C:nestedStructures(input: types.NestedStructuresInput, options: any): async.Operation<types.NestedStructuresOutput>
-    return self:invokeOperation(schemas.Service, schemas.NestedStructures, input, options) as async.Operation<types.NestedStructuresOutput>
+function C:nestedStructures(input: types.NestedStructuresInput, options: base_client.InvokeOptions): async.Operation<types.NestedStructuresOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NestedStructures as schema.OperationSchema, input, options) as async.Operation<types.NestedStructuresOutput>
 end
 
-function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: any): async.Operation<types.NoInputAndOutputOutput>
-    return self:invokeOperation(schemas.Service, schemas.NoInputAndOutput, input, options) as async.Operation<types.NoInputAndOutputOutput>
+function C:noInputAndOutput(input: types.NoInputAndOutputInput, options: base_client.InvokeOptions): async.Operation<types.NoInputAndOutputOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.NoInputAndOutput as schema.OperationSchema, input, options) as async.Operation<types.NoInputAndOutputOutput>
 end
 
-function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: any): async.Operation<types.PutWithContentEncodingOutput>
-    return self:invokeOperation(schemas.Service, schemas.PutWithContentEncoding, input, options) as async.Operation<types.PutWithContentEncodingOutput>
+function C:putWithContentEncoding(input: types.PutWithContentEncodingInput, options: base_client.InvokeOptions): async.Operation<types.PutWithContentEncodingOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.PutWithContentEncoding as schema.OperationSchema, input, options) as async.Operation<types.PutWithContentEncodingOutput>
 end
 
-function C:queryIdempotencyTokenAutoFill(input: types.QueryIdempotencyTokenAutoFillInput, options: any): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryIdempotencyTokenAutoFill, input, options) as async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+function C:queryIdempotencyTokenAutoFill(input: types.QueryIdempotencyTokenAutoFillInput, options: base_client.InvokeOptions): async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryIdempotencyTokenAutoFill as schema.OperationSchema, input, options) as async.Operation<types.QueryIdempotencyTokenAutoFillOutput>
 end
 
-function C:queryLists(input: types.QueryListsInput, options: any): async.Operation<types.QueryListsOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryLists, input, options) as async.Operation<types.QueryListsOutput>
+function C:queryLists(input: types.QueryListsInput, options: base_client.InvokeOptions): async.Operation<types.QueryListsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryLists as schema.OperationSchema, input, options) as async.Operation<types.QueryListsOutput>
 end
 
-function C:queryTimestamps(input: types.QueryTimestampsInput, options: any): async.Operation<types.QueryTimestampsOutput>
-    return self:invokeOperation(schemas.Service, schemas.QueryTimestamps, input, options) as async.Operation<types.QueryTimestampsOutput>
+function C:queryTimestamps(input: types.QueryTimestampsInput, options: base_client.InvokeOptions): async.Operation<types.QueryTimestampsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.QueryTimestamps as schema.OperationSchema, input, options) as async.Operation<types.QueryTimestampsOutput>
 end
 
-function C:recursiveXmlShapes(input: types.RecursiveXmlShapesInput, options: any): async.Operation<types.RecursiveXmlShapesOutput>
-    return self:invokeOperation(schemas.Service, schemas.RecursiveXmlShapes, input, options) as async.Operation<types.RecursiveXmlShapesOutput>
+function C:recursiveXmlShapes(input: types.RecursiveXmlShapesInput, options: base_client.InvokeOptions): async.Operation<types.RecursiveXmlShapesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.RecursiveXmlShapes as schema.OperationSchema, input, options) as async.Operation<types.RecursiveXmlShapesOutput>
 end
 
-function C:simpleInputParams(input: types.SimpleInputParamsInput, options: any): async.Operation<types.SimpleInputParamsOutput>
-    return self:invokeOperation(schemas.Service, schemas.SimpleInputParams, input, options) as async.Operation<types.SimpleInputParamsOutput>
+function C:simpleInputParams(input: types.SimpleInputParamsInput, options: base_client.InvokeOptions): async.Operation<types.SimpleInputParamsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleInputParams as schema.OperationSchema, input, options) as async.Operation<types.SimpleInputParamsOutput>
 end
 
-function C:simpleScalarXmlProperties(input: types.SimpleScalarXmlPropertiesInput, options: any): async.Operation<types.SimpleScalarXmlPropertiesOutput>
-    return self:invokeOperation(schemas.Service, schemas.SimpleScalarXmlProperties, input, options) as async.Operation<types.SimpleScalarXmlPropertiesOutput>
+function C:simpleScalarXmlProperties(input: types.SimpleScalarXmlPropertiesInput, options: base_client.InvokeOptions): async.Operation<types.SimpleScalarXmlPropertiesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.SimpleScalarXmlProperties as schema.OperationSchema, input, options) as async.Operation<types.SimpleScalarXmlPropertiesOutput>
 end
 
-function C:xmlBlobs(input: types.XmlBlobsInput, options: any): async.Operation<types.XmlBlobsOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlBlobs, input, options) as async.Operation<types.XmlBlobsOperationOutput>
+function C:xmlBlobs(input: types.XmlBlobsInput, options: base_client.InvokeOptions): async.Operation<types.XmlBlobsOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlBlobs as schema.OperationSchema, input, options) as async.Operation<types.XmlBlobsOperationOutput>
 end
 
-function C:xmlEmptyBlobs(input: types.XmlEmptyBlobsInput, options: any): async.Operation<types.XmlEmptyBlobsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEmptyBlobs, input, options) as async.Operation<types.XmlEmptyBlobsOutput>
+function C:xmlEmptyBlobs(input: types.XmlEmptyBlobsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEmptyBlobsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEmptyBlobs as schema.OperationSchema, input, options) as async.Operation<types.XmlEmptyBlobsOutput>
 end
 
-function C:xmlEmptyLists(input: types.XmlEmptyListsInput, options: any): async.Operation<types.XmlEmptyListsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEmptyLists, input, options) as async.Operation<types.XmlEmptyListsOutput>
+function C:xmlEmptyLists(input: types.XmlEmptyListsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEmptyListsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEmptyLists as schema.OperationSchema, input, options) as async.Operation<types.XmlEmptyListsOutput>
 end
 
-function C:xmlEnums(input: types.XmlEnumsInput, options: any): async.Operation<types.XmlEnumsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlEnums, input, options) as async.Operation<types.XmlEnumsOutput>
+function C:xmlEnums(input: types.XmlEnumsInput, options: base_client.InvokeOptions): async.Operation<types.XmlEnumsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlEnums as schema.OperationSchema, input, options) as async.Operation<types.XmlEnumsOutput>
 end
 
-function C:xmlIntEnums(input: types.XmlIntEnumsInput, options: any): async.Operation<types.XmlIntEnumsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlIntEnums, input, options) as async.Operation<types.XmlIntEnumsOutput>
+function C:xmlIntEnums(input: types.XmlIntEnumsInput, options: base_client.InvokeOptions): async.Operation<types.XmlIntEnumsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlIntEnums as schema.OperationSchema, input, options) as async.Operation<types.XmlIntEnumsOutput>
 end
 
-function C:xmlLists(input: types.XmlListsInput, options: any): async.Operation<types.XmlListsOperationOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlLists, input, options) as async.Operation<types.XmlListsOperationOutput>
+function C:xmlLists(input: types.XmlListsInput, options: base_client.InvokeOptions): async.Operation<types.XmlListsOperationOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlLists as schema.OperationSchema, input, options) as async.Operation<types.XmlListsOperationOutput>
 end
 
-function C:xmlNamespaces(input: types.XmlNamespacesInput, options: any): async.Operation<types.XmlNamespacesOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlNamespaces, input, options) as async.Operation<types.XmlNamespacesOutput>
+function C:xmlNamespaces(input: types.XmlNamespacesInput, options: base_client.InvokeOptions): async.Operation<types.XmlNamespacesOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlNamespaces as schema.OperationSchema, input, options) as async.Operation<types.XmlNamespacesOutput>
 end
 
-function C:xmlTimestamps(input: types.XmlTimestampsInput, options: any): async.Operation<types.XmlTimestampsOutput>
-    return self:invokeOperation(schemas.Service, schemas.XmlTimestamps, input, options) as async.Operation<types.XmlTimestampsOutput>
+function C:xmlTimestamps(input: types.XmlTimestampsInput, options: base_client.InvokeOptions): async.Operation<types.XmlTimestampsOutput>
+    return self:invokeOperation(schemas.Service as schema.ServiceSchema, schemas.XmlTimestamps as schema.OperationSchema, input, options) as async.Operation<types.XmlTimestampsOutput>
 end
 
 return M
