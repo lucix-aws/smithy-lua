@@ -31,7 +31,7 @@ public final class PaginatorGenerator implements LuaIntegration {
         if (allPaginated.isEmpty()) return;
 
         context.writerDelegator().useFileWriter(
-                serviceNs + "/paginators.lua", serviceNs, writer -> {
+                serviceNs + "/paginators.tl", serviceNs, writer -> {
                     writer.addRequire("paginator", "smithy.paginator");
                     writer.write("local M = {}");
                     writer.write("");
@@ -41,23 +41,6 @@ public final class PaginatorGenerator implements LuaIntegration {
                         writer.write("");
                     }
 
-                    writer.write("return M");
-                });
-
-        context.writerDelegator().useFileWriter(
-                serviceNs + "/paginators.d.tl", serviceNs, writer -> {
-                    writer.write("local record M");
-                    writer.indent();
-                    for (var entry : allPaginated.entrySet()) {
-                        var fnName = toSnakeCase(entry.getKey());
-                        writer.write("pages_$L: function(client: table, input: table): function(): table, table", fnName);
-                        if (!entry.getValue().getItemsMemberPath().isEmpty()) {
-                            writer.write("items_$L: function(client: table, input: table): function(): any", fnName);
-                        }
-                    }
-                    writer.dedent();
-                    writer.write("end");
-                    writer.write("");
                     writer.write("return M");
                 });
     }

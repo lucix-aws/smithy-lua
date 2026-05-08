@@ -27,8 +27,9 @@ public final class LuaImportContainer implements ImportContainer {
         if (symbol.getNamespace().isEmpty() || symbol.getDefinitionFile().isEmpty()) {
             return;
         }
-        // Derive the require path from the definition file: "weather/types.lua" -> "weather.types"
+        // Derive the require path from the definition file: "weather/types.tl" -> "weather.types"
         String requirePath = symbol.getDefinitionFile()
+                .replace(".tl", "")
                 .replace(".lua", "")
                 .replace("/", ".");
         // The local variable name is the last segment: "weather.types" -> "types"

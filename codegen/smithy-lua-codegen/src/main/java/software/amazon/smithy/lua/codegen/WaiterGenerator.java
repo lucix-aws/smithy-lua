@@ -37,7 +37,7 @@ public final class WaiterGenerator implements LuaIntegration {
         if (allWaiters.isEmpty()) return;
 
         context.writerDelegator().useFileWriter(
-                serviceNs + "/waiters.lua", serviceNs, writer -> {
+                serviceNs + "/waiters.tl", serviceNs, writer -> {
                     writer.addRequire("waiter", "smithy.waiter");
                     writer.write("local M = {}");
                     writer.write("");
@@ -47,23 +47,6 @@ public final class WaiterGenerator implements LuaIntegration {
                         writer.write("");
                     }
 
-                    writer.write("return M");
-                });
-
-        // Generate .d.tl declarations
-        context.writerDelegator().useFileWriter(
-                serviceNs + "/waiters.d.tl", serviceNs, writer -> {
-                    writer.write("local types = require($S)", serviceNs + ".types");
-                    writer.write("");
-                    writer.write("local record M");
-                    writer.indent();
-                    for (var entry : allWaiters.entrySet()) {
-                        var fnName = toSnakeCase(entry.getKey());
-                        writer.write("wait_until_$L: function(client: table, input: table, options: table): table, table", fnName);
-                    }
-                    writer.dedent();
-                    writer.write("end");
-                    writer.write("");
                     writer.write("return M");
                 });
     }
