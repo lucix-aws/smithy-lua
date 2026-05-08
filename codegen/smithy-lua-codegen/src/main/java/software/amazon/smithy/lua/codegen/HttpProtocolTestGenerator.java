@@ -278,6 +278,8 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
     // --- Preamble with test helpers (no block() for if/else) ---
 
     private void writePreamble(LuaWriter w, String ns, String proto, ServiceShape svc) {
+        w.write("local assert = require(\"luassert\") as any");
+        w.write("");
         w.write("-- Generated protocol test file — do not edit");
         w.write("-- Protocol: $L", proto);
         w.write("");

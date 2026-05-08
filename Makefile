@@ -13,7 +13,9 @@ teal-build:
 	done
 	@echo "teal-build: done"
 
-unit: $(BUSTED)
+unit:
+	$(BUSTED)
+	$(BUSTED) --run=protocol
 
 generate:
 	cd codegen && ./gradlew :smithy-lua-codegen-test:build :protocol-test-codegen:build

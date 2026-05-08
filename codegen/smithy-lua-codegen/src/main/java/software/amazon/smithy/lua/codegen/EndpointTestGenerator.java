@@ -45,6 +45,8 @@ public final class EndpointTestGenerator implements LuaIntegration {
     }
 
     private void writePreamble(LuaWriter w, String ns) {
+        w.write("local assert = require(\"luassert\") as any");
+        w.write("");
         w.write("-- Generated endpoint ruleset tests — do not edit");
         w.write("");
         w.write("local endpoint = require(\"smithy.endpoint\")");
