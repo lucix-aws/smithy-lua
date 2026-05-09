@@ -6,6 +6,7 @@
 local async = require("smithy.async")
 local ffi = require("ffi")
 local http = require("smithy.http")
+local jit = require("jit")
 
 pcall(ffi.cdef, [[
 typedef void CURL;
@@ -313,7 +314,6 @@ function M.new(): http.HttpClient
 
         return op
     end
-    local jit = require("jit")
     jit.off(do_request)
 
     return { roundtrip = function(_self: http.HttpClient, req: http.Request): async.Operation<http.Response>
