@@ -15,9 +15,10 @@ final class ClientGenerator {
         var model = context.model();
         var service = context.service();
         var serviceNs = LuaSymbolProvider.getServiceNamespace(service);
+        var serviceRequire = LuaSymbolProvider.getServiceRequirePrefix(service);
         var symbolProvider = context.symbolProvider();
         var delegator = context.writerDelegator();
-        var file = serviceNs + "/client.tl";
+        var file = serviceNs + "/init.tl";
 
         delegator.useFileWriter(file, serviceNs, writer -> {
             var topDown = TopDownIndex.of(model);
@@ -75,14 +76,14 @@ final class ClientGenerator {
             writer.write("local base_client = require(\"smithy.client\")");
             writer.write("local defaults = require(\"smithy.defaults\")");
             writer.write("local endpoint = require(\"smithy.endpoint\")");
-            writer.write("local endpoint_rules = require(\"$L.endpoint_rules\")", serviceNs);
+            writer.write("local endpoint_rules = require(\"$L.endpoint_rules\")", serviceRequire);
             if (protocolRequire != null) {
                 writer.write("local $L = require(\"$L\")", protocolAlias, protocolRequire);
             }
             writer.write("local schema = require(\"smithy.schema\")");
-            writer.write("local schemas = require(\"$L.schemas\")", serviceNs);
+            writer.write("local schemas = require(\"$L.schemas\")", serviceRequire);
             writer.write("local traits = require(\"smithy.traits\")");
-            writer.write("local types = require(\"$L.types\")", serviceNs);
+            writer.write("local types = require(\"$L.types\")", serviceRequire);
             writer.write("local protocol_mod = require(\"smithy.protocol\")");
             var emittedAliases = new HashSet<String>();
             for (var resolver : configResolvers) {

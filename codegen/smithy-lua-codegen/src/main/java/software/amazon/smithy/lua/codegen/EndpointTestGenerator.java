@@ -50,7 +50,7 @@ public final class EndpointTestGenerator implements LuaIntegration {
         w.write("-- Generated endpoint ruleset tests — do not edit");
         w.write("");
         w.write("local endpoint = require(\"smithy.endpoint\")");
-        w.write("local ruleset = require($S)", ns + ".endpoint_rules");
+        w.write("local ruleset = require($S)", ns.replace("/", ".") + ".endpoint_rules");
         w.write("");
     }
 

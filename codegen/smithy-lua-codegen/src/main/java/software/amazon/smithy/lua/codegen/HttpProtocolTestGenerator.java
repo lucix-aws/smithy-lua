@@ -283,7 +283,7 @@ public final class HttpProtocolTestGenerator implements LuaIntegration {
         w.write("-- Generated protocol test file — do not edit");
         w.write("-- Protocol: $L", proto);
         w.write("");
-        w.write("local types = require($S)", ns + ".schemas");
+        w.write("local types = require($S)", ns.replace("/", ".") + ".schemas");
         w.write("local schema = require(\"smithy.schema\")");
         w.write("local shape_id = require(\"smithy.shape_id\")");
         w.write("local traits = require(\"smithy.traits\")");

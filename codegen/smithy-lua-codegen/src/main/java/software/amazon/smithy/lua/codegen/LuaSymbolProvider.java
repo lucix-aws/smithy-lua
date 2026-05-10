@@ -59,13 +59,20 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
             var sdkId = serviceTrait.get().toNode().expectObjectNode()
                     .getStringMember("sdkId");
             if (sdkId.isPresent()) {
-                return sdkId.get().getValue()
+                return "aws/sdk/service/" + sdkId.get().getValue()
                         .replace("-", "")
                         .replace(" ", "")
                         .toLowerCase();
             }
         }
-        return StringUtils.uncapitalize(service.getId().getName());
+        return "aws/sdk/service/" + StringUtils.uncapitalize(service.getId().getName());
+    }
+
+    /**
+     * Returns the dot-separated require path for the service (e.g. "aws.sdk.service.dynamodb").
+     */
+    static String getServiceRequirePrefix(ServiceShape service) {
+        return getServiceNamespace(service).replace("/", ".");
     }
 
     @Override
@@ -102,7 +109,7 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return Symbol.builder()
                 .name("Client")
                 .namespace(serviceNamespace, ".")
-                .definitionFile(serviceNamespace + "/client.tl")
+                .definitionFile(serviceNamespace + "/init.tl")
                 .build();
     }
 
@@ -111,7 +118,7 @@ public final class LuaSymbolProvider implements SymbolProvider, ShapeVisitor<Sym
         return Symbol.builder()
                 .name(StringUtils.uncapitalize(shape.getId().getName(service)))
                 .namespace(serviceNamespace, ".")
-                .definitionFile(serviceNamespace + "/client.tl")
+                .definitionFile(serviceNamespace + "/init.tl")
                 .build();
     }
 
