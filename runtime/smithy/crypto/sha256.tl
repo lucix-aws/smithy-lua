@@ -34,7 +34,6 @@ local H0: {number} = {
 }
 
 local function add2(a: number, b: number): number return tobit(a + b) end
-local function add3(_a: number, _b: number, _c: number): number return tobit(_a + _b + _c) end
 local function add4(a: number, b: number, c: number, d: number): number return tobit(a + b + c + d) end
 local function add5(a: number, b: number, c: number, d: number, e: number): number return tobit(a + b + c + d + e) end
 

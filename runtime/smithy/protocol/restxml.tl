@@ -1,6 +1,5 @@
 -- smithy-lua runtime: restXml protocol
 
-local json_codec = require("smithy.codec.json")
 local xml_codec = require("smithy.codec.xml")
 local http = require("smithy.http")
 local schema_mod = require("smithy.schema")

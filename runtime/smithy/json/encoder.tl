@@ -15,7 +15,6 @@ local concat = table.concat
 local format = string.format
 local huge = math.huge
 local type = type
-local tostring = tostring
 
 -- Escape map for JSON string encoding
 local escape_map: {string:string} = {

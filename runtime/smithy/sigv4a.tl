@@ -152,7 +152,7 @@ function M.sign(request: any, identity: any, props: {string:any}): any, any
     local canonical_request = table.concat({
         req.method as string,
         sigv4.uri_encode(path, false):gsub("%%2F", "/"),
-        "",
+        sigv4.canonical_query_string(query),
         canonical_headers_str,
         signed_headers,
         payload_hash,

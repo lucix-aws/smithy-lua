@@ -347,9 +347,9 @@ local functions: {string: FnType} = {
 -- Argument resolution
 ---------------------------------------------------------------------------
 
-local function resolve_arg(arg: any, scope: {string: any}): any
-    if type(arg) == "table" then
-        local t = arg as table
+local function resolve_arg(a: any, scope: {string: any}): any
+    if type(a) == "table" then
+        local t = a as table
         if (t as {string:any})["ref"] then
             local val = scope[(t as {string:any})["ref"] as string]
             if val == UNSET then return nil end
@@ -359,10 +359,10 @@ local function resolve_arg(arg: any, scope: {string: any}): any
             return M._call_fn((t as {string:any})["fn"] as string, (t as {string:any})["argv"] as {any}, scope)
         end
     end
-    if type(arg) == "string" then
-        return resolve_template(arg, scope)
+    if type(a) == "string" then
+        return resolve_template(a, scope)
     end
-    return arg
+    return a
 end
 
 function M._call_fn(name: string, argv: {any}, scope: {string: any}): any

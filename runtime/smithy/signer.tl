@@ -6,6 +6,7 @@ local http = require("smithy.http")
 
 local record M
     uri_encode: function(s: string, encode_slash: boolean): string
+    canonical_query_string: function(query: string): string
     sign: function(request: any, identity: any, props: {string:any}): any, any
 end
 
@@ -49,7 +50,7 @@ local function parse_url(url: string): string, string, string
     return host, path, query
 end
 
-local function canonical_query_string(query: string): string
+function M.canonical_query_string(query: string): string
     if query == "" then return "" end
     local params: {{string}} = {}
     for pair in query:gmatch("[^&]+") do
@@ -148,7 +149,7 @@ function M.sign(request: any, identity: any, props: {string:any}): any, any
     local canonical_request = table.concat({
         req.method as string,
         canonical_path(path, disable_double),
-        canonical_query_string(query),
+        M.canonical_query_string(query),
         canonical_headers_str,
         signed_headers,
         payload_hash,

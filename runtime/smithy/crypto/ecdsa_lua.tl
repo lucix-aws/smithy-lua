@@ -33,7 +33,6 @@ end
 function M.sign(d: bigint.BigInt, hash_bytes: string): string
     assert(#hash_bytes == 32, "hash must be 32 bytes")
     local z = bigint.from_bytes(hash_bytes)
-    local n = field.N
 
     for _ = 1, 256 do
         local k = random_k()

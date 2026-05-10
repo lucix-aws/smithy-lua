@@ -10,7 +10,6 @@ local byte = string.byte
 local sub = string.sub
 local find = string.find
 local tonumber = tonumber
-local huge = math.huge
 
 local CHAR_SPACE = 32
 local CHAR_TAB   = 9

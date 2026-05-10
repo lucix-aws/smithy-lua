@@ -80,14 +80,7 @@ local function crc32(data: any, offset: number, len: number, init?: number): num
     return tonumber(ffi.cast("uint32_t", bxor(crc, 0xFFFFFFFF))) as number
 end
 
-local function uint32_bytes(v: number): string
-    return string.char(
-        band(rshift(v, 24), 0xFF),
-        band(rshift(v, 16), 0xFF),
-        band(rshift(v, 8), 0xFF),
-        band(v, 0xFF)
-    )
-end
+
 
 ----------------------------------------------------------------------------
 -- Binary reading helpers
